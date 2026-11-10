@@ -1,0 +1,23 @@
+# Store text files with LF in the repository and check them out with LF
+# on every platform (Windows and macOS), regardless of local core.autocrlf.
+* text=auto eol=lf
+
+# Windows-only scripts require CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files: never normalize or diff as text
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.mp3 binary
+*.mp4 binary
+*.jar binary
