@@ -11,10 +11,19 @@
 
 | | Android | iOS |
 |---|---|---|
-| Host OS | Windows 11 | macOS (version TBD) |
-| Target | Android Emulator – AVD name/API level: *TBD* | iOS Simulator – device/iOS version: *TBD* |
-| Tester | | |
-| App commit tested | | |
+| Host OS | Windows 11 | macOS 27.0.1, Xcode 27.2 (build 27B52) |
+| Target | Android Emulator – AVD name/API level: *TBD* | iOS Simulator – iPhone 18 Pro Max, iOS 27.2 |
+| Tester | | Tyrone Asante |
+| App commit tested | | `043b005` |
+
+### 1.1 Startup Smoke Test (US-01.01, NIT-161)
+
+Checks that the Expo project starts on each platform. Command: `npm ci`, then `npm run android` or `npm run ios` (`expo start --<platform>`, loaded in Expo Go).
+
+| Platform | Date | Tester | Commit | Actual result | Status |
+|---|---|---|---|---|---|
+| Android Emulator (Windows) | | | | | NOT RUN |
+| iOS Simulator (macOS) | 2026-11-18 | Tyrone Asante | `043b005` | Metro reported `iOS Bundled 5637ms index.ts (713 modules)`. Expo Go (SDK 58.0.0) opened the app on iPhone 18 Pro Max / iOS 27.2 and showed the `App.tsx` placeholder text "Open up App.tsx to start working on your app!". No errors in the terminal. `npx tsc --noEmit` passed. | PASS |
 
 ## 2. Automated Unit Tests
 

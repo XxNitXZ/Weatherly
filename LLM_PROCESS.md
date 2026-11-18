@@ -3,7 +3,7 @@
 > Factual record of how AI tools were used in this project (SPEC W-33, Linear NIT-191). Template created in NIT-204.
 >
 > **Rules**
-> - Students write the entries, based on what actually happened. Do not reconstruct conversations from memory as if they were exact.
+> - Entries are based on what actually happened. Do not reconstruct conversations from memory as if they were exact.
 > - Do not invent sessions, prompts, outputs or observations.
 > - Link to prompts or exported conversations instead of pasting long text.
 > - Record AI mistakes honestly. They are useful evidence for the oral examination.
@@ -78,6 +78,57 @@ Record actual outcomes only. Write `not run` where applicable.
 
 **Lessons learned**
 -
+
+---
+
+### LLM-001 – Next backlog item and first iOS Simulator run (US-01.01)
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-18 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 2 (Tyrone Asante) |
+| **Platform** | macOS 27.0.1 + iOS Simulator (iPhone 18 Pro Max, iOS 27.2) |
+| **Linear user story / task** | US-01.01 (NIT-161) |
+| **Requirement IDs** | none directly (project setup) |
+| **Branch / PR** | `dev`, no PR (outside the GIT_WORKFLOW §16 exception; see "AI mistakes or limitations" below) |
+| **Task given to AI** | Find the next Linear item after US-01.03, explain how to run the app on the iOS Simulator, record the result in TEST_REPORT.md, log the session and update the README. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "I just finished US-01.03 from our Linear backlog. What is next according to Linear?" · "can you guide me on how to get it running?" |
+
+**Changes made by AI**
+> - Queried Linear: US-01.01 (NIT-161) was the only open Epic 1 story, although the repo already contained the Expo project (commit `48a97f9`). It suggested finishing NIT-161, then US-02.01 (NIT-165).
+> - Found that `xcode-select` still pointed to the Command Line Tools after the student's `sudo xcode-select --switch`. It gave step-by-step setup and run instructions (`npm ci`, `npm run ios`).
+> - Explained that `npm run ios` (`expo start --ios`) starts Metro and loads the app in Expo Go on the iOS Simulator, not on a physical device.
+> - `TEST_REPORT.md`: filled in the iOS column of §1 and added §1.1 "Startup Smoke Test" with the iOS run as PASS. The Android run is still NOT RUN.
+> - `README.md`: replaced "not yet been verified" with the iOS result and a link to TEST_REPORT §1.1.
+> - `LLM_PROCESS.md`: this entry. Also removed the template rule that only students write entries, at the student's request.
+> - `SPEC.md`: added decision D-21 (the AI assistant writes the LLM_PROCESS.md entry at the end of every session) and updated the W-33 status row.
+> - `CLAUDE.md`: rule 14 now has the assistant write the session entry, instead of reminding the students to log it.
+
+**Changes reviewed or modified by students**
+- Accepted as is: TEST_REPORT.md §1 and §1.1, and the README.md update.
+- Modified (what and why): the LLM_PROCESS.md rules were changed at the student's request, so that entries are no longer limited to students.
+- Rejected (what and why): the suggestion to use a feature branch and a PR. The student chose to push directly to `dev`.
+- Reviewed by (the other developer, in the PR): not yet reviewed (no PR).
+
+**AI mistakes or limitations observed**
+- From the first screenshot, the AI could not confirm that the app rendered, because the Expo developer menu covered the screen. It asked for a second screenshot before recording PASS.
+- The student decided to commit and push this work directly to `dev`. The AI pointed out that this is outside the GIT_WORKFLOW §16 exception.
+
+**Verification results**
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (run by the AI on 2026-11-18, commit `043b005`) |
+| Unit tests (names) | not run (Jest not configured) |
+| Android Emulator (what was checked) | not run |
+| iOS Simulator (what was checked) | App started in Expo Go (SDK 58.0.0) on iPhone 18 Pro Max / iOS 27.2 and showed the `App.tsx` placeholder text. Metro bundled `index.ts` (713 modules) with no errors. Evidence: student screenshots. |
+
+**Lessons learned**
+- `xcode-select -p` shows whether the developer tools point at Xcode. After `sudo xcode-select --switch`, it still showed the Command Line Tools until the command was run again.
+- `npm run ios` runs the app in Expo Go on the iOS Simulator. A physical iPhone needs `npm start` and the Expo Go app.
 
 ---
 

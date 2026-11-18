@@ -118,7 +118,7 @@ npm run android
 npm run ios
 ```
 
-The app has not yet been verified on either emulator or simulator. Results will be recorded in [TEST_REPORT.md](TEST_REPORT.md).
+The app has been verified to start on the iOS Simulator (2026-11-18). The Android Emulator run is still pending. Results are recorded in [TEST_REPORT.md §1.1](TEST_REPORT.md#11-startup-smoke-test-us-0101-nit-161).
 
 ## Testing
 

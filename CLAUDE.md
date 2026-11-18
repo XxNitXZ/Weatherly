@@ -40,6 +40,9 @@ If a request conflicts with these documents, stop and point out the conflict.
 11. **Explain:** explain important implementation and architecture decisions so the students can defend them.
 12. **Language:** source code and documentation are in English.
 13. **Docs location:** all project Markdown files live at the repository root (SPEC D-14). Do not create a `docs/` or `agents/` folder.
-14. **End of session:** remind the students to:
-    - log the actual AI interaction in [LLM_PROCESS.md](LLM_PROCESS.md)
-    - complete the checklist in CONTEXT.md §16
+14. **End of session:**
+    - Write the session entry in [LLM_PROCESS.md](LLM_PROCESS.md) (SPEC D-21). Number it sequentially and follow the template in LLM_PROCESS.md §3.
+      - Base it only on what actually happened in the session.
+      - Leave a field empty if you cannot know its value, such as "Read and understood line by line".
+      - Do not add a note about who wrote the entry.
+    - Remind the students to complete the checklist in CONTEXT.md §16.
