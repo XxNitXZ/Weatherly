@@ -136,7 +136,7 @@ Linear: NIT-xxx · Requirements: W-xx, W-yy
 - [ ] iOS Simulator (macOS) – scenarios: UX-xx
 
 ## AI usage
-Assistant: Claude Code / OpenAI Codex / none · LLM_PROCESS entry: LLM-xxx
+Assistant: Claude Code / none · LLM_PROCESS entry: LLM-xxx
 
 ## Docs
 - [ ] SPEC.md status/decisions updated
@@ -199,7 +199,7 @@ git merge dev
 
 - **No force-pushes** (`git push --force` / `-f`) to `main` or `dev`, ever. Avoid force-pushing shared work branches too. Prefer new commits over rewriting history.
 - No `git reset --hard` or `git rebase` on commits that are already pushed and shared.
-- No committing directly to `main` or `dev`.
+- No committing directly to `main` or `dev` (the single documented exception is §16).
 - No deleting other people's branches without asking.
 
 ## 14. Secrets and the Public Repository
@@ -213,10 +213,26 @@ The repository is **public**. Anything committed is visible forever, even after 
 
 ## 15. AI Assistants and Git
 
-Developer 1 uses Claude Code and Developer 2 uses OpenAI Codex. Both assistants follow this workflow through the shared rules in `agents/claude.md` and `agents/codex.md`. Each developer tells their assistant to read its file at the start of every session.
+Both developers use Claude Code in VS Code, which follows this workflow through the rules in the root [CLAUDE.md](CLAUDE.md), loaded automatically each session. [AGENTS.md](AGENTS.md) only points to `CLAUDE.md`.
 
-- Assistants work on the current work branch only. They never commit to `main` or `dev` and never force-push.
+History: until 2026-11-18, Developer 2 used OpenAI Codex, and the rules were kept in two identical files, `agents/claude.md` and `agents/codex.md`, which had to be changed together (SPEC D-13, superseded by D-15).
+
+- Assistants work on the current work branch only. They never commit to `main` or `dev` and never force-push (exception: §16).
 - Assistants commit or push only when the operating student asks. The student reviews `git diff` before every commit.
 - The PR description names the assistant used and links the LLM_PROCESS.md entry.
-- `agents/claude.md` and `agents/codex.md` are changed together in the same PR, so the two rule sets never diverge.
+- `AGENTS.md` holds no rules of its own, so there is only one agent rule set to maintain.
 - Assistant-specific local files (personal settings, caches, credentials) are never committed.
+
+## 16. Documented Exception: Direct Work on `dev` (NIT-163)
+
+For one Lab B.2 step only, the team decided to work directly on `dev`, without a feature branch or pull request (SPEC D-16).
+
+| Item | Value |
+|---|---|
+| Scope | Only the work explicitly authorised in the 2026-11-18 session: (1) moving all Markdown files to the repository root and the related documentation corrections, including the switch to Claude Code (SPEC D-14, D-15); (2) the agreed NIT-163 (US-01.03) `src/` folder structure (D-19); (3) the minimal shared types and architecture contracts `AppError`, `Coordinates`/`Location` and `LoadState<T>` (D-17, D-18, D-20); (4) documentation of the search-to-forecast data flow and navigation ownership (STYLE §3.1 – §3.3) |
+| Date | 2026-11-18 |
+| Branch | `dev` |
+| Still applies | Conventional Commits, `npx tsc --noEmit` before committing, no force-push, review of `git diff` before committing, commit/push only when a student asks |
+| Review | The other student reviews the resulting commit(s) on `dev` after the fact |
+
+This exception is **not** a precedent. All work outside the scope above, including every weather feature, service, repository, hook, navigation and UI implementation, follows §4–§9: a work branch from `dev` and a pull request into `dev`.

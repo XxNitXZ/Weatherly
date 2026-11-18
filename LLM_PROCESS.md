@@ -12,11 +12,11 @@
 
 | Assistant | Operated by | Platform | Agent file (read explicitly each session) |
 |---|---|---|---|
-| Claude Code | Developer 1 | Windows / Android Emulator | [agents/claude.md](../agents/claude.md) |
-| OpenAI Codex | Developer 2 | macOS / iOS Simulator | [agents/codex.md](../agents/codex.md) |
+| Claude Code in VS Code | Developer 1 | Windows / Android Emulator | [CLAUDE.md](CLAUDE.md) (loaded automatically) |
+| Claude Code in VS Code | Developer 2 | macOS / iOS Simulator | [CLAUDE.md](CLAUDE.md) (loaded automatically) |
 | ChatGPT | Either developer | Planning, review, prompts | — |
 
-Both coding assistants follow the same rules (SPEC D-13). Note in each entry which assistant was used, so the two can be compared later.
+Both developers use Claude Code with the single rule set in `CLAUDE.md` (SPEC D-15). Until 2026-11-18, Developer 2's assistant was OpenAI Codex, with rules in `agents/codex.md` (SPEC D-13, superseded). Note in each entry which assistant and which developer were involved.
 
 ## 2. Who Wrote What
 
@@ -43,14 +43,14 @@ Copy the template below for each session. Number entries sequentially (`LLM-001`
 | Field | Entry |
 |---|---|
 | **Session date** | YYYY-MM-DD |
-| **AI assistant** | Claude Code / OpenAI Codex / ChatGPT (model or version if known) |
+| **AI assistant** | Claude Code in VS Code / ChatGPT (model or version if known) |
 | **Operated by** | Developer 1 / Developer 2 (name) |
 | **Platform** | Windows + Android Emulator / macOS + iOS Simulator |
 | **Linear user story / task** | e.g. US-02.01 (NIT-165) · NIT-xxx |
 | **Requirement IDs** | e.g. W-01, W-02 |
 | **Branch / PR** | e.g. `feat/NIT-xxx-…` · PR #… |
 | **Task given to AI** | One or two sentences. |
-| **Agent file read at start?** | yes / no (`agents/claude.md` or `agents/codex.md`) |
+| **Agent file loaded at start?** | yes / no (`CLAUDE.md`, loaded automatically by Claude Code) |
 | **Prompt or prompt reference** | Link, file path, or short quote of the key prompt. |
 
 **Changes made by AI**

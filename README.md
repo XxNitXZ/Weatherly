@@ -23,11 +23,11 @@ Weatherly is the team project for **Lab B:2 – Building a Native Weather App** 
 | Planned libraries | React Navigation · AsyncStorage · Jest + `jest-expo` *(chosen, not yet installed)* |
 | Platforms | Android (Emulator on Windows) · iOS (Simulator on macOS) |
 | Project management | Linear · GitHub |
-| AI-assisted development | Claude Code (Windows) · OpenAI Codex (macOS), both following one shared rule set |
+| AI-assisted development | Claude Code in VS Code (both developers), following one rule set in `CLAUDE.md` |
 
 ## Planned Key Features
 
-These features are planned and not yet implemented. Requirement IDs refer to [docs/SPEC.md](docs/SPEC.md).
+These features are planned and not yet implemented. Requirement IDs refer to [SPEC.md](SPEC.md).
 
 - Search for locations by place name (geocoding) or by validated coordinates (W-01 – W-03)
 - Current weather, hourly forecast for today and a seven-day forecast with day details (W-04 – W-07)
@@ -42,40 +42,44 @@ These features are planned and not yet implemented. Requirement IDs refer to [do
 Weatherly follows **MVVM** with a thin data layer:
 
 ```
-View  ──▶  ViewModel (hooks)  ──▶  Repository  ──▶  API service ──▶ Parser ──▶ Model
-                                       └──────▶  Local storage
+View ──▶ ViewModel (hook) ──▶ Repository ──┬──▶ API service   (raw JSON)
+                                           ├──▶ Parser        (raw JSON → typed model)
+                                           └──▶ Local storage (cache, favourites, settings)
+All layers use the typed Models.
 ```
 
-| Layer | Responsibility |
-|---|---|
-| Views | Render state and forward user actions |
-| ViewModels | Screen state, loading and error handling, user intents |
-| Repositories | Cache vs. network decisions, offline fallback |
-| API services | HTTP requests only |
-| Parsers | Turn raw JSON into typed models |
-| Models | Plain TypeScript types |
+| Layer | Responsibility | In the repository today |
+|---|---|---|
+| Views | Render state, forward user actions, own navigation | Folder only (`src/views/`) |
+| ViewModels | Screen state (`LoadState<T>`), loading and error handling, user intents | [`src/viewmodels/loadState.ts`](src/viewmodels/loadState.ts) |
+| Repositories | Combine service + parser; cache vs. network and offline fallback for weather | Folder only (planned: `locationRepository`, `weatherRepository`, …) |
+| API services | HTTP requests only | Folder only (`src/services/api/`) |
+| Parsers | Turn raw JSON into typed models | Folder only (`src/parsers/`) |
+| Storage | Thin wrapper around AsyncStorage | Folder only (`src/storage/`) |
+| Models | Plain TypeScript types | [`AppError`](src/models/AppError.ts), [`Coordinates` / `Location`](src/models/Location.ts) |
 
-Full rules: [docs/STYLE.md](docs/STYLE.md).
+Only the three files linked above exist. All other modules are planned, and their contracts are described in [STYLE.md §3.1](STYLE.md#31-layer-contracts). The search-to-forecast data flow and navigation ownership are in [STYLE.md §3.2 – §3.3](STYLE.md#32-search-to-forecast-data-flow). Full rules: [STYLE.md](STYLE.md).
 
 ## Documentation
 
 | Document | Purpose |
 |---|---|
-| [SPEC.md](docs/SPEC.md) | Requirements (W-xx), tracking, decision log, AI rules |
-| [STYLE.md](docs/STYLE.md) | Architecture and coding conventions |
-| [CONTEXT.md](docs/CONTEXT.md) | Course, environment, workflow and constraints |
-| [GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) | Branching, commits and pull requests |
-| [TEST_REPORT.md](docs/TEST_REPORT.md) | Unit tests and UX scenario results |
-| [LLM_PROCESS.md](docs/LLM_PROCESS.md) | Log of AI-assisted development |
-| [REFLECTION.md](docs/REFLECTION.md) | Student reflection |
-| [agents/claude.md](agents/claude.md) · [agents/codex.md](agents/codex.md) | Identical instructions for Claude Code and OpenAI Codex that point to the docs above |
+| [SPEC.md](SPEC.md) | Requirements (W-xx), tracking, decision log, AI rules |
+| [STYLE.md](STYLE.md) | Architecture and coding conventions |
+| [CONTEXT.md](CONTEXT.md) | Course, environment, workflow and constraints |
+| [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | Branching, commits and pull requests |
+| [TEST_REPORT.md](TEST_REPORT.md) | Unit tests and UX scenario results |
+| [LLM_PROCESS.md](LLM_PROCESS.md) | Log of AI-assisted development |
+| [REFLECTION.md](REFLECTION.md) | Student reflection |
+| [CLAUDE.md](CLAUDE.md) | Agent instructions for Claude Code, loaded automatically; points to the docs above |
+| [AGENTS.md](AGENTS.md) | Pointer to `CLAUDE.md` for tools that read `AGENTS.md` |
 
 ### AI-Assisted Development
 
-The two developers use different AI coding assistants: Claude Code on Windows and OpenAI Codex on macOS.
-- Both follow the same rules, kept in [agents/claude.md](agents/claude.md) and [agents/codex.md](agents/codex.md), which point to `docs/` as the single source of truth.
-- These files are **not** loaded automatically: each developer tells their assistant to read its file at the start of every session.
-- Every AI-assisted change is reviewed by the other student and logged in [LLM_PROCESS.md](docs/LLM_PROCESS.md).
+Both developers use Claude Code in VS Code.
+- The rules are kept in [CLAUDE.md](CLAUDE.md), which Claude Code loads automatically and which points to SPEC, STYLE and CONTEXT as the single source of truth. [AGENTS.md](AGENTS.md) only points to it.
+- Until 2026-11-18, Developer 2 used OpenAI Codex with a copy of the rules in `agents/codex.md` (see D-13 and D-15 in the [SPEC.md decision log](SPEC.md#13-decision-log)).
+- Every AI-assisted change is reviewed by the other student and logged in [LLM_PROCESS.md](LLM_PROCESS.md).
 
 ## Getting Started
 
@@ -114,7 +118,7 @@ npm run android
 npm run ios
 ```
 
-The app has not yet been verified on either emulator or simulator. Results will be recorded in [TEST_REPORT.md](docs/TEST_REPORT.md).
+The app has not yet been verified on either emulator or simulator. Results will be recorded in [TEST_REPORT.md](TEST_REPORT.md).
 
 ## Testing
 
@@ -123,7 +127,7 @@ npx tsc --noEmit   # type check
 npx expo-doctor    # Expo project health check
 ```
 
-Unit tests will use Jest with `jest-expo`, which is not configured yet (see the decision log in [SPEC.md](docs/SPEC.md#13-decision-log)). UX scenarios for both platforms are defined in [TEST_REPORT.md](docs/TEST_REPORT.md#3-ux-interaction-scenarios).
+Unit tests will use Jest with `jest-expo`, which is not configured yet (see the decision log in [SPEC.md](SPEC.md#13-decision-log)). UX scenarios for both platforms are defined in [TEST_REPORT.md](TEST_REPORT.md#3-ux-interaction-scenarios).
 
 ## Git Workflow
 
@@ -131,7 +135,7 @@ Unit tests will use Jest with `jest-expo`, which is not configured yet (see the 
 - `dev`: integration
 - `feat/NIT-xxx-description`: one branch per Linear issue, created from `dev`
 
-Pull requests target `dev`, and commits follow [Conventional Commits](https://www.conventionalcommits.org). Details: [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md).
+Pull requests target `dev`, and commits follow [Conventional Commits](https://www.conventionalcommits.org). Details: [GIT_WORKFLOW.md](GIT_WORKFLOW.md). One documented exception (direct work on `dev` for NIT-163) is described in [GIT_WORKFLOW.md §16](GIT_WORKFLOW.md#16-documented-exception-direct-work-on-dev-nit-163).
 
 ## Current Development Status
 
@@ -139,8 +143,9 @@ Pull requests target `dev`, and commits follow [Conventional Commits](https://ww
 |---|---|
 | Expo + TypeScript scaffold | Done |
 | Git, GitHub, branching workflow | Done |
-| Project documentation | In review |
+| Project documentation | Merged into `dev` (PR #1); moved to the repository root, not yet committed |
+| MVVM architecture & folder structure (NIT-163) | In progress: folders, shared types and contracts created, not yet reviewed or committed |
 | Weather features (W-01 – W-23) | Not started |
 | Unit tests and UX scenarios | Not started |
 
-Detailed per-requirement status: [SPEC.md §11](docs/SPEC.md#11-requirement-tracking).
+Detailed per-requirement status: [SPEC.md §11](SPEC.md#11-requirement-tracking).

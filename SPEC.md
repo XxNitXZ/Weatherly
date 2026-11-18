@@ -7,7 +7,7 @@
 
 ## 0. AI Meta-Instructions
 
-These instructions apply to every AI assistant working on this repository: **Claude Code** (Developer 1, Windows), **OpenAI Codex** (Developer 2, macOS), and ChatGPT for planning and review. They take precedence over general assistant defaults. The agent files [agents/claude.md](../agents/claude.md) and [agents/codex.md](../agents/codex.md) contain the same rule set and point here. They must not diverge from each other or from this file. They are **not** loaded automatically: each developer tells their assistant to read its agent file at the start of every session ([CONTEXT.md §15](CONTEXT.md#15-ai-collaboration-workflow)).
+These instructions apply to every AI assistant working on this repository: **Claude Code in VS Code** (used by both developers, D-15), and ChatGPT for planning and review. They take precedence over general assistant defaults. The agent rule set is [CLAUDE.md](CLAUDE.md), which Claude Code loads automatically from the repository root; [AGENTS.md](AGENTS.md) only points to it. The rule set must not diverge from this file ([CONTEXT.md §15](CONTEXT.md#15-ai-collaboration-workflow)). Until 2026-11-18, Developer 2 used OpenAI Codex with a separate copy of the rules (D-13, superseded).
 
 1. **Read first.** Before every implementation session, read [SPEC.md](SPEC.md), [STYLE.md](STYLE.md) and [CONTEXT.md](CONTEXT.md).
 2. **Stay in scope.** Implement only the user story or task named in the session request. Do not implement unrelated user stories, even partially.
@@ -90,7 +90,7 @@ Parser                           raw JSON → typed Model, validation
 Model                            plain TypeScript types, no logic dependencies
 ```
 
-Detailed layer rules and the planned folder structure are in [STYLE.md §3–4](STYLE.md#3-mvvm-architecture).
+Detailed layer rules, layer contracts, the search-to-forecast data flow, navigation ownership and the folder structure are in [STYLE.md §3–4](STYLE.md#3-mvvm-architecture). The `src/` folder structure exists. The only source modules so far are the shared types `AppError`, `Coordinates`/`Location` and `LoadState<T>` (NIT-163). All other modules are planned.
 
 ---
 
@@ -133,12 +133,12 @@ Planned components follow the folder structure in [STYLE.md §4](STYLE.md#4-fold
 - Leading and trailing whitespace is trimmed, and empty input sends no request.
 - Results show the name plus context (region/country) so that places with the same name can be told apart.
 - An empty result list shows a "no locations found" message.
-- Planned: `SearchScreen`, `useSearchViewModel`, `geocodingService`.
+- Planned: `SearchScreen`, `useSearchViewModel`, `locationRepository` (D-17), `geocodingService`.
 
 **W-02 – Geocoding API integration**
 - Uses the SMHI place-search API (D-06).
 - Its endpoint, response format and coverage must be verified against real responses **before** the service is implemented (§13.1 OQ-01 – OQ-04).
-- The response is parsed by `geocodingParser` into `Location` models.
+- `locationRepository` calls `geocodingService`, and the response is parsed by `geocodingParser` into `Location` models (D-17).
 - Selecting a result loads the weather for that location.
 
 **W-03 – Coordinate search and validation**
@@ -201,11 +201,12 @@ Planned components follow the folder structure in [STYLE.md §4](STYLE.md#4-fold
 - Views and ViewModels never see raw API types.
 
 **W-16 – Local caching**
-- `weatherRepository` stores the last successful `WeatherReport` per location, together with the time it was fetched.
+- `weatherRepository` stores the last successful `WeatherReport` per location, together with the time it was fetched as `fetchedAtEpochMs` (D-18).
 - The cache is read through `keyValueStorage`, a thin wrapper around `@react-native-async-storage/async-storage` (D-08).
 
 **W-17 – Offline fallback**
 - If a fetch fails and cached data exists, the cached data is shown with an "offline / last updated <time>" indicator.
+- A fresh cache hit (no fetch needed) is normal and shows no offline indicator (D-20).
 - If no cached data exists, an error state with retry is shown (W-18).
 
 **W-18 – Network error handling**
@@ -265,8 +266,8 @@ Planned components follow the folder structure in [STYLE.md §4](STYLE.md#4-fold
 
 | ID | Requirement |
 |---|---|
-| W-33 | AI usage is recorded per session in [LLM_PROCESS.md](LLM_PROCESS.md): which assistant was used (Claude Code or OpenAI Codex), which developer operated it, and what was accepted, modified and verified. |
-| W-34 | All work follows the Git workflow in [GIT_WORKFLOW.md](GIT_WORKFLOW.md): feature branches from `dev`, pull requests into `dev`, a stable `main`, and Conventional Commits. |
+| W-33 | AI usage is recorded per session in [LLM_PROCESS.md](LLM_PROCESS.md): which assistant was used (Claude Code; earlier sessions may also name OpenAI Codex), which developer operated it, and what was accepted, modified and verified. |
+| W-34 | All work follows the Git workflow in [GIT_WORKFLOW.md](GIT_WORKFLOW.md): feature branches from `dev`, pull requests into `dev`, a stable `main`, and Conventional Commits. The single documented exception is the direct-on-`dev` step in GIT_WORKFLOW.md §16 (D-16). |
 
 AI usage rules:
 - AI may propose code, but students review, test and must be able to explain every line that is merged.
@@ -290,8 +291,8 @@ AI usage rules:
 
 | ID | Epic | User Story | Planned components | Tests | Status |
 |---|---|---|---|---|---|
-| W-01 | NIT-153 | NIT-165 (US-02.01); NIT-169 (US-03.01) | `SearchScreen`, `useSearchViewModel`, `geocodingService` | UX-01, UX-02, UX-03 | NOT STARTED |
-| W-02 | NIT-153 | NIT-165 (US-02.01) | `geocodingService`, `geocodingParser`, `Location` | Unit: geocodingParser; UX-01 | NOT STARTED |
+| W-01 | NIT-153 | NIT-165 (US-02.01); NIT-169 (US-03.01) | `SearchScreen`, `useSearchViewModel`, `locationRepository`, `geocodingService` | UX-01, UX-02, UX-03 | NOT STARTED |
+| W-02 | NIT-153 | NIT-165 (US-02.01) | `locationRepository`, `geocodingService`, `geocodingParser`, `Location` | Unit: geocodingParser; UX-01 | NOT STARTED |
 | W-03 | NIT-153 | NIT-166 (US-02.02) | `coordinateValidation`, `SearchScreen` | Unit: coordinateValidation; UX-04, UX-05 | NOT STARTED |
 | W-04 | NIT-154 | NIT-170 (US-03.02) | `WeatherScreen`, `useWeatherViewModel`, `CurrentWeather` | UX-06 | NOT STARTED |
 | W-05 | NIT-154 | NIT-171 (US-03.03) | `WeatherScreen`, `DailyForecast` | UX-07 | NOT STARTED |
@@ -322,7 +323,7 @@ AI usage rules:
 | W-30 | NIT-158, NIT-159 | NIT-184 (US-07.03); NIT-188 (US-08.03) | whole codebase | UX-03, UX-05, UX-18, UX-19, UX-24 | NOT STARTED |
 | W-31 | NIT-160, NIT-152 | NIT-192 (US-09.04); NIT-164 (US-01.04) | SPEC §13 | Oral exam prep | IN PROGRESS |
 | W-32 | NIT-160 | NIT-190 (US-09.02); NIT-162 (US-01.02) | — | TEST_REPORT §3 | NOT STARTED |
-| W-33 | NIT-160, NIT-152 | NIT-191 (US-09.03); NIT-164 (US-01.04) | LLM_PROCESS.md, agents/claude.md, agents/codex.md | Review | IN PROGRESS |
+| W-33 | NIT-160, NIT-152 | NIT-191 (US-09.03); NIT-164 (US-01.04) | LLM_PROCESS.md, CLAUDE.md, AGENTS.md | Review | IN PROGRESS |
 | W-34 | NIT-152 | NIT-162 (US-01.02) | GIT_WORKFLOW.md, repository | Review | IN PROGRESS |
 
 ### 11.1 Verified Progress on Partially Complete Requirements
@@ -333,7 +334,7 @@ Only items that were actually checked are listed as verified.
 |---|---|---|
 | W-28 | `tsconfig.json` has `strict: true`; `npx tsc --noEmit` passes on the scaffold (2026-11-10, NIT-193) | All application code. Status stays `NOT STARTED` because no app code exists yet. |
 | W-31 | Decision log (§13) exists with D-01 – D-13 (2026-11-10) | Both students reviewing and being able to explain each decision |
-| W-33 | `LLM_PROCESS.md` template with assistant and operator fields exists (NIT-204); `agents/claude.md` and `agents/codex.md` share one rule set | No session entries yet; students must log sessions. `agents/codex.md` has not yet been used with Codex on macOS. |
+| W-33 | `LLM_PROCESS.md` template with assistant and operator fields exists (NIT-204); `agents/claude.md` and `agents/codex.md` shared one rule set (2026-11-10); since 2026-11-18 the single rule set is the root `CLAUDE.md`, with `AGENTS.md` as a pointer (D-15) | No session entries yet; students must log sessions. As of 2026-11-10, `agents/codex.md` had not yet been used with Codex on macOS. |
 | W-34 | Git repository initialised (NIT-196); public GitHub repository with `main` and `dev` on `origin`, confirmed via `git ls-remote` and the GitHub API (2026-11-10, NIT-197); local `dev` tracks `origin/dev`; `GIT_WORKFLOW.md` written (NIT-198) | First pull request reviewed and merged into `dev` following the workflow; branch protection not configured |
 
 ### 11.2 Linear Identifiers (Weather App project)
@@ -408,14 +409,14 @@ These are *anticipated* questions the team prepares for, not official examinatio
 | API choice | W-13, W-02 | Why Open-Meteo for weather and SMHI for place search? | §13 D-05, D-06 |
 | Navigation | W-26 | Why is navigation kept out of ViewModels? | STYLE.md §3, §6 |
 | Cross-platform | W-32 | What differed between Android and iOS? | TEST_REPORT, LLM_PROCESS |
-| AI usage | W-33 | Which parts did AI generate, and how did you verify them? How did you keep two different assistants consistent? | LLM_PROCESS.md; §13 D-13 |
+| AI usage | W-33 | Which parts did AI generate, and how did you verify them? How did you keep the AI rules consistent, first across two assistants and then with one? | LLM_PROCESS.md; §13 D-13, D-15 |
 
 ## 13. Decision Log
 
 | ID | Date | Decision | Status | Rationale / Notes | Linear |
 |---|---|---|---|---|---|
 | D-01 | 2026-11-10 | Expo SDK 58, React Native 0.88, TypeScript strict | Decided | One cross-platform codebase for Android and iOS. Expo removes the need for native project maintenance. | NIT-193 |
-| D-02 | 2026-11-10 | Start from the `blank-typescript` template without Expo Router; removed the template's `AGENTS.md` | Decided | Keeps the structure open for our own MVVM layout. Project-specific agent instructions now live in `agents/` (D-13). | NIT-193 |
+| D-02 | 2026-11-10 | Start from the `blank-typescript` template without Expo Router; removed the template's `AGENTS.md` | Decided | Keeps the structure open for our own MVVM layout. Project-specific agent instructions later lived in `agents/` (D-13) and now live in the root `CLAUDE.md` (D-14, D-15). | NIT-193 |
 | D-03 | 2026-11-10 | Public GitHub repo with `main` (stable), `dev` (integration) and feature branches from `dev` | Decided | Portfolio visibility and safe integration. See GIT_WORKFLOW.md. | NIT-196, NIT-197 |
 | D-04 | 2026-11-10 | `.gitattributes` enforces LF line endings in the repository and working tree | Decided | Avoids CRLF/LF churn between Windows and macOS. | NIT-197 |
 | D-05 | 2026-11-10 | Weather API: **Open-Meteo** | Decided | Free REST/JSON API with no key; provides current, hourly and daily data. | NIT-164 (recorded) |
@@ -424,10 +425,16 @@ These are *anticipated* questions the team prepares for, not official examinatio
 | D-08 | 2026-11-10 | Persistence: **`@react-native-async-storage/async-storage`** | Decided | Simple key-value storage, enough for cache, favourites and settings. Accessed only through `keyValueStorage`. | NIT-164 (recorded) |
 | D-09 | 2026-11-10 | Unit testing: **Jest + `jest-expo`** | Decided | The Expo-supported preset for testing pure TypeScript logic. | NIT-164 (recorded) |
 | D-10 | 2026-11-10 | ViewModels are custom React hooks, with no global state library | Proposed | Smallest solution that keeps MVVM separation. Revisit only if shared state becomes complex. | NIT-164 |
-| D-11 | 2026-11-10 | `README.md` is the only Markdown file at the project root. Agent instructions live in `agents/` (`claude.md`, `codex.md`), and all other project documentation lives in `docs/`. | Decided | Keeps the root clean and groups AI-specific instructions in one place. Trade-off: the files are not auto-loaded, so they must be read explicitly each session. | NIT-164 |
+| D-11 | 2026-11-10 | `README.md` is the only Markdown file at the project root. Agent instructions live in `agents/` (`claude.md`, `codex.md`), and all other project documentation lives in `docs/`. | Superseded by D-14 | Keeps the root clean and groups AI-specific instructions in one place. Trade-off: the files are not auto-loaded, so they must be read explicitly each session. | NIT-164 |
 | D-12 | 2026-11-10 | Cross-platform testing on the Android Emulator (Windows) and iOS Simulator (macOS) | Decided | Each developer covers the platform their machine supports. Both are required for `VERIFIED`. | NIT-164 (recorded) |
-
-| D-13 | 2026-11-10 | Two AI coding assistants: Claude Code (Developer 1, Windows) and OpenAI Codex (Developer 2, macOS). Both use `docs/` as the single source of truth through identical rule sets in `agents/claude.md` and `agents/codex.md`, which each developer tells their assistant to read at session start. | Decided | Each developer uses their own assistant without separate or conflicting instructions. | NIT-164 (NIT-204) |
+| D-13 | 2026-11-10 | Two AI coding assistants: Claude Code (Developer 1, Windows) and OpenAI Codex (Developer 2, macOS). Both use `docs/` as the single source of truth through identical rule sets in `agents/claude.md` and `agents/codex.md`, which each developer tells their assistant to read at session start. | Superseded by D-15 | Each developer uses their own assistant without separate or conflicting instructions. | NIT-164 (NIT-204) |
+| D-14 | 2026-11-18 | All project Markdown files live at the repository root: `README.md`, `CLAUDE.md`, `AGENTS.md`, `SPEC.md`, `STYLE.md`, `CONTEXT.md`, `GIT_WORKFLOW.md`, `TEST_REPORT.md`, `LLM_PROCESS.md`, `REFLECTION.md`. The `docs/` and `agents/` folders are removed. | Decided | A root `CLAUDE.md` is loaded automatically by Claude Code, which removes the manual-loading trade-off of D-11. Flat links between documents. | NIT-163 |
+| D-15 | 2026-11-18 | Both developers use Claude Code in VS Code. `CLAUDE.md` is the single agent rule set; `AGENTS.md` is a short pointer to it. | Decided | One assistant and one rule set remove the risk of two copies diverging. OpenAI Codex usage before this date stays recorded in D-13 and in LLM_PROCESS.md. | NIT-163 |
+| D-16 | 2026-11-18 | One-off exception: the work explicitly authorised in the 2026-11-18 session is done directly on `dev`, without a feature branch or PR. That covers the D-14/D-15 Markdown move and related documentation corrections, the NIT-163 folder structure, the minimal shared types and architecture contracts, and the data-flow and navigation-ownership documentation. | Decided | Team decision for this Lab B.2 step only. The feature-branch and PR workflow (GIT_WORKFLOW.md) applies to all later work. See GIT_WORKFLOW.md §16. | NIT-163 |
+| D-17 | 2026-11-18 | Add `locationRepository`. It calls `geocodingService`, passes the response to `geocodingParser` and returns typed `Location` values. It stays thin: no location caching or other behaviour. | Decided | Keeps the rule that services return `unknown` and repositories call parsers (STYLE §9), so `useSearchViewModel` never touches raw JSON. STYLE §4 previously had no repository for search. | NIT-163 (NIT-199) |
+| D-18 | 2026-11-18 | Timestamps are stored and passed as epoch milliseconds in fields named `…EpochMs` (e.g. `fetchedAtEpochMs`). | Decided | A `Date` does not survive JSON storage. Numbers compare simply in `refreshPolicy` and are easy to test. Convert to `Date` only for display. | NIT-163 (NIT-199) |
+| D-19 | 2026-11-18 | The full `src/` folder structure is created up front. Folders without a file contain an empty `.gitkeep`, removed when the first real file is added. No empty modules or placeholder functions. | Decided | Makes the MVVM layers visible from the start (NIT-200). An exception to the earlier "create folders only when needed" rule, limited to this initial setup (STYLE §4). | NIT-163 (NIT-200) |
+| D-20 | 2026-11-18 | `LoadState<T>` (in `src/viewmodels/loadState.ts`) has the states `idle`, `loading`, `success`, `refreshFailed` and `error`, with `isRefreshing` on the states that carry data. There is no "from cache" flag: a fresh cache hit is a normal `success`. Only `refreshFailed` shows an outdated or offline notice. | Decided | Separates "data came from the cache" from "data could not be updated", which W-17 actually requires. Shows existing data during a refresh without extra booleans (STYLE §7). | NIT-163 (NIT-199, NIT-200) |
 
 D-05 – D-09 record the choices only. The libraries are installed with `npx expo install` in the user stories that implement them.
 
@@ -450,6 +457,8 @@ D-05 – D-09 record the choices only. The libraries are installed with `npx exp
 | 2026-11-10 | Confirmed D-05 – D-09 and D-12; updated D-11 (root `CLAUDE.md`); added open questions (§13.1), verified-progress notes (§11.1) and the Linear identifier list (§11.2) | NIT-164 |
 | 2026-11-10 | Added OpenAI Codex alongside Claude Code (D-13, root `AGENTS.md`); mapped all 34 requirements to the 32 user stories | NIT-204 |
 | 2026-11-10 | Moved agent instructions to `agents/claude.md` and `agents/codex.md` (root `CLAUDE.md`/`AGENTS.md` removed); documented explicit loading; updated D-11 and D-13 | NIT-164 |
+| 2026-11-18 | Moved all Markdown files to the repository root (`docs/*.md` → root, `agents/claude.md` → `CLAUDE.md`, `agents/codex.md` → `AGENTS.md`); both developers now use Claude Code in VS Code; added D-14 – D-16, superseding D-11 and D-13 | NIT-163 |
+| 2026-11-18 | Created the `src/` folder structure and the shared types `AppError`, `Coordinates`/`Location` and `LoadState<T>`; documented layer contracts, data flow and navigation ownership (STYLE §3.1 – §3.3); added D-17 – D-20 and widened D-16's scope | NIT-163 (NIT-199 – NIT-201) |
 
 ## 15. End-of-Session Update Procedure
 

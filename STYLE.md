@@ -29,7 +29,7 @@
 | **View** | `src/views/` | Render ViewModel state; forward user events to ViewModel functions; layout and styling. Screens own navigation calls (`navigation.navigate`) and pass route params to their ViewModel. | Call `fetch`, read storage, parse JSON, hold business rules. |
 | **ViewModel** | `src/viewmodels/` | Custom hooks (`useXxxViewModel`) that hold screen state, loading/error state, and user intents (`search()`, `refresh()`, `toggleFavorite()`). | Render JSX, call `fetch` directly, know API JSON shapes, import or call React Navigation. |
 | **Navigation** | `src/navigation/` | Navigator setup and typed route-parameter lists. | Contain business logic or data fetching. |
-| **Repository** | `src/repositories/` | Single source of truth per data type; decides between cache and network; applies refresh policy and offline fallback. | Know about React or UI. |
+| **Repository** | `src/repositories/` | Single source of truth per data type. Combines a service with its parser so callers receive typed models. `weatherRepository` also decides between cache and network and applies refresh policy and offline fallback; `locationRepository` stays thin (service + parser only, no caching; SPEC D-17). | Know about React or UI. |
 | **API service** | `src/services/api/` | Build URLs, perform HTTP requests, map HTTP failures to `AppError`. Return raw `unknown` JSON. | Parse into models, cache, touch UI. |
 | **Parser** | `src/parsers/` | Pure functions: `unknown` JSON → typed Model, or throw `AppError('parse')`. | Do I/O. |
 | **Storage** | `src/storage/` | Thin wrapper around the persistence library (D-08); JSON (de)serialisation of stored values. | Contain business rules. |
@@ -37,28 +37,77 @@
 
 The dependency direction is **View → ViewModel → Repository → Service/Parser/Storage → Model**. A lower layer never imports from a higher layer.
 
+### 3.1 Layer Contracts
+
+**Exists** means the file is in the repository. **Planned** contracts describe intent only: no code exists, and each signature is finalised in the user story that implements it. Do not create stubs for planned modules ahead of their story.
+
+| Module | Contract | Status |
+|---|---|---|
+| `src/models/AppError.ts` | `AppErrorKind` union and `AppError` class (`kind`, developer-only `message`). The only error type that crosses a layer boundary (§8). | **Exists** |
+| `src/models/Location.ts` | `Coordinates` (`latitude`, `longitude`) and `Location` (`name`, optional `region`/`country`, `coordinates`). | **Exists** |
+| `src/viewmodels/loadState.ts` | `LoadState<T>`, the ViewModel → View state contract (§7). | **Exists** |
+| `src/services/api/httpClient.ts` | `getJson(url, { timeoutMs }): Promise<unknown>`. Throws `AppError` (`network`, `timeout`, `http`). | Planned (NIT-167) |
+| `src/services/api/geocodingService.ts` | Search SMHI by place name, returning `Promise<unknown>`. | Planned (NIT-165; SPEC OQ-01 – OQ-04 first) |
+| `src/services/api/weatherService.ts` | Fetch the Open-Meteo forecast for `Coordinates`, returning `Promise<unknown>`. | Planned (NIT-167) |
+| `src/parsers/geocodingParser.ts` | `(json: unknown) => ReadonlyArray<Location>`. Throws `AppError('parse', …)`. | Planned (NIT-165) |
+| `src/parsers/weatherParser.ts` | `(json: unknown) => WeatherReport`. Throws `AppError('parse', …)`. | Planned (NIT-168) |
+| `src/repositories/locationRepository.ts` | `searchLocations(query): Promise<ReadonlyArray<Location>>`: calls `geocodingService`, then `geocodingParser`. No caching or other behaviour (SPEC D-17). | Planned (NIT-165) |
+| `src/repositories/weatherRepository.ts` | Returns a report with its `fetchedAtEpochMs` (SPEC D-18), and tells the caller when it fell back to a cached entry after a failed refresh (§11). | Planned (NIT-167, NIT-182, NIT-183) |
+| `src/repositories/favoritesRepository.ts`, `settingsRepository.ts` | Read and write favourites and settings through `keyValueStorage`. | Planned (NIT-177, NIT-179 – NIT-181) |
+| `src/storage/keyValueStorage.ts` | Get (`unknown`) and set JSON values; the only importer of AsyncStorage (D-08). | Planned (NIT-182) |
+| `src/viewmodels/use…ViewModel.ts` | Expose `LoadState<T>` plus intent functions (`search`, `refresh`, …). Never receive `navigation`. | Planned (NIT-165, NIT-170, …) |
+| `src/navigation/routes.ts`, `RootNavigator.tsx` | Typed route params and navigator setup. | Planned (NIT-173; SPEC OQ-05) |
+| `src/models/Weather.ts`, `AppSettings.ts` | Weather and settings models. Written against a real Open-Meteo response and the settings story, not assumed. | Planned (NIT-168, NIT-179 – NIT-181) |
+
+### 3.2 Search-to-Forecast Data Flow
+
+Planned flow. Only the types in **bold** exist today.
+
+1. **SearchScreen** (View): the user submits a place name. The screen calls `search(query)` from `useSearchViewModel`. It never calls an API.
+2. **useSearchViewModel**: trims the query. Empty input sends no request (W-01). Otherwise it sets `LoadState` to `loading` and calls `locationRepository.searchLocations(query)`.
+3. **locationRepository** → `geocodingService` (returns `unknown` JSON through `httpClient`) → `geocodingParser` (returns **`Location`** values or throws **`AppError`**).
+4. The ViewModel sets `success` with the locations, or `error` with the **`AppError`**. SearchScreen renders the list, an empty state or an error.
+5. **User selects a location:** SearchScreen, not the ViewModel, navigates to the weather screen with the location's small, serialisable fields (§3.3).
+   - Coordinate search (W-03) skips steps 2–4. The ViewModel validates the input with `coordinateValidation` and builds a **`Location`** directly; no network request is needed.
+6. **WeatherScreen** reads the route params and passes the location to `useWeatherViewModel`, which sets `loading` and calls `weatherRepository`.
+7. **weatherRepository** reads the cache through `keyValueStorage`:
+   - If the entry is fresh (`refreshPolicy`), it returns it. This is a normal result, not an offline state.
+   - Otherwise it calls `weatherService`, parses the response with `weatherParser`, stores the report with `fetchedAtEpochMs`, and returns it.
+   - If that refresh fails and a cached entry exists, it returns the entry and reports the **`AppError`** that occurred. With no cached entry, it throws the error.
+8. **useWeatherViewModel** maps the result to `success`, `refreshFailed` (cached data plus an error) or `error` (**`LoadState<T>`**, §7). WeatherScreen renders the current, hourly and daily forecasts and, for `refreshFailed`, a "last updated" notice.
+
+### 3.3 Navigation Ownership
+
+- Screens own navigation. They call `navigation.navigate` in response to a user event or a ViewModel result.
+- ViewModels never import React Navigation and never receive the `navigation` object. They expose state and intents only, so they stay testable without a navigator.
+- Route params carry only small serialisable values, such as the fields of a `Location`, never functions or whole reports (§6). The receiving screen's ViewModel loads the data itself.
+- Route param types are defined once in `src/navigation/routes.ts` (planned, NIT-173). React Navigation is not installed yet; until then `App.tsx` stays the Expo template screen.
+
 ## 4. Folder Structure
 
-Planned structure. Folders are created only when the first file needs them.
+All `src/` folders below exist (NIT-163). Files marked `[exists]` are in the repository; all other file names are **planned**.
+
+**Setup exception (SPEC D-19):** Git does not track empty folders, so every folder that has no file yet contains an empty `.gitkeep`. This applies to the initial structure only. Delete a folder's `.gitkeep` in the same change that adds its first real file. New folders are still created only when their first file needs them, and no empty modules or placeholder functions are created.
 
 ```
 Weatherly/
-├── App.tsx                 # App root: providers + navigation container only
-├── index.ts                # Expo entry point (do not add logic)
+├── App.tsx                 # [exists] App root: providers + navigation container only (still the Expo template)
+├── index.ts                # [exists] Expo entry point (do not add logic)
 ├── src/
-│   ├── models/             # Location.ts, Weather.ts, AppSettings.ts, AppError.ts
-│   ├── services/api/       # httpClient.ts, weatherService.ts, geocodingService.ts
-│   ├── parsers/            # weatherParser.ts, geocodingParser.ts
-│   ├── repositories/       # weatherRepository.ts, favoritesRepository.ts, settingsRepository.ts
-│   ├── storage/            # keyValueStorage.ts
-│   ├── navigation/         # RootNavigator.tsx, routes.ts (typed route params)
-│   ├── viewmodels/         # useWeatherViewModel.ts, useSearchViewModel.ts, ...
+│   ├── models/             # AppError.ts [exists], Location.ts [exists]; Weather.ts, AppSettings.ts
+│   ├── services/api/       # .gitkeep; httpClient.ts, weatherService.ts, geocodingService.ts
+│   ├── parsers/            # .gitkeep; weatherParser.ts, geocodingParser.ts
+│   ├── repositories/       # .gitkeep; locationRepository.ts, weatherRepository.ts, favoritesRepository.ts, settingsRepository.ts
+│   ├── storage/            # .gitkeep; keyValueStorage.ts
+│   ├── navigation/         # .gitkeep; RootNavigator.tsx, routes.ts (typed route params)
+│   ├── viewmodels/         # loadState.ts [exists]; useWeatherViewModel.ts, useSearchViewModel.ts, ...
 │   ├── views/
-│   │   ├── screens/        # WeatherScreen.tsx, SearchScreen.tsx, FavoritesScreen.tsx, ...
-│   │   └── components/     # ForecastRow.tsx, LoadingView.tsx, ErrorView.tsx, ...
-│   ├── theme/              # colors.ts, spacing.ts, typography.ts
-│   └── utils/              # coordinateValidation.ts, refreshPolicy.ts, units.ts
-└── docs/                   # Project documentation
+│   │   ├── screens/        # .gitkeep; WeatherScreen.tsx, SearchScreen.tsx, FavoritesScreen.tsx, ...
+│   │   └── components/     # .gitkeep; ForecastRow.tsx, LoadingView.tsx, ErrorView.tsx, ...
+│   ├── theme/              # .gitkeep; colors.ts, spacing.ts, typography.ts
+│   └── utils/              # .gitkeep; coordinateValidation.ts, refreshPolicy.ts, units.ts
+├── CLAUDE.md, AGENTS.md    # Agent instructions (AGENTS.md points to CLAUDE.md)
+└── *.md                    # All other project documentation, at the root (SPEC D-14)
 ```
 
 Tests live next to the file they test: `weatherParser.ts` → `weatherParser.test.ts`.
@@ -101,14 +150,27 @@ Tests live next to the file they test: `weatherParser.ts` → `weatherParser.tes
 ## 7. Hooks & State Management
 
 - **Screen state lives in its ViewModel hook.** Views receive values and callbacks from it.
-- Model async UI state as a discriminated union, not several booleans:
+- Model async UI state as a discriminated union, not several booleans. The shared type is `LoadState<T>` in [`src/viewmodels/loadState.ts`](src/viewmodels/loadState.ts) (exists; SPEC D-20):
   ```ts
   type LoadState<T> =
     | { status: 'idle' }
     | { status: 'loading' }
-    | { status: 'success'; data: T; isFromCache: boolean; fetchedAt: Date }
+    | { status: 'success'; data: T; isRefreshing: boolean }
+    | { status: 'refreshFailed'; data: T; error: AppError; isRefreshing: boolean }
     | { status: 'error'; error: AppError };
   ```
+  (The real type marks every field `readonly`.)
+
+  | Situation | State |
+  |---|---|
+  | First load, nothing to show yet | `loading` |
+  | Up-to-date data shown, from the network **or** a fresh cache entry | `success`, `isRefreshing: false` |
+  | Refreshing while existing data stays visible | `success` (or `refreshFailed`), `isRefreshing: true` |
+  | Cached or earlier data shown after a refresh failed | `refreshFailed`, with the `AppError` |
+  | Failed, nothing usable to show | `error` |
+
+- **Cache is not offline.** A fresh cache hit is normal and is shown as `success`, with no warning. The UI shows an outdated or offline notice only for `refreshFailed`. `error.kind` `network` or `timeout` means "offline"; other kinds mean "could not update".
+- Timestamps belong to the data `T` (e.g. a cached report with `fetchedAtEpochMs`), not to `LoadState`, because not every load (e.g. search results) is timestamped.
 - Shared app-wide state (e.g. settings) uses a single React Context provided in `App.tsx`. No Redux or other global state library unless a decision in SPEC §13 approves it.
 - Follow the Rules of Hooks. Keep `useEffect` for synchronisation with external systems, not for deriving values (use plain expressions or `useMemo`).
 - Wrap callbacks passed to child components in `useCallback` only when a measurable re-render problem exists.
@@ -116,7 +178,7 @@ Tests live next to the file they test: `weatherParser.ts` → `weatherParser.tes
 ## 8. Async & Error Handling
 
 - Use `async/await`. No `.then()` chains in new code.
-- All errors that cross a layer boundary are an `AppError` with a `kind`: `'network' | 'timeout' | 'http' | 'parse' | 'validation' | 'storage'`.
+- All errors that cross a layer boundary are an `AppError` ([`src/models/AppError.ts`](src/models/AppError.ts), exists) with a `kind`: `'network' | 'timeout' | 'http' | 'parse' | 'validation' | 'storage'`. Create one with `new AppError(kind, developerMessage)`, and narrow caught values with `error instanceof AppError`.
 - **Services** convert `fetch` failures and non-2xx responses into `AppError`.
 - **Parsers** throw `AppError('parse')` for missing or invalid fields.
 - **Repositories** catch errors to apply the offline fallback, and rethrow when no fallback exists.
@@ -146,10 +208,11 @@ Tests live next to the file they test: `weatherParser.ts` → `weatherParser.tes
 
 - Repositories are plain modules or objects of async functions, e.g. `weatherRepository.getReport(location, { forceRefresh })`.
 - **Cache policy** (W-11, W-16, W-17):
-  1. Read the cached entry and its `fetchedAt`.
-  2. If it is fresh according to `refreshPolicy.isStale(fetchedAt, now, intervalMinutes)`, return it.
-  3. Otherwise fetch, parse, store and return.
-  4. If the fetch fails and a cached entry exists, return the cache marked `isFromCache: true`.
+  1. Read the cached entry and its `fetchedAtEpochMs`.
+  2. If it is fresh according to `refreshPolicy.isStale(fetchedAtEpochMs, nowEpochMs, intervalMinutes)`, return it as a normal result. A fresh cache hit is not an offline state.
+  3. Otherwise fetch, parse, store with `fetchedAtEpochMs = Date.now()`, and return.
+  4. If the fetch fails and a cached entry exists, return the entry together with the `AppError` that occurred, so the ViewModel can show `refreshFailed` (§7). If no entry exists, rethrow.
+- **Timestamps (SPEC D-18):** stored and passed as epoch milliseconds (`number`) in fields named `…EpochMs`, e.g. `fetchedAtEpochMs`. A `Date` does not survive JSON serialisation, and a number is easy to compare and to test. Convert to a `Date` only for display formatting.
 - Persist models as JSON through `keyValueStorage`, the only module that imports `@react-native-async-storage/async-storage` (D-08). Read values are `unknown` and are validated before use, because storage can contain outdated shapes.
 - Storage keys are defined once, as constants in the repository that owns them.
 
@@ -197,7 +260,7 @@ Tests live next to the file they test: `weatherParser.ts` → `weatherParser.tes
 
 ## 17. Code Review & Documentation Rules
 
-- Every change reaches `dev` through a pull request reviewed by the **other** student (see [GIT_WORKFLOW.md](GIT_WORKFLOW.md)).
+- Every change reaches `dev` through a pull request reviewed by the **other** student (see [GIT_WORKFLOW.md](GIT_WORKFLOW.md)). The only exception is the one-off step in [GIT_WORKFLOW.md §16](GIT_WORKFLOW.md#16-documented-exception-direct-work-on-dev-nit-163).
 - Reviewer checklist:
   - [ ] Layer rules (§3) respected; no logic in views.
   - [ ] Naming follows §5.
@@ -208,17 +271,15 @@ Tests live next to the file they test: `weatherParser.ts` → `weatherParser.tes
   - [ ] The reviewer can explain the change.
 - Comments explain **why**, not what. Add a short header comment only to non-obvious modules (parsers, repositories).
 - Public functions in `utils/`, `parsers/` and `repositories/` get a one-line doc comment stating their contract.
-- Documentation changes go in `docs/`, in the same PR as the code they describe.
+- Documentation changes go in the root Markdown files, in the same PR as the code they describe.
 
 ## 18. AI Collaboration Guidelines
 
-- Two coding assistants are used:
-  - **Claude Code** (Developer 1, Windows) is told to read `agents/claude.md` at the start of each session.
-  - **OpenAI Codex** (Developer 2, macOS) is told to read `agents/codex.md` at the start of each session.
-  - These files are not loaded automatically.
-- Both files contain the same rules and point to this guide, SPEC.md and CONTEXT.md. There are no assistant-specific coding rules: this guide applies identically to code from either assistant.
+- Both developers use **Claude Code in VS Code** (SPEC D-15). It loads the root [CLAUDE.md](CLAUDE.md) automatically; [AGENTS.md](AGENTS.md) only points to it.
+  - History: until 2026-11-18, Developer 2 used OpenAI Codex with `agents/codex.md`, and Developer 1 used Claude Code with `agents/claude.md` (SPEC D-13, superseded).
+- `CLAUDE.md` points to this guide, SPEC.md and CONTEXT.md. There are no assistant-specific coding rules: this guide applies to all AI-assisted code.
 - Every AI session starts by reading SPEC.md, STYLE.md and CONTEXT.md (see [SPEC.md §0](SPEC.md#0-ai-meta-instructions)).
-- If the two assistants suggest different patterns for the same problem, follow this guide. If the guide does not cover the case, decide as a team and add the rule here, not in only one agent file.
+- If the AI suggests a pattern that differs from this guide, follow this guide. If the guide does not cover the case, decide as a team and add the rule here, not only in `CLAUDE.md`.
 - **Core logic** (parsers, cache and refresh policy, validation, ViewModel state transitions): ask the AI for an explanation, pseudocode or a review **before** asking for complete code. A student must understand the logic before it is generated.
 - AI-generated code is treated like code from an unknown contributor. It must be reviewed line by line, type-checked, tested and run on a device or simulator before merging.
 - Prompts reference the requirement ID (`W-xx`) and the Linear issue they serve.

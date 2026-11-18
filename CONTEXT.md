@@ -59,7 +59,7 @@ Decided libraries are installed with `npx expo install` in the user story that f
 
 - One Expo project with Continuous Native Generation: the `android/` and `ios/` folders are generated and git-ignored.
 - App configuration is in `app.json`. The entry point is `index.ts` → `App.tsx`.
-- Source code will live in `src/`, following the MVVM layers in [STYLE.md §3–4](STYLE.md#3-mvvm-architecture).
+- Source code lives in `src/`, following the MVVM layers in [STYLE.md §3–4](STYLE.md#3-mvvm-architecture). The folder structure exists. The only source files are the shared types `src/models/AppError.ts`, `src/models/Location.ts` and `src/viewmodels/loadState.ts`. Every other module is planned (STYLE §3.1).
 - The same code runs on both platforms. Platform-specific code (`Platform.OS`, `*.ios.tsx` / `*.android.tsx`) is used only when needed and documented in the PR.
 
 ## 6. Development Environments
@@ -68,7 +68,7 @@ Decided libraries are installed with `npx expo install` in the user story that f
 |---|---|---|
 | OS | Windows 11 | macOS |
 | Test target | Android Emulator | iOS Simulator (Xcode) |
-| AI coding assistant | Claude Code (told to read `agents/claude.md`) | OpenAI Codex (told to read `agents/codex.md`) |
+| AI coding assistant | Claude Code in VS Code (loads `CLAUDE.md`) | Claude Code in VS Code (loads `CLAUDE.md`); used OpenAI Codex until 2026-11-18 |
 | Node.js / npm | Node 24.13.0, npm 11.6.2 (observed 2026-11-10) | To be recorded |
 | Git | 2.45.1 | To be recorded |
 | GitHub | `XxNitXZ` (repository owner) | To be recorded |
@@ -95,7 +95,7 @@ Both developers:
 ## 8. Team Development Workflow
 
 1. Pick a Linear issue and move it to *In Progress*.
-2. Create a feature branch from `dev` ([GIT_WORKFLOW.md](GIT_WORKFLOW.md)).
+2. Create a feature branch from `dev` ([GIT_WORKFLOW.md](GIT_WORKFLOW.md)). The one-off direct-on-`dev` exception in [GIT_WORKFLOW.md §16](GIT_WORKFLOW.md#16-documented-exception-direct-work-on-dev-nit-163) does not change this step for future work.
 3. Implement following STYLE.md, with AI assistance as described in §15.
 4. Run `npx tsc --noEmit` (and tests, once configured). Test on your platform.
 5. Open a pull request into `dev`. The other student reviews it and tests on their platform.
@@ -160,25 +160,24 @@ All persisted values are re-validated when read (STYLE.md §11).
 - [ ] Submission format and deadline: *TBD (from course page)*
 - [ ] Oral examination date and format: *TBD (from course page)*
 - [ ] Public GitHub repository link: https://github.com/XxNitXZ/Weatherly
-- [ ] Documentation in `docs/` is up to date (SPEC, TEST_REPORT, LLM_PROCESS, REFLECTION)
+- [ ] Root documentation is up to date (SPEC, TEST_REPORT, LLM_PROCESS, REFLECTION)
 - [ ] Both students can demonstrate the app on Android Emulator and iOS Simulator
 
 ## 15. AI Collaboration Workflow
 
 | Tool | Operated by | Role |
 |---|---|---|
-| Claude Code | Developer 1 (Windows) | Implementation assistance inside the repository |
-| OpenAI Codex | Developer 2 (macOS) | Implementation assistance inside the repository |
+| Claude Code in VS Code | Developer 1 (Windows) and Developer 2 (macOS) | Implementation assistance inside the repository |
 | ChatGPT | Both | Planning, review, prompt preparation |
 | Students | — | Decide, review, test, and explain all code. Write the reflection. |
 
-- **One rule set, two agent files.** [agents/claude.md](../agents/claude.md) (Claude Code) and [agents/codex.md](../agents/codex.md) (Codex) are identical below their introduction. Both point to SPEC.md, STYLE.md and CONTEXT.md as the single source of truth (SPEC D-13).
-- **Loading is manual.** Claude Code normally auto-loads only a root `CLAUDE.md`, and Codex normally uses a root `AGENTS.md`. Neither exists in this project, so the files in `agents/` are not guaranteed to load. At the start of every session:
-  - Developer 1 tells Claude Code: "Read `agents/claude.md` and follow it."
-  - Developer 2 tells Codex: "Read `agents/codex.md` and follow it."
-- Change project rules in `docs/`. Edit the two agent files only together, in the same pull request.
+**History:** until 2026-11-18, Developer 1 used Claude Code (rules in `agents/claude.md`) and Developer 2 used OpenAI Codex (rules in `agents/codex.md`). Both files had to be read explicitly at the start of each session (SPEC D-11, D-13, both superseded by D-14 and D-15).
+
+- **One rule set, one file.** [CLAUDE.md](CLAUDE.md) is the agent rule set and points to SPEC.md, STYLE.md and CONTEXT.md as the single source of truth (SPEC D-15). [AGENTS.md](AGENTS.md) only points to `CLAUDE.md` and holds no rules of its own.
+- **Loading is automatic.** Claude Code loads the root `CLAUDE.md` at the start of every session. A developer may still ask Claude to re-read it.
+- Change project rules in the root documentation (SPEC, STYLE, CONTEXT). Change `CLAUDE.md` only to point to or summarise them.
 - AI sessions follow [SPEC.md §0](SPEC.md#0-ai-meta-instructions) and [STYLE.md §18](STYLE.md#18-ai-collaboration-guidelines).
-- Code produced with one assistant is reviewed by the other student, who usually works with the other assistant and platform.
+- Code produced with Claude by one student is reviewed by the other student, who tests it on the other platform.
 - Each session is logged in [LLM_PROCESS.md](LLM_PROCESS.md) with the assistant and the developer who operated it.
 
 ## 16. End-of-Session Checklist
@@ -203,17 +202,23 @@ Complete this at the end of every work session (AI-assisted or not):
 - No secrets in the repository (it is public).
 - Never claim untested results or unverified platform runs.
 - Code and documentation are in English.
-- `README.md` is the only Markdown file at the project root. Agent instructions live in `agents/` (`claude.md`, `codex.md`), and all other project documentation lives in `docs/` (SPEC D-11).
+- All project Markdown files live at the repository root, including the agent instructions `CLAUDE.md` and `AGENTS.md` (SPEC D-14, superseding D-11).
 - Decided libraries are not installed until their implementation user story.
 - See the full decision log in [SPEC.md §13](SPEC.md#13-decision-log).
 
 ## 18. Current Project State
 
-Snapshot as of 2026-11-10. Update it when the state changes.
+Update this section when the state changes.
 
-- The Expo SDK 58 TypeScript project is scaffolded (NIT-193). `tsc` and `expo-doctor` pass. The app has **not** yet been run on an emulator or simulator.
-- The Git repository is initialised with `.gitignore` and `.gitattributes` (NIT-196, NIT-197).
+**Committed history** (from `git log`, as of 2026-11-18):
+- The Expo SDK 58 TypeScript project is scaffolded (NIT-193, commit `48a97f9`). On 2026-11-10, `tsc` and `expo-doctor` passed. The app has **not** yet been run on an emulator or simulator.
+- The Git repository is initialised with `.gitignore` and `.gitattributes` (NIT-196, NIT-197; commit `da0d233`).
 - The public GitHub repository exists, with `main` and `dev` on the remote. On the Windows machine, local `dev` tracks `origin/dev`.
-- Documentation structure created on branch `docs/NIT-164-project-documentation` (NIT-198, NIT-164). Not yet committed; awaiting student review.
+- The documentation structure (then in `docs/` and `agents/`) was committed on branch `docs/NIT-164-project-documentation` (commit `be1ad24`; NIT-198, NIT-164) and merged through pull request #1 (merge commit `6d32ca1`). `main`, `dev` and `origin/dev` all pointed at `6d32ca1` at the start of the 2026-11-18 session.
 - Technical decisions D-05 – D-09 and D-12 are confirmed. The SMHI place-search details are still to be verified.
 - No weather functionality is implemented.
+
+**Uncommitted changes on `dev`** (2026-11-18 session, NIT-163; direct-on-`dev` exception D-16):
+- All Markdown files moved to the repository root (D-14). Both developers now use Claude Code in VS Code, with `CLAUDE.md` as the single rule set (D-15).
+- `src/` folder structure created with `.gitkeep` placeholders (D-19). Shared types `AppError`, `Coordinates`/`Location` and `LoadState<T>` added (D-17, D-18, D-20). Layer contracts, data flow and navigation ownership documented in STYLE §3.1 – §3.3.
+- Not yet reviewed or committed. `npx tsc --noEmit` has not been run on these changes because dependencies are not installed on this machine.
