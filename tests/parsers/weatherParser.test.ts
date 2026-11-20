@@ -1,6 +1,6 @@
-import { AppError } from '../../src/models/AppError';
 import { parseWeatherResponse } from '../../src/parsers/weatherParser';
 import fixture from '../fixtures/openMeteoForecast.json';
+import { REMOVE, copyWith, expectParseError } from '../helpers/jsonFixtures';
 
 /**
  * Tests for `parseWeatherResponse` (W-14, W-15, W-19; lab test area "JSON parsing").
@@ -10,40 +10,14 @@ import fixture from '../fixtures/openMeteoForecast.json';
  * Each failure test copies it and changes exactly one thing.
  */
 
-const REMOVE = Symbol('remove');
-
-/**
- * Returns a deep copy of the fixture with the value at `path` replaced,
- * or deleted when `value` is `REMOVE`. Example path: ['hourly', 'temperature_2m', 5].
- */
+/** A copy of the fixture with one value replaced or removed. */
 function fixtureWith(path: ReadonlyArray<string | number>, value: unknown): unknown {
-  const copy: unknown = JSON.parse(JSON.stringify(fixture));
-  let node = copy as Record<string, unknown>;
-  for (const key of path.slice(0, -1)) {
-    node = node[key] as Record<string, unknown>;
-  }
-  const lastKey = path[path.length - 1];
-  if (value === REMOVE) {
-    delete node[lastKey];
-  } else {
-    node[lastKey] = value;
-  }
-  return copy;
+  return copyWith(fixture, path, value);
 }
 
-/** Asserts that parsing throws an AppError of kind 'parse' that names `expectedPath`. */
-function expectParseError(json: unknown, expectedPath: string): void {
-  let caught: unknown;
-  try {
-    parseWeatherResponse(json);
-  } catch (error) {
-    caught = error;
-  }
-  expect(caught).toBeInstanceOf(AppError);
-  if (caught instanceof AppError) {
-    expect(caught.kind).toBe('parse');
-    expect(caught.message).toContain(expectedPath);
-  }
+/** Asserts that parsing `json` throws AppError('parse') naming `expectedPath`. */
+function expectWeatherParseError(json: unknown, expectedPath: string): void {
+  expectParseError(() => parseWeatherResponse(json), expectedPath);
 }
 
 describe('parseWeatherResponse', () => {
@@ -108,32 +82,32 @@ describe('parseWeatherResponse', () => {
 
   describe('missing required fields', () => {
     it('throws a parse error when the current temperature is missing', () => {
-      expectParseError(fixtureWith(['current', 'temperature_2m'], REMOVE), 'current.temperature_2m');
+      expectWeatherParseError(fixtureWith(['current', 'temperature_2m'], REMOVE), 'current.temperature_2m');
     });
 
     it('throws a parse error when the daily weather codes are missing', () => {
-      expectParseError(fixtureWith(['daily', 'weather_code'], REMOVE), 'daily.weather_code');
+      expectWeatherParseError(fixtureWith(['daily', 'weather_code'], REMOVE), 'daily.weather_code');
     });
 
     it('throws a parse error when the hourly block is missing', () => {
-      expectParseError(fixtureWith(['hourly'], REMOVE), 'hourly');
+      expectWeatherParseError(fixtureWith(['hourly'], REMOVE), 'hourly');
     });
 
     it('throws a parse error when the timezone is missing', () => {
-      expectParseError(fixtureWith(['timezone'], REMOVE), 'timezone');
+      expectWeatherParseError(fixtureWith(['timezone'], REMOVE), 'timezone');
     });
   });
 
   describe('invalid data', () => {
     it('throws a parse error when a temperature is a string', () => {
-      expectParseError(
+      expectWeatherParseError(
         fixtureWith(['hourly', 'temperature_2m', 5], '0.7'),
         'hourly.temperature_2m[5]',
       );
     });
 
     it('throws a parse error when a required value is null', () => {
-      expectParseError(
+      expectWeatherParseError(
         fixtureWith(['hourly', 'temperature_2m', 0], null),
         'hourly.temperature_2m[0]',
       );
@@ -142,19 +116,19 @@ describe('parseWeatherResponse', () => {
     it('throws a parse error when an array is shorter than its time array', () => {
       const json = fixtureWith(['daily', 'weather_code'], fixture.daily.weather_code.slice(0, 6));
 
-      expectParseError(json, 'daily.weather_code');
+      expectWeatherParseError(json, 'daily.weather_code');
     });
 
     it('throws a parse error when an optional array has the wrong length', () => {
       const json = fixtureWith(['daily', 'sunrise'], fixture.daily.sunrise.slice(0, 3));
 
-      expectParseError(json, 'daily.sunrise');
+      expectWeatherParseError(json, 'daily.sunrise');
     });
 
     it('throws a parse error when the response is not an object', () => {
-      expectParseError(null, 'response');
-      expectParseError([], 'response');
-      expectParseError('not json', 'response');
+      expectWeatherParseError(null, 'response');
+      expectWeatherParseError([], 'response');
+      expectWeatherParseError('not json', 'response');
     });
   });
 

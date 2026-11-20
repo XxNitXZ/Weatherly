@@ -1,10 +1,17 @@
-import { AppError } from '../models/AppError';
 import type {
   CurrentWeather,
   DailyForecast,
   HourlyForecast,
   WeatherReport,
 } from '../models/Weather';
+import {
+  readArray,
+  readNumber,
+  readObject,
+  readOptionalNumber,
+  readString,
+  type JsonObject,
+} from './jsonReaders';
 
 /**
  * Turns an Open-Meteo forecast response into a `WeatherReport` (W-14, W-15).
@@ -31,8 +38,6 @@ export function parseWeatherResponse(json: unknown): WeatherReport {
     daily: parseDaily(readObject(root.daily, 'daily')),
   };
 }
-
-type JsonObject = { readonly [key: string]: unknown };
 
 function parseCurrent(current: JsonObject): CurrentWeather {
   return {
@@ -104,39 +109,9 @@ function parseDaily(daily: JsonObject): ReadonlyArray<DailyForecast> {
   }));
 }
 
-// ── Reading helpers ─────────────────────────────────────────────────────────
-// Each helper narrows one `unknown` value or throws AppError('parse') with the
-// path of the bad field, so a failure says exactly what was wrong.
-
-function readObject(value: unknown, path: string): JsonObject {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw parseError(path, 'an object', value);
-  }
-  return value as JsonObject;
-}
-
-function readString(value: unknown, path: string): string {
-  if (typeof value !== 'string') {
-    throw parseError(path, 'a string', value);
-  }
-  return value;
-}
-
-/** Rejects NaN and Infinity as well as non-numbers. */
-function readNumber(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw parseError(path, 'a finite number', value);
-  }
-  return value;
-}
-
-/** `null` and missing values become `undefined`; anything else must be a number. */
-function readOptionalNumber(value: unknown, path: string): number | undefined {
-  if (value === null || value === undefined) {
-    return undefined;
-  }
-  return readNumber(value, path);
-}
+// ── Parallel-array helpers ─────────────────────────────────────────────────
+// Open-Meteo sends hourly/daily data as one array per field. The generic
+// readers (readNumber, readArray, …) live in ./jsonReaders.
 
 /**
  * Reads a required array where every entry must be a number.
@@ -171,32 +146,10 @@ function readOptionalNumberArray(
   return values.map((value, index) => readOptionalNumber(value, `${path}[${index}]`));
 }
 
-function readArray(
-  value: unknown,
-  path: string,
-  expectedLength?: number,
-): ReadonlyArray<unknown> {
-  if (!Array.isArray(value)) {
-    throw parseError(path, 'an array', value);
-  }
-  if (expectedLength !== undefined && value.length !== expectedLength) {
-    throw new AppError(
-      'parse',
-      `${path}: expected ${expectedLength} entries to match "time", got ${value.length}`,
-    );
-  }
-  return value;
-}
-
 function secondsToEpochMs(seconds: number): number {
   return seconds * 1000;
 }
 
 function optionalSecondsToEpochMs(seconds: number | undefined): number | undefined {
   return seconds === undefined ? undefined : secondsToEpochMs(seconds);
-}
-
-function parseError(path: string, expected: string, actual: unknown): AppError {
-  const actualType = actual === null ? 'null' : Array.isArray(actual) ? 'array' : typeof actual;
-  return new AppError('parse', `${path}: expected ${expected}, got ${actualType}`);
 }

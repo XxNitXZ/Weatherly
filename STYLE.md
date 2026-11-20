@@ -47,11 +47,12 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/models/Location.ts` | `Coordinates` (`latitude`, `longitude`) and `Location` (`name`, optional `region`/`country`, `coordinates`). | **Exists** |
 | `src/viewmodels/loadState.ts` | `LoadState<T>`, the ViewModel → View state contract (§7). | **Exists** |
 | `src/services/api/httpClient.ts` | `getJson(url, { timeoutMs }): Promise<unknown>`, the only caller of `fetch`. Throws `AppError`: `network` (no connection), `timeout` (`AbortController`), `http` (status outside 200–299), `parse` (body is not JSON). | **Exists** (NIT-212) |
-| `src/services/api/geocodingService.ts` | Search Open-Meteo Geocoding by place name (`language=sv`, SPEC D-24), returning `Promise<unknown>`. | Planned (NIT-206) |
+| `src/services/api/geocodingService.ts` | `buildSearchUrl(query): string` (`name`, `count=10`, `language=sv`, `format=json`, encoded) and `fetchLocations(query): Promise<unknown>` (10 s timeout) for Open-Meteo Geocoding (SPEC D-24). | **Exists** (NIT-206) |
 | `src/services/api/weatherService.ts` | `buildForecastUrl(coordinates): string` builds the Open-Meteo URL from named field lists (`CURRENT_FIELDS`, `HOURLY_FIELDS`, `DAILY_FIELDS`) that match the parser. `fetchForecast(coordinates): Promise<unknown>` calls `getJson` with a 10 s timeout. | **Exists** (NIT-211, NIT-212) |
-| `src/parsers/geocodingParser.ts` | `(json: unknown) => ReadonlyArray<Location>`. Throws `AppError('parse', …)`. | Planned (NIT-165) |
+| `src/parsers/geocodingParser.ts` | `parseGeocodingResponse(json: unknown): ReadonlyArray<Location>`. No `results` key → `[]`. `name`, `latitude`, `longitude` required; `admin1` → `region` and `country` optional. Throws `AppError('parse', …)` with the path. | **Exists** (NIT-206) |
+| `src/parsers/jsonReaders.ts` | Shared readers for parsers (`readObject`, `readString`, `readOptionalString`, `readNumber`, `readOptionalNumber`, `readArray`) that throw `AppError('parse')` with the field path. | **Exists** (NIT-206) |
 | `src/parsers/weatherParser.ts` | `parseWeatherResponse(json: unknown): WeatherReport`. Throws `AppError('parse', …)` with the field path. Optional `null`/missing values become `undefined`. | **Exists** (NIT-215) |
-| `src/repositories/locationRepository.ts` | `searchLocations(query): Promise<ReadonlyArray<Location>>`: calls `geocodingService`, then `geocodingParser`. No caching or other behaviour (SPEC D-17). | Planned (NIT-165) |
+| `src/repositories/locationRepository.ts` | `searchLocations(query): Promise<ReadonlyArray<Location>>`: `fetchLocations` → `parseGeocodingResponse`. No caching or other behaviour (SPEC D-17). Errors pass through unchanged. | **Exists** (NIT-206) |
 | `src/repositories/weatherRepository.ts` | `getReport(coordinates): Promise<FetchedWeatherReport>`: `fetchForecast` → `parseWeatherResponse` → `{ report, fetchedAtEpochMs }` (SPEC D-18). Errors pass through unchanged. Planned: cache, refresh policy, and reporting a fallback to a cached entry after a failed refresh (§11). | **Exists** without cache (NIT-212); cache planned (NIT-182, NIT-183) |
 | `src/repositories/favoritesRepository.ts`, `settingsRepository.ts` | Read and write favourites and settings through `keyValueStorage`. | Planned (NIT-177, NIT-179 – NIT-181) |
 | `src/storage/keyValueStorage.ts` | Get (`unknown`) and set JSON values; the only importer of AsyncStorage (D-08). | Planned (NIT-182) |
@@ -99,9 +100,9 @@ Weatherly/
 ├── index.ts                # [exists] Expo entry point (do not add logic)
 ├── src/
 │   ├── models/             # AppError.ts [exists], Location.ts [exists], Weather.ts [exists]; AppSettings.ts
-│   ├── services/api/       # httpClient.ts [exists], weatherService.ts [exists]; geocodingService.ts
-│   ├── parsers/            # weatherParser.ts [exists]; geocodingParser.ts
-│   ├── repositories/       # weatherRepository.ts [exists]; locationRepository.ts, favoritesRepository.ts, settingsRepository.ts
+│   ├── services/api/       # httpClient.ts, weatherService.ts, geocodingService.ts [all exist]
+│   ├── parsers/            # weatherParser.ts, geocodingParser.ts, jsonReaders.ts [all exist]
+│   ├── repositories/       # weatherRepository.ts, locationRepository.ts [exist]; favoritesRepository.ts, settingsRepository.ts
 │   ├── storage/            # .gitkeep; keyValueStorage.ts
 │   ├── navigation/         # .gitkeep; RootNavigator.tsx, routes.ts (typed route params)
 │   ├── viewmodels/         # loadState.ts [exists]; useWeatherViewModel.ts, useSearchViewModel.ts, ...
@@ -112,10 +113,10 @@ Weatherly/
 │   └── utils/              # .gitkeep; coordinateValidation.ts, refreshPolicy.ts, units.ts
 ├── tests/                  # All unit tests, mirroring src/ (SPEC D-23)
 │   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json
-│   ├── helpers/            # fakeFetch.ts (fake global fetch, shared assertions)
-│   ├── parsers/            # weatherParser.test.ts
-│   ├── repositories/       # weatherRepository.test.ts
-│   └── services/           # weatherService.test.ts, httpClient.test.ts
+│   ├── helpers/            # fakeFetch.ts (fake fetch), jsonFixtures.ts (copy-with-one-change, parse-error assertion)
+│   ├── parsers/            # weatherParser.test.ts, geocodingParser.test.ts
+│   ├── repositories/       # weatherRepository.test.ts, locationRepository.test.ts
+│   └── services/           # weatherService.test.ts, httpClient.test.ts, geocodingService.test.ts
 ├── CLAUDE.md, AGENTS.md    # Agent instructions (AGENTS.md points to CLAUDE.md)
 └── *.md                    # All other project documentation, at the root (SPEC D-14)
 ```

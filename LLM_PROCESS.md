@@ -410,8 +410,8 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Developer 2 (Tyrone Asante) |
 | **Platform** | macOS |
-| **Linear user story / task** | US-02.03 (NIT-165): NIT-205 (choose endpoint) |
-| **Requirement IDs** | W-01, W-02 |
+| **Linear user story / task** | US-02.03 (NIT-165): NIT-205 (choose endpoint), NIT-206 (service, parser, repository) |
+| **Requirement IDs** | W-01, W-02, W-14, W-19 |
 | **Branch / PR** | `feat/city-search-geocoding`, no PR yet |
 | **Task given to AI** | Plan US-02.03 and implement it one Linear Task at a time. |
 | **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
@@ -431,6 +431,18 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - Added D-24 to `SPEC.md` (D-06 superseded), resolved OQ-01 – OQ-03 and partly resolved OQ-04, and updated §4, W-02 and the change log.
 >   - Replaced the SMHI references in `STYLE.md` §3.1 and §9 and in `CONTEXT.md`, and rewrote `CONTEXT.md` §18 "Current Project State", which was out of date.
 >   - Added `TEST_REPORT.md` §1.3 with all probe results.
+> - NIT-206, code:
+>   - `src/services/api/geocodingService.ts`: `buildSearchUrl`, `fetchLocations`.
+>   - `src/parsers/geocodingParser.ts`: `parseGeocodingResponse`. A missing `results` key returns `[]`.
+>   - `src/repositories/locationRepository.ts`: `searchLocations`.
+> - NIT-206, refactor:
+>   - Moved the generic JSON readers from `weatherParser.ts` into a shared `src/parsers/jsonReaders.ts` and added `readOptionalString`. The 36 existing tests still passed unchanged.
+>   - Moved the fixture helpers from `weatherParser.test.ts` into `tests/helpers/jsonFixtures.ts`.
+> - NIT-206, tests:
+>   - 24 new tests across `geocodingParser.test.ts`, `geocodingService.test.ts` and `locationRepository.test.ts`.
+>   - 3 mutation checks on the parser, each detected.
+>   - Real-API check from Node: Göteborg, Gothenburg, Kiruna and New York returned results; xqzvbn returned `[]`.
+> - Docs: `STYLE.md` §3.1 and §4, `SPEC.md` §11/§11.1 (W-01, W-02, W-14) and §12 (Q2, Q3), `TEST_REPORT.md` §2.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the US-02.03 plan; Open-Meteo Geocoding (recommended option); testing only the pure parts of the ViewModel now and checking the hook through UX-01 – UX-03 when the search screen exists (US-03.01).
@@ -447,7 +459,9 @@ Record actual outcomes only. Write `not run` where applicable.
 |---|---|
 | Read and understood line by line | |
 | Endpoint probes | See TEST_REPORT §1.3 (2026-11-20) |
-| `npm run check` | not needed for NIT-205 (documentation and fixtures only) |
+| `npm run check` | not needed for NIT-205 (documentation and fixtures only); PASS, 60/60 tests after NIT-206 (2026-11-20) |
+| Mutation checks (NIT-206) | 3 of 3 detected (TEST_REPORT §2.3) |
+| Real geocoding API from Node (NIT-206) | Göteborg 4, Gothenburg 5, Kiruna 5, New York 10 results; xqzvbn 0 (2026-11-20) |
 | Android Emulator (what was checked) | not run |
 | iOS Simulator (what was checked) | not run |
 

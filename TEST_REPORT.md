@@ -80,7 +80,7 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Category | Lab area | Module (planned) | Requirement(s) | Selected? |
 |---|---|---|---|---|
 | Weather JSON parsing | JSON parsing | `src/parsers/weatherParser.ts` | W-14, W-15, W-19 | yes |
-| Geocoding JSON parsing | JSON parsing | `src/parsers/geocodingParser.ts` | W-02, W-14, W-19 | |
+| Geocoding JSON parsing | JSON parsing | `src/parsers/geocodingParser.ts` | W-02, W-14, W-19 | yes |
 | HTTP outcome → `AppError` kind | Error-state logic (data layer) | `src/services/api/httpClient.ts` | W-18, W-19, W-23 | yes |
 | Result/error → `LoadState` mapping | Error-state logic (ViewModel) | decided with the first ViewModel | W-17, W-18, W-19 | |
 | Forecast request URL | (extra) | `src/services/api/weatherService.ts` | W-13 | |
@@ -134,6 +134,28 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | weatherRepository › getReport › returns the parsed report with the time it was fetched | W-13, W-15 | fixture; `Date.now` fixed | `fetchedAtEpochMs` = fixed time; 7 daily, 168 hourly | as expected (2026-11-20) | PASS |
 | weatherRepository › getReport › passes a service error through unchanged | W-19 | fake 500 | `AppError('http')` | as expected (2026-11-20) | PASS |
 | weatherRepository › getReport › passes a parse error through when the JSON is valid but incomplete | W-19 | fixture without `daily` | `AppError('parse')` naming `daily` | as expected (2026-11-20) | PASS |
+| geocodingParser › valid response › returns one location per result | W-02, W-14 | Lund fixture | 10 locations | as expected (2026-11-20) | PASS |
+| geocodingParser › valid response › maps name, region, country and coordinates | W-02, W-15 | Lund fixture | first result: Lund, Skåne län, Sverige, 55.70584 / 13.19321 | as expected (2026-11-20) | PASS |
+| geocodingParser › valid response › keeps same-named places apart by region and country | W-01 | Lund fixture | second result: Lund, England, Storbritannien | as expected (2026-11-20) | PASS |
+| geocodingParser › valid response › returns an empty list when nothing matched (no results key) | W-01, W-02 | no-results fixture | `[]` | as expected (2026-11-20) | PASS |
+| geocodingParser › optional fields › turns a missing country into undefined | W-14 | `results[0].country` removed | `country` is `undefined` | as expected (2026-11-20) | PASS |
+| geocodingParser › optional fields › turns a missing region (admin1) into undefined | W-14 | `results[0].admin1` removed | `region` is `undefined` | as expected (2026-11-20) | PASS |
+| geocodingParser › missing or invalid required fields › throws a parse error when name / latitude / longitude is missing (3 tests) | W-19 | field removed from `results[3]` | `AppError('parse')` naming `results[3].<field>` | as expected (2026-11-20) | PASS |
+| geocodingParser › missing or invalid required fields › throws a parse error when a latitude is a string | W-19 | `results[0].latitude = "55.7"` | `AppError('parse')` | as expected (2026-11-20) | PASS |
+| geocodingParser › missing or invalid required fields › throws a parse error when a country is not a string | W-19 | `results[0].country = 46` | `AppError('parse')` | as expected (2026-11-20) | PASS |
+| geocodingParser › missing or invalid required fields › throws a parse error when results is not an array | W-19 | `results` is an object | `AppError('parse')` naming `results` | as expected (2026-11-20) | PASS |
+| geocodingParser › missing or invalid required fields › throws a parse error when a result is not an object | W-19 | `results[2] = "Lund"` | `AppError('parse')` naming `results[2]` | as expected (2026-11-20) | PASS |
+| geocodingParser › missing or invalid required fields › throws a parse error when the response is not an object | W-19 | `null`, `[]` | `AppError('parse')` naming `response` | as expected (2026-11-20) | PASS |
+| geocodingService › buildSearchUrl › uses the Open-Meteo geocoding endpoint | W-02 | Lund | base URL is `OPEN_METEO_GEOCODING_URL` | as expected (2026-11-20) | PASS |
+| geocodingService › buildSearchUrl › sets the name, result count, language and format | W-02 | Lund | `name=Lund`, `count=10`, `language=sv`, `format=json` | as expected (2026-11-20) | PASS |
+| geocodingService › buildSearchUrl › uses Swedish so Swedish spellings are found | W-02 | — | `GEOCODING_LANGUAGE` is `sv` | as expected (2026-11-20) | PASS |
+| geocodingService › buildSearchUrl › encodes Swedish letters | W-02 | Göteborg | `name=G%C3%B6teborg` | as expected (2026-11-20) | PASS |
+| geocodingService › buildSearchUrl › encodes spaces and characters that would break the query string | W-02 | `New York & Co?` | `name=New%20York%20%26%20Co%3F`; other parameters intact | as expected (2026-11-20) | PASS |
+| locationRepository › searchLocations › requests the search URL for the query | W-02 | Lund; fake 200 | one `fetch` call with `buildSearchUrl('Lund')` | as expected (2026-11-20) | PASS |
+| locationRepository › searchLocations › returns typed locations with region and country | W-01, W-02 | Lund fixture | 10 locations; first equals the expected `Location` | as expected (2026-11-20) | PASS |
+| locationRepository › searchLocations › returns an empty list when nothing matched | W-01 | no-results fixture | `[]` | as expected (2026-11-20) | PASS |
+| locationRepository › searchLocations › passes a service error through unchanged | W-18 | `fetch` rejects | `AppError('network')` | as expected (2026-11-20) | PASS |
+| locationRepository › searchLocations › passes a parse error through when a result is malformed | W-19 | latitude `"north"` | `AppError('parse')` naming `results[0].latitude` | as expected (2026-11-20) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -152,6 +174,9 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Error-state logic (`httpClient`) | `!response.ok` check disabled | the three `http error for status` tests; `getReport › passes a service error through unchanged` (4 of 36 failed) | yes | 2026-11-20 | PASS |
 | Error-state logic (`httpClient`) | aborted request reported as `network` instead of `timeout` | `…throws a timeout error when no response arrives in time` (1 of 36 failed) | yes | 2026-11-20 | PASS |
 | Error-state logic (`httpClient`) | invalid JSON reported as `network` instead of `parse` | `…throws a parse error when the body is not valid JSON` (1 of 36 failed) | yes | 2026-11-20 | PASS |
+| JSON parsing (`geocodingParser`) | missing `results` key no longer returns `[]` | both "empty list when nothing matched" tests (2 of 60 failed) | yes | 2026-11-20 | PASS |
+| JSON parsing (`geocodingParser`) | `region` read from `admin2` instead of `admin1` | the two mapping tests, the missing-region test, the repository mapping test (4 of 60 failed) | yes | 2026-11-20 | PASS |
+| JSON parsing (`geocodingParser`) | latitude and longitude swapped | 7 of 60 failed (mapping, missing/invalid coordinate and repository tests) | yes | 2026-11-20 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -160,6 +185,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 |---|---|---|---|---|---|---|
 | 2026-11-20 | uncommitted, on `weather-models-parser` after `580b309` | `npm test` | 17 | 17 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-20 | uncommitted, on `feat/implement-weather-rest-api` after `5089da9` | `npm run check` | 36 | 36 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-20 | uncommitted, on `feat/city-search-geocoding` after `126230c` | `npm run check` | 60 | 60 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -257,5 +283,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 25 executed | 0 of 25 executed |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 36 / 36 (run on macOS, 2026-11-20) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 60 / 60 (run on macOS, 2026-11-20) |
 | Known open defects | | |
