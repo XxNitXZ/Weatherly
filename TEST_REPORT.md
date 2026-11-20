@@ -82,7 +82,9 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Weather JSON parsing | JSON parsing | `src/parsers/weatherParser.ts` | W-14, W-15, W-19 | yes |
 | Geocoding JSON parsing | JSON parsing | `src/parsers/geocodingParser.ts` | W-02, W-14, W-19 | yes |
 | HTTP outcome → `AppError` kind | Error-state logic (data layer) | `src/services/api/httpClient.ts` | W-18, W-19, W-23 | yes |
-| Result/error → `LoadState` mapping | Error-state logic (ViewModel) | decided with the first ViewModel | W-17, W-18, W-19 | |
+| Caught value → `AppError` (`toAppError`) | Error-state logic (ViewModel) | `src/models/AppError.ts` | W-18, W-19 | yes |
+| Result/error → `LoadState` transitions | Error-state logic (ViewModel) | `useSearchViewModel` (hook not unit-tested; checked via UX-01 – UX-03 in US-03.01) | W-01, W-17, W-18, W-19 | |
+| Search query trimming | (extra) | `prepareSearchQuery` in `src/viewmodels/useSearchViewModel.ts` | W-01 | |
 | Forecast request URL | (extra) | `src/services/api/weatherService.ts` | W-13 | |
 | Hourly/daily grouping | Data transformation | decided in US-03.03 / US-03.04 | W-05, W-06 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
@@ -156,6 +158,16 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | locationRepository › searchLocations › returns an empty list when nothing matched | W-01 | no-results fixture | `[]` | as expected (2026-11-20) | PASS |
 | locationRepository › searchLocations › passes a service error through unchanged | W-18 | `fetch` rejects | `AppError('network')` | as expected (2026-11-20) | PASS |
 | locationRepository › searchLocations › passes a parse error through when a result is malformed | W-19 | latitude `"north"` | `AppError('parse')` naming `results[0].latitude` | as expected (2026-11-20) | PASS |
+| useSearchViewModel › prepareSearchQuery › returns a normal query unchanged | W-01 | `Lund` | `Lund` | as expected (2026-11-20) | PASS |
+| useSearchViewModel › prepareSearchQuery › trims surrounding spaces | W-01 | `  Göteborg  ` | `Göteborg` | as expected (2026-11-20) | PASS |
+| useSearchViewModel › prepareSearchQuery › keeps spaces inside the name | W-01 | ` New York ` | `New York` | as expected (2026-11-20) | PASS |
+| useSearchViewModel › prepareSearchQuery › trims tabs and newlines | W-01 | `\tKiruna\n` | `Kiruna` | as expected (2026-11-20) | PASS |
+| useSearchViewModel › prepareSearchQuery › returns null for an empty query (5 tests) | W-01 | `''`, `' '`, `'   '`, `'\t'`, `'\n \t'` | `null` (no request is sent) | as expected (2026-11-20) | PASS |
+| AppError › toAppError › returns an AppError unchanged | W-18, W-19 | `AppError('timeout')` | the same object | as expected (2026-11-20) | PASS |
+| AppError › toAppError › wraps a plain Error as kind "unknown" and keeps its message | W-19 | `TypeError` | `AppError('unknown')` containing the message | as expected (2026-11-20) | PASS |
+| AppError › toAppError › wraps a thrown string as kind "unknown" | W-19 | `'something broke'` | `AppError('unknown')` | as expected (2026-11-20) | PASS |
+| AppError › toAppError › wraps undefined as kind "unknown" | W-19 | `undefined` | `AppError('unknown')` | as expected (2026-11-20) | PASS |
+| AppError › toAppError › keeps instanceof working for AppError | — | `new AppError('validation', …)` | instance of `AppError` and `Error`; `name` is `AppError` | as expected (2026-11-20) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -177,6 +189,8 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | JSON parsing (`geocodingParser`) | missing `results` key no longer returns `[]` | both "empty list when nothing matched" tests (2 of 60 failed) | yes | 2026-11-20 | PASS |
 | JSON parsing (`geocodingParser`) | `region` read from `admin2` instead of `admin1` | the two mapping tests, the missing-region test, the repository mapping test (4 of 60 failed) | yes | 2026-11-20 | PASS |
 | JSON parsing (`geocodingParser`) | latitude and longitude swapped | 7 of 60 failed (mapping, missing/invalid coordinate and repository tests) | yes | 2026-11-20 | PASS |
+| Search query trimming | `prepareSearchQuery`: `raw.trim()` removed | 7 `prepareSearchQuery` tests (7 of 74 failed) | yes | 2026-11-20 | PASS |
+| Error-state logic (`toAppError`) | `AppError` no longer passed through (always wrapped) | `toAppError › returns an AppError unchanged` (1 of 74 failed) | yes | 2026-11-20 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -186,6 +200,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-20 | uncommitted, on `weather-models-parser` after `580b309` | `npm test` | 17 | 17 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-20 | uncommitted, on `feat/implement-weather-rest-api` after `5089da9` | `npm run check` | 36 | 36 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-20 | uncommitted, on `feat/city-search-geocoding` after `126230c` | `npm run check` | 60 | 60 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-20 | uncommitted, on `feat/city-search-geocoding` after `d6f9a29` | `npm run check` | 74 | 74 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -283,5 +298,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 25 executed | 0 of 25 executed |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 60 / 60 (run on macOS, 2026-11-20) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 74 / 74 (run on macOS, 2026-11-20) |
 | Known open defects | | |

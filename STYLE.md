@@ -43,7 +43,7 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 
 | Module | Contract | Status |
 |---|---|---|
-| `src/models/AppError.ts` | `AppErrorKind` union and `AppError` class (`kind`, developer-only `message`). The only error type that crosses a layer boundary (§8). | **Exists** |
+| `src/models/AppError.ts` | `AppErrorKind` union (`network`, `timeout`, `http`, `parse`, `validation`, `storage`, `unknown`) and `AppError` class (`kind`, developer-only `message`). The only error type that crosses a layer boundary (§8). `toAppError(error: unknown): AppError` turns anything caught into an `AppError`. | **Exists** (`toAppError`, `unknown`: NIT-207) |
 | `src/models/Location.ts` | `Coordinates` (`latitude`, `longitude`) and `Location` (`name`, optional `region`/`country`, `coordinates`). | **Exists** |
 | `src/viewmodels/loadState.ts` | `LoadState<T>`, the ViewModel → View state contract (§7). | **Exists** |
 | `src/services/api/httpClient.ts` | `getJson(url, { timeoutMs }): Promise<unknown>`, the only caller of `fetch`. Throws `AppError`: `network` (no connection), `timeout` (`AbortController`), `http` (status outside 200–299), `parse` (body is not JSON). | **Exists** (NIT-212) |
@@ -56,7 +56,8 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/repositories/weatherRepository.ts` | `getReport(coordinates): Promise<FetchedWeatherReport>`: `fetchForecast` → `parseWeatherResponse` → `{ report, fetchedAtEpochMs }` (SPEC D-18). Errors pass through unchanged. Planned: cache, refresh policy, and reporting a fallback to a cached entry after a failed refresh (§11). | **Exists** without cache (NIT-212); cache planned (NIT-182, NIT-183) |
 | `src/repositories/favoritesRepository.ts`, `settingsRepository.ts` | Read and write favourites and settings through `keyValueStorage`. | Planned (NIT-177, NIT-179 – NIT-181) |
 | `src/storage/keyValueStorage.ts` | Get (`unknown`) and set JSON values; the only importer of AsyncStorage (D-08). | Planned (NIT-182) |
-| `src/viewmodels/use…ViewModel.ts` | Expose `LoadState<T>` plus intent functions (`search`, `refresh`, …). Never receive `navigation`. | Planned (NIT-165, NIT-170, …) |
+| `src/viewmodels/useSearchViewModel.ts` | `{ state: LoadState<ReadonlyArray<Location>>, search(query) }`. Empty query → `error` with `AppError('validation')`, no request. Only the latest search may update the state (search counter; also ignores results after unmount). `prepareSearchQuery(raw): string \| null` is the pure, tested trimming rule. | **Exists** (NIT-207) |
+| `src/viewmodels/use…ViewModel.ts` (others) | Expose `LoadState<T>` plus intent functions (`refresh`, …). Never receive `navigation`. | Planned (NIT-170, …) |
 | `src/navigation/routes.ts`, `RootNavigator.tsx` | Typed route params and navigator setup. | Planned (NIT-173; SPEC OQ-05) |
 | `src/models/Weather.ts` | `CurrentWeather`, `HourlyForecast`, `DailyForecast` and `WeatherReport` (`timezone`, `utcOffsetSeconds`, `current`, `hourly`, `daily`). Written against a real Open-Meteo response. Times in `…EpochMs`, units in field names, API `null` values as optional fields. | **Exists** (NIT-214) |
 | `src/models/AppSettings.ts` | Settings model, written in the settings story. | Planned (NIT-179 – NIT-181) |
@@ -105,7 +106,7 @@ Weatherly/
 │   ├── repositories/       # weatherRepository.ts, locationRepository.ts [exist]; favoritesRepository.ts, settingsRepository.ts
 │   ├── storage/            # .gitkeep; keyValueStorage.ts
 │   ├── navigation/         # .gitkeep; RootNavigator.tsx, routes.ts (typed route params)
-│   ├── viewmodels/         # loadState.ts [exists]; useWeatherViewModel.ts, useSearchViewModel.ts, ...
+│   ├── viewmodels/         # loadState.ts, useSearchViewModel.ts [exist]; useWeatherViewModel.ts, ...
 │   ├── views/
 │   │   ├── screens/        # .gitkeep; HomeScreen.tsx, DayDetailScreen.tsx, FavoritesScreen.tsx, SettingsScreen.tsx
 │   │   └── components/     # .gitkeep; ForecastRow.tsx, LoadingView.tsx, ErrorView.tsx, ...
@@ -114,9 +115,11 @@ Weatherly/
 ├── tests/                  # All unit tests, mirroring src/ (SPEC D-23)
 │   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json
 │   ├── helpers/            # fakeFetch.ts (fake fetch), jsonFixtures.ts (copy-with-one-change, parse-error assertion)
+│   ├── models/             # AppError.test.ts
 │   ├── parsers/            # weatherParser.test.ts, geocodingParser.test.ts
 │   ├── repositories/       # weatherRepository.test.ts, locationRepository.test.ts
-│   └── services/           # weatherService.test.ts, httpClient.test.ts, geocodingService.test.ts
+│   ├── services/           # weatherService.test.ts, httpClient.test.ts, geocodingService.test.ts
+│   └── viewmodels/         # useSearchViewModel.test.ts (pure helper only)
 ├── CLAUDE.md, AGENTS.md    # Agent instructions (AGENTS.md points to CLAUDE.md)
 └── *.md                    # All other project documentation, at the root (SPEC D-14)
 ```
@@ -189,11 +192,11 @@ Tests live in the root `tests/` folder, separate from the app code, in the same 
 ## 8. Async & Error Handling
 
 - Use `async/await`. No `.then()` chains in new code.
-- All errors that cross a layer boundary are an `AppError` ([`src/models/AppError.ts`](src/models/AppError.ts), exists) with a `kind`: `'network' | 'timeout' | 'http' | 'parse' | 'validation' | 'storage'`. Create one with `new AppError(kind, developerMessage)`, and narrow caught values with `error instanceof AppError`.
+- All errors that cross a layer boundary are an `AppError` ([`src/models/AppError.ts`](src/models/AppError.ts), exists) with a `kind`: `'network' | 'timeout' | 'http' | 'parse' | 'validation' | 'storage' | 'unknown'`. Create one with `new AppError(kind, developerMessage)`, and narrow caught values with `error instanceof AppError`. `unknown` is only for things that are not an `AppError`, such as a programming bug.
 - **Services** convert `fetch` failures and non-2xx responses into `AppError`.
 - **Parsers** throw `AppError('parse')` for missing or invalid fields.
 - **Repositories** catch errors to apply the offline fallback, and rethrow when no fallback exists.
-- **ViewModels** catch everything and expose it as `{ status: 'error' }`. A user-facing message is derived from `kind`. Never show raw error text or stack traces.
+- **ViewModels** catch everything, convert it with `toAppError(error)`, and expose it as `{ status: 'error' }`. A user-facing message is derived from `kind`. Never show raw error text or stack traces.
 - Apply a request timeout with `AbortController`.
 - Ignore results of requests that are no longer relevant: the component unmounted, or a newer search started.
 - Never swallow errors silently. Either handle them visibly or rethrow them.

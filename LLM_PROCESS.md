@@ -410,7 +410,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Developer 2 (Tyrone Asante) |
 | **Platform** | macOS |
-| **Linear user story / task** | US-02.03 (NIT-165): NIT-205 (choose endpoint), NIT-206 (service, parser, repository) |
+| **Linear user story / task** | US-02.03 (NIT-165): NIT-205 (choose endpoint), NIT-206 (service, parser, repository), NIT-207 (empty, ambiguous and failed searches) |
 | **Requirement IDs** | W-01, W-02, W-14, W-19 |
 | **Branch / PR** | `feat/city-search-geocoding`, no PR yet |
 | **Task given to AI** | Plan US-02.03 and implement it one Linear Task at a time. |
@@ -443,6 +443,15 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - 3 mutation checks on the parser, each detected.
 >   - Real-API check from Node: Göteborg, Gothenburg, Kiruna and New York returned results; xqzvbn returned `[]`.
 > - Docs: `STYLE.md` §3.1 and §4, `SPEC.md` §11/§11.1 (W-01, W-02, W-14) and §12 (Q2, Q3), `TEST_REPORT.md` §2.
+> - NIT-207, code:
+>   - `src/viewmodels/useSearchViewModel.ts`: `{ state, search }`. An empty query gives `AppError('validation')` and sends no request. Otherwise `loading` → `success` (an empty list means no matches) or `error`. Only the latest search may update the state; a counter in `useRef` is also bumped on unmount.
+>   - Pure helper `prepareSearchQuery`.
+>   - `src/models/AppError.ts`: new kind `unknown` and `toAppError(error)`, so a ViewModel always stores an `AppError`.
+> - NIT-207, tests: 14 new tests in `tests/viewmodels/useSearchViewModel.test.ts` (pure helper only, as agreed) and `tests/models/AppError.test.ts`, plus 2 mutation checks, each detected.
+> - NIT-207, docs:
+>   - `STYLE.md` §3.1, §4 and §8 (`unknown`, `toAppError`).
+>   - `SPEC.md` §11.1 (W-01) and §12: Q8, Q11, Q12, Q17. Q7 was left open because it is about the weather ViewModel.
+>   - `TEST_REPORT.md` §2.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the US-02.03 plan; Open-Meteo Geocoding (recommended option); testing only the pure parts of the ViewModel now and checking the hook through UX-01 – UX-03 when the search screen exists (US-03.01).
@@ -451,6 +460,7 @@ Record actual outcomes only. Write `not run` where applicable.
 - Reviewed by (the other developer, in the PR):
 
 **AI mistakes or limitations observed**
+- The NIT-207 brief promised an answer to Q7, but Q7 is about where *weather* data lives, which the weather ViewModel (Epic 3) will answer. The AI left Q7 open and said so.
 - The AI first wrote Open-Meteo's terms of use into OQ-04 from memory as if they were verified, then corrected the entry to "partly resolved": only "no key needed" was verified, and the terms must be confirmed before submission.
 
 **Verification results**
@@ -461,6 +471,9 @@ Record actual outcomes only. Write `not run` where applicable.
 | Endpoint probes | See TEST_REPORT §1.3 (2026-11-20) |
 | `npm run check` | not needed for NIT-205 (documentation and fixtures only); PASS, 60/60 tests after NIT-206 (2026-11-20) |
 | Mutation checks (NIT-206) | 3 of 3 detected (TEST_REPORT §2.3) |
+| `npm run check` after NIT-207 | PASS, 74/74 tests (2026-11-20) |
+| Mutation checks (NIT-207) | 2 of 2 detected |
+| `useSearchViewModel` state changes | not tested yet; planned through UX-01 – UX-03 in US-03.01 |
 | Real geocoding API from Node (NIT-206) | Göteborg 4, Gothenburg 5, Kiruna 5, New York 10 results; xqzvbn 0 (2026-11-20) |
 | Android Emulator (what was checked) | not run |
 | iOS Simulator (what was checked) | not run |

@@ -352,7 +352,7 @@ Only items that were actually checked are listed as verified.
 | W-18 | The data layer reports no connection as `AppError('network')` and no answer within 10 s as `AppError('timeout')` (unit tests, 2026-11-20, NIT-212) | User-facing message and retry action (US-07.03, US-08.03) |
 | W-19 | `httpClient` reports non-2xx as `AppError('http')` and invalid JSON as `AppError('parse')`; the parser reports missing or invalid fields as `AppError('parse')` (unit tests, 2026-11-20) | Handling in the ViewModel and UI without crashing (US-07.03) |
 | W-23 | `httpClient` uses `async/await` with `fetch`, which does not block the UI thread, and cancels slow requests with `AbortController` (2026-11-20, NIT-212) | Ignoring outdated results in ViewModels (US-07.04); UX-20, UX-23 |
-| W-01 | `locationRepository.searchLocations` returns typed locations from the real API (Göteborg, Gothenburg, Kiruna, New York found; xqzvbn → empty list), checked from Node on 2026-11-20 (NIT-206) | Empty-input handling and the ViewModel (NIT-207); search UI (US-03.01) |
+| W-01 | `locationRepository.searchLocations` returns typed locations from the real API (Göteborg, Gothenburg, Kiruna, New York found; xqzvbn → empty list), checked from Node on 2026-11-20 (NIT-206). `useSearchViewModel` trims the query and sends no request for empty input; the trimming rule is unit-tested (NIT-207, 2026-11-20) | The hook's state changes are checked through UX-01 – UX-03 once the search UI exists (US-03.01) |
 | W-02 | Open-Meteo Geocoding chosen (D-24); service, parser and repository written with unit tests (NIT-206, 2026-11-20); same-named places carry region and country | Listing the results on screen (US-03.01); merge to `dev` |
 | W-14 | `weatherParser` (US-02.01, merged) and `geocodingParser` (US-02.03 branch, NIT-206) are separate pure modules sharing `jsonReaders`; neither views nor ViewModels parse JSON. Unit tests pass with mutation evidence (TEST_REPORT §2) (2026-11-20) | Merge US-02.03 to `dev` |
 | W-15 | `src/models/Weather.ts` written on the US-02.01 branch (NIT-214); `npx tsc --noEmit` passes (2026-11-20) | Settings model; merge to `dev` |
@@ -436,11 +436,11 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 | # | Question | Req. | Code location | Answer |
 |---|---|---|---|---|
 | Q7 | Where does the fetched weather data live while the app is running? Show the declaration. | W-26 | — | — |
-| Q8 | What happens to the displayed data when the user searches for a new city? | W-01, W-20 | — | — |
+| Q8 | What happens to the displayed data when the user searches for a new city? | W-01, W-20 | `src/viewmodels/useSearchViewModel.ts` → `search` | For search results: a new search immediately sets the state to `loading`, so the old list disappears and a loading indicator shows. The new results (or an error) replace it. (The weather display is added in Epic 3.) |
 | Q9 | How does the UI know when new data has arrived? Trace the update from data layer to screen. | W-26 | — | — |
 | Q10 | What state is preserved if the user leaves the app and returns? | W-08, W-10, W-16 | — | — |
-| Q11 | Where in the code is the loading state managed? How do you prevent the UI from showing stale data while a new request is in flight? | W-20, W-23 | — | — |
-| Q12 | If the user rapidly searches for two cities, what happens? Can a race condition occur, and how do you guard against it? | W-23, W-30 | — | — |
+| Q11 | Where in the code is the loading state managed? How do you prevent the UI from showing stale data while a new request is in flight? | W-20, W-23 | `src/viewmodels/useSearchViewModel.ts`; `LoadState` in `src/viewmodels/loadState.ts` | In the ViewModel: `search` sets `{ status: 'loading' }` before the request starts, and `LoadState` is a union, so the screen cannot show old results and a spinner at the same time. Outdated responses are ignored (see Q12). |
+| Q12 | If the user rapidly searches for two cities, what happens? Can a race condition occur, and how do you guard against it? | W-23, W-30 | `src/viewmodels/useSearchViewModel.ts` → `latestSearchId` | Yes, without a guard: if "Lund" answers after "Kiruna", Lund's results would overwrite Kiruna's. Each search increases `latestSearchId` (a `useRef`) and remembers its own number; a result is applied only if its number is still the latest. Unmounting the screen also bumps the number, so late results after leaving are ignored. |
 
 ### Error handling
 
@@ -450,7 +450,7 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 | Q14 | Where do you distinguish between a network error and an API error response (e.g., HTTP 404 or 500)? | W-18, W-19 | `src/services/api/httpClient.ts` → `getJson` | In one place. If `fetch` itself rejects, there was no answer: `network`, or `timeout` if our abort fired. If a response arrives with `!response.ok` (e.g. 404, 500), the server answered: `http`, with the status in the developer message. |
 | Q15 | What happens if the user has no internet connection and opens the app for the first time? | W-17, W-18 | — | — |
 | Q16 | What happens if they open it a second time, after having successfully loaded data before? | W-16, W-17 | — | — |
-| Q17 | Where is the error state declared, and how does it flow to the UI? | W-18, W-19, W-26 | — | — |
+| Q17 | Where is the error state declared, and how does it flow to the UI? | W-18, W-19, W-26 | `src/models/AppError.ts` (`AppError`, `toAppError`); `src/viewmodels/loadState.ts`; `src/viewmodels/useSearchViewModel.ts` | Services and parsers throw `AppError` with a `kind`; the repository passes it on. The ViewModel catches it, converts anything else with `toAppError` (kind `unknown`), and sets `{ status: 'error', error }`. The screen will choose the message from `error.kind` (UI in US-03.01). |
 | Q18 | What was the hardest error case to handle? Show the code. | W-30 | — | — |
 
 ### Architecture

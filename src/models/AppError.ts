@@ -5,7 +5,8 @@ export type AppErrorKind =
   | 'http'
   | 'parse'
   | 'validation'
-  | 'storage';
+  | 'storage'
+  | 'unknown';
 
 /**
  * The only error type that crosses a layer boundary.
@@ -26,4 +27,17 @@ export class AppError extends Error {
     // where subclasses of built-ins like Error otherwise lose their prototype.
     Object.setPrototypeOf(this, new.target.prototype);
   }
+}
+
+/**
+ * Turns anything caught in a `catch` block into an AppError, so a ViewModel
+ * can always put an AppError in its `error` state (STYLE.md §8).
+ * AppErrors pass through unchanged; anything else becomes kind 'unknown'.
+ */
+export function toAppError(error: unknown): AppError {
+  if (error instanceof AppError) {
+    return error;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return new AppError('unknown', `Unexpected error: ${message}`);
 }
