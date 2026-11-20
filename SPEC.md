@@ -63,7 +63,7 @@ To reach the higher level, the app must meet all mandatory requirements (§6) **
 | Framework | React Native 0.88 via Expo SDK 58 | Decided (D-01) |
 | Language | TypeScript 6.0, `strict: true` | Decided (D-01) |
 | Weather API | Open-Meteo (REST, JSON) | Decided (D-05) |
-| Geocoding API | SMHI place-search API (permitted by the lab). Integration details unverified, see §13.1 | Decided, details open (D-06) |
+| Geocoding API | Open-Meteo Geocoding API (`geocoding-api.open-meteo.com/v1/search`, no key, `language=sv`) | Decided (D-24, supersedes D-06) |
 | Navigation | React Navigation, minimal packages | Decided (D-07) |
 | Local persistence | `@react-native-async-storage/async-storage` | Decided (D-08) |
 | Unit testing | Jest with the `jest-expo` preset; tests in the root `tests/` folder | Decided (D-09, D-23); installed |
@@ -136,8 +136,9 @@ Planned components follow the folder structure in [STYLE.md §4](STYLE.md#4-fold
 - Planned: `HomeScreen`, `useSearchViewModel`, `locationRepository` (D-17), `geocodingService`.
 
 **W-02 – Geocoding API integration**
-- Uses the SMHI place-search API (D-06).
-- Its endpoint, response format and coverage must be verified against real responses **before** the service is implemented (§13.1 OQ-01 – OQ-04).
+- Uses the Open-Meteo Geocoding API (D-24). The SMHI place search named in the lab instructions no longer exists (HTTP 404, checked 2026-11-20).
+- Requests use `language=sv`, so Swedish spellings such as "Göteborg" are found. Results come with `admin1` (region) and `country`, which are shown to tell same-named places apart.
+- No results: the response has no `results` key, which means an empty list, not an error.
 - `locationRepository` calls `geocodingService`, and the response is parsed by `geocodingParser` into `Location` models (D-17).
 - Selecting a result loads the weather for that location.
 
@@ -481,7 +482,7 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 | D-03 | 2026-11-10 | Public GitHub repo with `main` (stable), `dev` (integration) and feature branches from `dev` | Decided | Portfolio visibility and safe integration. See GIT_WORKFLOW.md. | NIT-196, NIT-197 |
 | D-04 | 2026-11-10 | `.gitattributes` enforces LF line endings in the repository and working tree | Decided | Avoids CRLF/LF churn between Windows and macOS. | NIT-197 |
 | D-05 | 2026-11-10 | Weather API: **Open-Meteo** | Decided | Free REST/JSON API with no key; provides current, hourly and daily data. | NIT-164 (recorded) |
-| D-06 | 2026-11-10 | Geocoding: **SMHI place-search API**, as permitted by the lab | Decided, details open | Verify the response format with real requests before implementing the service. See §13.1. | NIT-164 (recorded) |
+| D-06 | 2026-11-10 | Geocoding: **SMHI place-search API**, as permitted by the lab | Superseded by D-24 | Verify the response format with real requests before implementing the service. See §13.1. | NIT-164 (recorded) |
 | D-07 | 2026-11-10 | Navigation: **React Navigation**, minimal packages | Decided | Widely used and well documented. Only the core package, one navigator type and their required peer dependencies are added. Navigation stays out of ViewModels (STYLE.md §3). | NIT-164 (recorded) |
 | D-08 | 2026-11-10 | Persistence: **`@react-native-async-storage/async-storage`** | Decided | Simple key-value storage, enough for cache, favourites and settings. Accessed only through `keyValueStorage`. | NIT-164 (recorded) |
 | D-09 | 2026-11-10 | Unit testing: **Jest + `jest-expo`** | Decided | The Expo-supported preset for testing pure TypeScript logic. | NIT-164 (recorded) |
@@ -499,6 +500,7 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 | D-21 | 2026-11-18 | Claude Code writes the `LLM_PROCESS.md` entry at the end of every session, based only on what happened in that session (CLAUDE.md rule 14). Entries do not say who wrote them. Fields the assistant cannot know are left empty. | Decided | The assistant has the full session in context, so the log is complete and consistent across both developers. Previously the students wrote the entries themselves. | NIT-191 (US-09.03) |
 | D-22 | 2026-11-20 | One `HomeScreen` combines search with the selected location's current conditions, today's hourly forecast and the seven-day summary. Selecting a day navigates to `DayDetailScreen`. There is no separate search or weather screen. | Decided | Matches the Lab B:2 description of the search/home screen and Linear US-03.01. Removes one screen and one navigation step, so the forecast appears where the user searched. `HomeScreen` uses two ViewModels, `useSearchViewModel` and `useWeatherViewModel` (STYLE §3.2). | NIT-169 (US-03.01) |
 | D-23 | 2026-11-20 | All unit tests live in a root `tests/` folder that mirrors `src/` (e.g. `tests/parsers/weatherParser.test.ts`), with saved API responses in `tests/fixtures/`. This replaces the earlier "tests next to the module" rule. `tsconfig.json` lists `"types": ["jest"]`, because TypeScript 6 no longer loads `@types` packages automatically. | Decided | Separates test code from app code, so `src/` holds only what ships in the app. Trade-off: test imports are longer (`../../src/...`), and a moved module must be moved in both trees. | NIT-216 |
+| D-24 | 2026-11-20 | Geocoding: **Open-Meteo Geocoding API** (`https://geocoding-api.open-meteo.com/v1/search?name=…&count=10&language=sv&format=json`), replacing the SMHI place search (D-06). | Decided | The lab's SMHI URL returns HTTP 404 for every query. The lab's other option, geocode.maps.co, now returns HTTP 401 without an API key, and a key would be embedded in the app bundle. The KTH proxy only answers its example place and is not allowed in the final app. Open-Meteo Geocoding is free, needs no key, covers the whole world, and comes from the same provider as the weather data. `language=sv` is used because with `en` a search for "Göteborg" does not find the city. Evidence: TEST_REPORT §1.3. Deviation from the lab's list of geocoding APIs; the teacher should be informed. | NIT-205 |
 
 D-05 – D-09 record the choices only. The libraries are installed with `npx expo install` in the user stories that implement them.
 
@@ -506,10 +508,10 @@ D-05 – D-09 record the choices only. The libraries are installed with `npx exp
 
 | ID | Question | Affects | How to resolve |
 |---|---|---|---|
-| OQ-01 | Exact SMHI place-search endpoint URL and query parameters | W-01, W-02 | Check SMHI's official documentation and the lab instructions |
-| OQ-02 | SMHI response JSON format: field names for place name, region/municipality, country, coordinates and ID | W-02, W-14 | Save a real response as a test fixture before writing `geocodingParser` |
-| OQ-03 | Geographic coverage of the SMHI place search, and how it behaves for places outside its coverage | W-01, W-02, UX-02 | Test real queries and record the result here |
-| OQ-04 | SMHI terms of use, rate limits, attribution, and whether a key is required | W-02 | Check SMHI's documentation |
+| OQ-01 | ~~Exact SMHI place-search endpoint URL and query parameters~~ | W-01, W-02 | **Resolved 2026-11-20:** the SMHI endpoint returns 404; replaced by Open-Meteo Geocoding (D-24) |
+| OQ-02 | ~~Response JSON format~~ | W-02, W-14 | **Resolved 2026-11-20:** `results[]` with `name`, `latitude`, `longitude`, optional `admin1` (region) and `country`; no `results` key when nothing matches. Fixtures in `tests/fixtures/openMeteoGeocoding*.json` |
+| OQ-03 | ~~Geographic coverage~~ | W-01, W-02, UX-02 | **Resolved 2026-11-20:** worldwide (GeoNames data). 1-character queries return nothing. |
+| OQ-04 | Terms of use, rate limits, attribution, key | W-02 | **Partly resolved 2026-11-20:** no key needed (verified by real requests). Terms not yet re-read: to our knowledge, Open-Meteo is free for non-commercial use with fair-use limits and asks for attribution to Open-Meteo (data partly from GeoNames). Confirm on open-meteo.com before submission and credit it in the app (e.g. settings screen). |
 | OQ-05 | Which React Navigation navigator(s) to use (stack only, or stack plus tabs) | W-07, W-09, W-10 | Decide in the navigation user story and record it as a new decision |
 | OQ-06 | Course submission deadline and oral examination format | — | Copy from the course page into CONTEXT.md §14 |
 | OQ-07 | How should days without a normal sunrise/sunset be shown? Open-Meteo marks polar night as sunrise = sunset = local midnight, and midnight sun as sunrise = midnight, sunset = next midnight (no `null`). This happens in northern Sweden, e.g. Kiruna. | W-07 | Decide in the day detail story (US-04.03, NIT-175), e.g. show "Polar night" / "Midnight sun" instead of 00:00. Evidence: TEST_REPORT §1.2 |
@@ -527,6 +529,7 @@ D-05 – D-09 record the choices only. The libraries are installed with `npx exp
 | 2026-11-18 | Added D-21 (assistant writes the LLM_PROCESS.md session entries) | NIT-191 |
 | 2026-11-20 | Renumbered the Epic 2 user stories by dependency. Aligned W-24 with the lab's three test areas. Replaced §12 with the 30 official oral examination questions. Added §10.1 AI Usage Summary. Added D-22 (one home screen) | NIT-153, NIT-169, NIT-189 |
 | 2026-11-20 | US-02.01: added `Weather.ts` and `weatherParser.ts`; installed Jest; added D-23 (root `tests/` folder); W-14, W-15 and W-24 set to IN PROGRESS; answered Q2 – Q4 and Q28 | NIT-168 (NIT-214 – NIT-216) |
+| 2026-11-20 | Geocoding switched from SMHI to Open-Meteo Geocoding (D-24, D-06 superseded); OQ-01 – OQ-04 resolved | NIT-165 (NIT-205) |
 
 ## 15. End-of-Session Update Procedure
 

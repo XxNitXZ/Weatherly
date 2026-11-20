@@ -47,6 +47,27 @@ Checks that `weatherRepository.getReport` works against the **real** Open-Meteo 
 | iOS Simulator (macOS) | 2026-11-20 | Tyrone Asante | `iOS Bundled 254ms index.ts (644 modules)`; `NIT-213 OK: Stockholm, Europe/Stockholm, 7 days, 168 hours, now 1.4 °C (code 51), fetched 2026-11-20T11:24:27.063Z` | PASS |
 | Android Emulator (Windows) | | | | NOT RUN |
 
+### 1.3 Geocoding Endpoint Check (US-02.03, NIT-205)
+
+Real requests run by the AI with `curl` on 2026-11-20, to choose the geocoding API (SPEC D-24).
+
+| Endpoint | Request | Actual result | Usable? |
+|---|---|---|---|
+| SMHI place search (lab instructions) | `https://www.smhi.se/wpta/backend_solr/autocomplete/search/{place}` for Stockholm, Lund, Göteborg, goteborg, Åre, London, xqzvbn, Sto, empty | HTTP 404 with an HTML "page not found" page for every query | No |
+| KTH proxy (SMHI format, test only) | `maceo.sth.kth.se/weather/search?location=…` | `Sigfridstorp`: HTTP 200, 2 results, with broken characters (`l\ufffdn` for "län"). Stockholm, Göteborg, London, xqzvbn: HTTP 200, 0 results | No (stub; not allowed in the final app) |
+| geocode.maps.co (lab instructions) | `https://geocode.maps.co/search?q=Stockholm` | HTTP 401 `Missing API Key` | Only with a key |
+| Open-Meteo Geocoding | `…/v1/search?name=…&count=…&language=sv&format=json` | Stockholm 5, Göteborg 4, Lund 10 results (each with region and country); xqzvbn: HTTP 200 with no `results` key; 1-character query: no results; `count=abc`: HTTP 400 `{"error": true, "reason": …}` | **Yes (chosen)** |
+
+**Language check (Open-Meteo Geocoding):**
+
+| Query | `language=en` | `language=sv` |
+|---|---|---|
+| Göteborg | city **not found** (only "Göteborgnuten", "Göteborgs Botaniska Trädgård") | Göteborg, Västra Götalands län, Sverige |
+| Gothenburg | Gothenburg, Västra Götaland County, Sweden | Göteborg, Västra Götalands län, Sverige |
+| Malmö | Malmö, Skåne County, Sweden | Malmö, Skåne län, Sverige |
+
+Result: `language=sv` is used, so both Swedish and English spellings find Swedish cities. Saved fixtures: `tests/fixtures/openMeteoGeocodingLund.json` (10 results) and `tests/fixtures/openMeteoGeocodingNoResults.json`.
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).

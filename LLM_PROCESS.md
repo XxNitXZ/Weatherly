@@ -402,6 +402,60 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-006 – US-02.03 City search with geocoding
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-20 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 2 (Tyrone Asante) |
+| **Platform** | macOS |
+| **Linear user story / task** | US-02.03 (NIT-165): NIT-205 (choose endpoint) |
+| **Requirement IDs** | W-01, W-02 |
+| **Branch / PR** | `feat/city-search-geocoding`, no PR yet |
+| **Task given to AI** | Plan US-02.03 and implement it one Linear Task at a time. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "Merged into dev now. Onto the next" · "Yes, accepted." · "Go" |
+
+**Changes made by AI**
+> - Before planning, the AI probed the geocoding options with real requests:
+>   - The lab's SMHI URL returned HTTP 404 for every query.
+>   - The KTH proxy only answers its example place.
+>   - geocode.maps.co returned HTTP 401 (needs an API key).
+>   - Open-Meteo Geocoding worked without a key.
+> - The AI presented the options. The student chose Open-Meteo Geocoding.
+> - A further probe showed that `language=en` does not find "Göteborg", so `language=sv` was chosen.
+> - Plan: three Tasks, NIT-205 (choose endpoint, docs), NIT-206 (service, parser, repository) and NIT-207 (`useSearchViewModel`).
+> - NIT-205:
+>   - Saved two real responses as fixtures (Lund, no results).
+>   - Added D-24 to `SPEC.md` (D-06 superseded), resolved OQ-01 – OQ-03 and partly resolved OQ-04, and updated §4, W-02 and the change log.
+>   - Replaced the SMHI references in `STYLE.md` §3.1 and §9 and in `CONTEXT.md`, and rewrote `CONTEXT.md` §18 "Current Project State", which was out of date.
+>   - Added `TEST_REPORT.md` §1.3 with all probe results.
+
+**Changes reviewed or modified by students**
+- Accepted as is: the US-02.03 plan; Open-Meteo Geocoding (recommended option); testing only the pure parts of the ViewModel now and checking the hook through UX-01 – UX-03 when the search screen exists (US-03.01).
+- Modified (what and why):
+- Rejected (what and why): adding `@testing-library/react-native` (not needed now).
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The AI first wrote Open-Meteo's terms of use into OQ-04 from memory as if they were verified, then corrected the entry to "partly resolved": only "no key needed" was verified, and the terms must be confirmed before submission.
+
+**Verification results**
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| Endpoint probes | See TEST_REPORT §1.3 (2026-11-20) |
+| `npm run check` | not needed for NIT-205 (documentation and fixtures only) |
+| Android Emulator (what was checked) | not run |
+| iOS Simulator (what was checked) | not run |
+
+**Lessons learned**
+- An API named in the assignment can disappear. Probing it with real requests before planning surfaced this before any code was written.
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

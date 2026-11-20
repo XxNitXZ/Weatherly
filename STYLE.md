@@ -47,7 +47,7 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/models/Location.ts` | `Coordinates` (`latitude`, `longitude`) and `Location` (`name`, optional `region`/`country`, `coordinates`). | **Exists** |
 | `src/viewmodels/loadState.ts` | `LoadState<T>`, the ViewModel → View state contract (§7). | **Exists** |
 | `src/services/api/httpClient.ts` | `getJson(url, { timeoutMs }): Promise<unknown>`, the only caller of `fetch`. Throws `AppError`: `network` (no connection), `timeout` (`AbortController`), `http` (status outside 200–299), `parse` (body is not JSON). | **Exists** (NIT-212) |
-| `src/services/api/geocodingService.ts` | Search SMHI by place name, returning `Promise<unknown>`. | Planned (NIT-165; SPEC OQ-01 – OQ-04 first) |
+| `src/services/api/geocodingService.ts` | Search Open-Meteo Geocoding by place name (`language=sv`, SPEC D-24), returning `Promise<unknown>`. | Planned (NIT-206) |
 | `src/services/api/weatherService.ts` | `buildForecastUrl(coordinates): string` builds the Open-Meteo URL from named field lists (`CURRENT_FIELDS`, `HOURLY_FIELDS`, `DAILY_FIELDS`) that match the parser. `fetchForecast(coordinates): Promise<unknown>` calls `getJson` with a 10 s timeout. | **Exists** (NIT-211, NIT-212) |
 | `src/parsers/geocodingParser.ts` | `(json: unknown) => ReadonlyArray<Location>`. Throws `AppError('parse', …)`. | Planned (NIT-165) |
 | `src/parsers/weatherParser.ts` | `parseWeatherResponse(json: unknown): WeatherReport`. Throws `AppError('parse', …)` with the field path. Optional `null`/missing values become `undefined`. | **Exists** (NIT-215) |
@@ -202,8 +202,8 @@ Tests live in the root `tests/` folder, separate from the app code, in the same 
 - One module per external API (`weatherService.ts`, `geocodingService.ts`), sharing one small `httpClient.ts` (`getJson(url, { timeoutMs })`).
 - Base URLs and query-parameter construction live in the service. No URL strings in ViewModels or views.
 - Services return `Promise<unknown>`. Parsing is the caller's job (repository → parser).
-- Weather data comes from Open-Meteo (`weatherService`, D-05) and place search from SMHI (`geocodingService`, D-06).
-- No API keys in source code. Open-Meteo needs no key. Whether SMHI needs one is unverified (SPEC OQ-04). If a key is ever needed, it goes in an ignored `.env` file and is documented in CONTEXT.md.
+- Weather data comes from Open-Meteo (`weatherService`, D-05) and place search from Open-Meteo Geocoding (`geocodingService`, D-24).
+- No API keys in source code. Neither Open-Meteo API needs a key. If a key is ever needed, it goes in an ignored `.env` file and is documented in CONTEXT.md.
 - Before implementing a service, save one real response as a test fixture and write the parser against it. Never write a parser against an assumed format.
 
 ## 10. JSON Parser Isolation

@@ -47,7 +47,7 @@ As targeted by the team (see [SPEC.md §3 and §8](SPEC.md#8-quality-requirement
 | Language | TypeScript 6.0, strict mode | Installed |
 | Package manager | npm (with `package-lock.json`) | Use `npm ci` for clean installs |
 | Weather API | Open-Meteo | Decided (SPEC D-05) |
-| Geocoding API | SMHI place-search API (permitted by the lab) | Decided (SPEC D-06); integration details unverified (SPEC §13.1) |
+| Geocoding API | Open-Meteo Geocoding API | Decided (SPEC D-24, supersedes D-06) |
 | Navigation | React Navigation, minimal packages | Decided (SPEC D-07); **not installed** |
 | Persistence | `@react-native-async-storage/async-storage` | Decided (SPEC D-08); **not installed** |
 | Unit testing | Jest + `jest-expo` | Decided (SPEC D-09); installed as dev dependencies in US-02.01 (NIT-216). Run with `npm test`. |
@@ -128,9 +128,9 @@ There's no branch protection yet; it will be configured later. Never force-push 
 ## 11. External API Strategy
 
 - **Weather: Open-Meteo** (SPEC D-05), a free REST/JSON API with no key.
-- **Geocoding: SMHI place-search API** (SPEC D-06), permitted by the lab.
-  - Before implementing `geocodingService`, verify the endpoint, the response format, the coverage and any terms or key requirements with real requests.
-  - Open points: SPEC §13.1 OQ-01 – OQ-04.
+- **Geocoding: Open-Meteo Geocoding API** (SPEC D-24), free and with no key.
+  - The lab lists SMHI's place search and geocode.maps.co. The SMHI endpoint no longer exists (HTTP 404), and maps.co now requires an API key, so we deviate from the list; see D-24 and TEST_REPORT §1.3.
+  - Requests use `language=sv` so Swedish spellings are found.
 - All requests go through `src/services/api/`, and all JSON is parsed in `src/parsers/` (STYLE.md §9–10).
 - Respect each provider's terms of use and attribution requirements, and avoid unnecessary request frequency (caching, refresh interval).
 
@@ -210,15 +210,12 @@ Complete this at the end of every work session (AI-assisted or not):
 
 Update this section when the state changes.
 
-**Committed history** (from `git log`, as of 2026-11-18):
-- The Expo SDK 58 TypeScript project is scaffolded (NIT-193, commit `48a97f9`). On 2026-11-10, `tsc` and `expo-doctor` passed. The app has **not** yet been run on an emulator or simulator.
-- The Git repository is initialised with `.gitignore` and `.gitattributes` (NIT-196, NIT-197; commit `da0d233`).
-- The public GitHub repository exists, with `main` and `dev` on the remote. On the Windows machine, local `dev` tracks `origin/dev`.
-- The documentation structure (then in `docs/` and `agents/`) was committed on branch `docs/NIT-164-project-documentation` (commit `be1ad24`; NIT-198, NIT-164) and merged through pull request #1 (merge commit `6d32ca1`). `main`, `dev` and `origin/dev` all pointed at `6d32ca1` at the start of the 2026-11-18 session.
-- Technical decisions D-05 – D-09 and D-12 are confirmed. The SMHI place-search details are still to be verified.
-- No weather functionality is implemented.
+**State on `dev`** (from `git log`, as of 2026-11-20, commit `836ad62`):
+- Project setup: Expo SDK 58 + TypeScript (US-01.01), Git and GitHub with `main`/`dev` (US-01.02), MVVM folder structure and shared types (US-01.03), project documentation (US-01.04). The app runs on the iOS Simulator (TEST_REPORT §1.1); the Android Emulator run is still open.
+- US-02.01 (merged): weather models (`Weather.ts`) and `weatherParser`, with Jest unit tests in `tests/`.
+- US-02.02 (merged): `httpClient`, `weatherService` and `weatherRepository.getReport` against the real Open-Meteo API, checked from Node and in the iOS Simulator (TEST_REPORT §1.2).
+- No screens yet: `App.tsx` is still the Expo template.
 
-**Uncommitted changes on `dev`** (2026-11-18 session, NIT-163; direct-on-`dev` exception D-16):
-- All Markdown files moved to the repository root (D-14). Both developers now use Claude Code in VS Code, with `CLAUDE.md` as the single rule set (D-15).
-- `src/` folder structure created with `.gitkeep` placeholders (D-19). Shared types `AppError`, `Coordinates`/`Location` and `LoadState<T>` added (D-17, D-18, D-20). Layer contracts, data flow and navigation ownership documented in STYLE §3.1 – §3.3.
-- Not yet reviewed or committed. `npx tsc --noEmit` has not been run on these changes because dependencies are not installed on this machine.
+**In progress:** US-02.03, City Search with Geocoding (NIT-165) on `feat/city-search-geocoding`. Geocoding uses Open-Meteo instead of SMHI (D-24).
+
+Which modules exist is tracked in STYLE §3.1; requirement status in SPEC §11.
