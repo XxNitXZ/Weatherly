@@ -1,4 +1,5 @@
 import type { Coordinates } from '../../models/Location';
+import { getJson } from './httpClient';
 
 /**
  * Open-Meteo forecast API (SPEC D-05, W-13). No API key is needed.
@@ -39,6 +40,19 @@ export const DAILY_FIELDS = [
 
 /** Seven days, starting today (W-05). */
 export const FORECAST_DAYS = 7;
+
+/** How long to wait for Open-Meteo before reporting a timeout (W-18). */
+export const FORECAST_TIMEOUT_MS = 10_000;
+
+/**
+ * Fetches the raw forecast for one location.
+ * Returns untrusted JSON; `weatherRepository` passes it to `weatherParser`.
+ *
+ * @throws AppError('network' | 'timeout' | 'http' | 'parse') from `getJson`.
+ */
+export async function fetchForecast(coordinates: Coordinates): Promise<unknown> {
+  return getJson(buildForecastUrl(coordinates), { timeoutMs: FORECAST_TIMEOUT_MS });
+}
 
 /**
  * Builds the forecast request URL for one location.

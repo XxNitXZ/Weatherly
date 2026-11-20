@@ -334,8 +334,8 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Developer 2 (Tyrone Asante) |
 | **Platform** | macOS |
-| **Linear user story / task** | US-02.02 (NIT-167): NIT-211 (request parameters) |
-| **Requirement IDs** | W-13 |
+| **Linear user story / task** | US-02.02 (NIT-167): NIT-211 (request parameters), NIT-212 (HTTP service and errors) |
+| **Requirement IDs** | W-13, W-18, W-19, W-23 |
 | **Branch / PR** | `feat/implement-weather-rest-api`, no PR yet |
 | **Task given to AI** | Plan US-02.02 and implement it one Linear Task at a time. |
 | **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
@@ -351,6 +351,21 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - `buildForecastUrl(coordinates)` builds the query string by hand instead of using `URLSearchParams`, which has historically been incomplete in React Native.
 > - Added `tests/services/weatherService.test.ts` with 6 tests. One checks that the requested fields exactly match the fields in the parser's test fixture, so the request and the parser cannot drift apart.
 > - `STYLE.md` §3.1 and §4: the URL part of `weatherService.ts` is marked as existing.
+> - NIT-212, code:
+>   - `src/services/api/httpClient.ts`: `getJson(url, { timeoutMs })`, the only caller of `fetch`, with an `AbortController` timeout. Failures map to `AppError`: `network`, `timeout`, `http` (non-2xx) or `parse` (invalid JSON). It reads the body as text before `JSON.parse`, so a broken connection and bad JSON are reported differently.
+>   - `weatherService.fetchForecast(coordinates)`, with a 10 s timeout constant.
+>   - `src/repositories/weatherRepository.ts`: `getReport(coordinates)` runs service → parser → `{ report, fetchedAtEpochMs }`. There is no cache yet.
+>   - The `FetchedWeatherReport` type was added to `Weather.ts`, and `src/repositories/.gitkeep` was removed.
+> - NIT-212, tests:
+>   - `tests/helpers/fakeFetch.ts` replaces the global `fetch` and provides shared assertions.
+>   - `tests/services/httpClient.test.ts` has 9 tests; the timeout test uses fake timers.
+>   - `tests/repositories/weatherRepository.test.ts` has 4 tests.
+>   - The AI ran 3 mutation checks on `httpClient`, and each made at least one test fail.
+> - Docs:
+>   - `STYLE.md` §3.1 and §4: new modules marked as existing.
+>   - `SPEC.md` §11: W-13, W-18, W-19 and W-23 set to `IN PROGRESS`, with §11.1 notes.
+>   - `SPEC.md` §12: answers for Q1, Q13, Q14 and Q20.
+>   - `TEST_REPORT.md` §2: the Task 1 and Task 2 tests, the mutation checks and the run.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the US-02.02 plan.
@@ -369,7 +384,8 @@ Record actual outcomes only. Write `not run` where applicable.
 | Check | Result |
 |---|---|
 | Read and understood line by line | |
-| `npm run check` (`tsc` + Jest) | PASS, 23/23 tests (2026-11-20, after NIT-211) |
+| `npm run check` (`tsc` + Jest) | PASS, 23/23 tests (2026-11-20, after NIT-211); PASS, 36/36 tests (after NIT-212) |
+| Mutation checks (NIT-212) | 3 of 3 detected (TEST_REPORT §2.3) |
 | Real request with the generated URL | HTTP 200 from Open-Meteo: 7 daily and 168 hourly entries, timezone `Europe/Stockholm` (2026-11-20; the AI ran it with Node) |
 | Android Emulator (what was checked) | not run (no UI change) |
 | iOS Simulator (what was checked) | not run (planned in NIT-213) |

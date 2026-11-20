@@ -38,7 +38,9 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 |---|---|---|---|---|
 | Weather JSON parsing | JSON parsing | `src/parsers/weatherParser.ts` | W-14, W-15, W-19 | yes |
 | Geocoding JSON parsing | JSON parsing | `src/parsers/geocodingParser.ts` | W-02, W-14, W-19 | |
-| Result/error → `LoadState` mapping | Error-state logic | decided with the first ViewModel | W-17, W-18, W-19 | |
+| HTTP outcome → `AppError` kind | Error-state logic (data layer) | `src/services/api/httpClient.ts` | W-18, W-19, W-23 | yes |
+| Result/error → `LoadState` mapping | Error-state logic (ViewModel) | decided with the first ViewModel | W-17, W-18, W-19 | |
+| Forecast request URL | (extra) | `src/services/api/weatherService.ts` | W-13 | |
 | Hourly/daily grouping | Data transformation | decided in US-03.03 / US-03.04 | W-05, W-06 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03 | |
@@ -72,6 +74,23 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | weatherParser › optional fields › turns a null optional value into undefined | W-14, W-15 | `daily.sunrise[0] = null` | day 0 `sunriseEpochMs` is `undefined`; day 1 unchanged | as expected (2026-11-20) | PASS |
 | weatherParser › optional fields › turns a missing optional array into undefined for every entry | W-14, W-15 | `hourly.precipitation_probability` removed | 168 entries, all `precipitationProbabilityPercent` `undefined` | as expected (2026-11-20) | PASS |
 | weatherParser › optional fields › turns a missing optional current value into undefined | W-14, W-15 | `current.wind_speed_10m` removed | `windSpeedMs` `undefined`; temperature unchanged | as expected (2026-11-20) | PASS |
+| weatherService › buildForecastUrl › uses the Open-Meteo forecast endpoint | W-13 | Stockholm coordinates | base URL is `OPEN_METEO_FORECAST_URL` | as expected (2026-11-20) | PASS |
+| weatherService › buildForecastUrl › includes the coordinates | W-13 | 59.33, 18.07 | `latitude=59.33`, `longitude=18.07` | as expected (2026-11-20) | PASS |
+| weatherService › buildForecastUrl › keeps negative and zero coordinates | W-13 | -33.87, 0 | `latitude=-33.87`, `longitude=0` | as expected (2026-11-20) | PASS |
+| weatherService › buildForecastUrl › sets the fixed options the parser relies on | W-13 | Stockholm | `timezone=auto`, `forecast_days=7`, `wind_speed_unit=ms`, `timeformat=unixtime` | as expected (2026-11-20) | PASS |
+| weatherService › buildForecastUrl › requests the current, hourly and daily fields as comma-separated lists | W-13 | Stockholm | each block equals its field list joined by commas | as expected (2026-11-20) | PASS |
+| weatherService › buildForecastUrl › requests exactly the fields present in the parser test fixture | W-13, W-14 | field lists vs. fixture keys | identical sets for current, hourly and daily | as expected (2026-11-20) | PASS |
+| httpClient › getJson › returns the parsed JSON for a 200 response | W-13 | fake 200, `{"temperature": 1.2}` | resolves to the object; `fetch` got an abort `signal` | as expected (2026-11-20) | PASS |
+| httpClient › getJson › throws a network error when fetch fails (no connection) | W-18 | `fetch` rejects with `TypeError` | `AppError('network')` | as expected (2026-11-20) | PASS |
+| httpClient › getJson › throws a timeout error when no response arrives in time | W-18, W-23 | no answer; fake timers advanced 1000 ms | `AppError('timeout')` | as expected (2026-11-20) | PASS |
+| httpClient › getJson › does not time out when the response arrives in time | W-23 | answer before 999 ms | resolves normally | as expected (2026-11-20) | PASS |
+| httpClient › getJson › throws an http error for status 404 / 500 / 503 (3 tests) | W-19 | fake 404, 500, 503 | `AppError('http')` with `HTTP <status>` | as expected (2026-11-20) | PASS |
+| httpClient › getJson › throws a parse error when the body is not valid JSON | W-19 | fake 200, HTML body | `AppError('parse')` | as expected (2026-11-20) | PASS |
+| httpClient › getJson › throws a network error when the connection breaks while reading the body | W-18 | `text()` rejects | `AppError('network')` | as expected (2026-11-20) | PASS |
+| weatherRepository › getReport › requests the forecast URL for the given coordinates | W-13 | Stockholm; fake 200 with fixture | one `fetch` call with `buildForecastUrl(...)` | as expected (2026-11-20) | PASS |
+| weatherRepository › getReport › returns the parsed report with the time it was fetched | W-13, W-15 | fixture; `Date.now` fixed | `fetchedAtEpochMs` = fixed time; 7 daily, 168 hourly | as expected (2026-11-20) | PASS |
+| weatherRepository › getReport › passes a service error through unchanged | W-19 | fake 500 | `AppError('http')` | as expected (2026-11-20) | PASS |
+| weatherRepository › getReport › passes a parse error through when the JSON is valid but incomplete | W-19 | fixture without `daily` | `AppError('parse')` naming `daily` | as expected (2026-11-20) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -87,6 +106,9 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | JSON parsing (`weatherParser`) | `readArray`: length check replaced with `false` | `…array is shorter than its time array`; `…optional array has the wrong length` (2 of 17 failed) | yes | 2026-11-20 | PASS |
 | JSON parsing (`weatherParser`) | `secondsToEpochMs`: `seconds * 1000` changed to `seconds` | the three valid-response object tests; `…null optional value into undefined` (4 of 17 failed) | yes | 2026-11-20 | PASS |
 | JSON parsing (`weatherParser`) | `readOptionalNumber`: `null` no longer treated as missing | `…null optional value into undefined` (1 of 17 failed) | yes | 2026-11-20 | PASS |
+| Error-state logic (`httpClient`) | `!response.ok` check disabled | the three `http error for status` tests; `getReport › passes a service error through unchanged` (4 of 36 failed) | yes | 2026-11-20 | PASS |
+| Error-state logic (`httpClient`) | aborted request reported as `network` instead of `timeout` | `…throws a timeout error when no response arrives in time` (1 of 36 failed) | yes | 2026-11-20 | PASS |
+| Error-state logic (`httpClient`) | invalid JSON reported as `network` instead of `parse` | `…throws a parse error when the body is not valid JSON` (1 of 36 failed) | yes | 2026-11-20 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -94,6 +116,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Date | Commit | Command | Total | Passed | Failed | Tester |
 |---|---|---|---|---|---|---|
 | 2026-11-20 | uncommitted, on `weather-models-parser` after `580b309` | `npm test` | 17 | 17 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-20 | uncommitted, on `feat/implement-weather-rest-api` after `5089da9` | `npm run check` | 36 | 36 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -191,5 +214,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 25 executed | 0 of 25 executed |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 17 / 17 (run on macOS, 2026-11-20) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 36 / 36 (run on macOS, 2026-11-20) |
 | Known open defects | | |

@@ -317,17 +317,17 @@ The Lab B:2 instructions ask for a short statement of which parts were AI-assist
 | W-10 | NIT-157 | NIT-179 (US-06.01); NIT-173 (US-04.01) | `SettingsScreen`, `useSettingsViewModel`, `settingsRepository` | UX-14 | NOT STARTED |
 | W-11 | NIT-157 | NIT-180 (US-06.02) | `refreshPolicy`, `settingsRepository` | Unit: refreshPolicy; UX-15 | NOT STARTED |
 | W-12 | NIT-157 | NIT-181 (US-06.03) | `AppSettings`, `units`, `settingsRepository` | Unit: unit conversion (optional); UX-16 | NOT STARTED |
-| W-13 | NIT-153 | NIT-167 (US-02.02) | `weatherService`, `httpClient` | UX-06 | NOT STARTED |
+| W-13 | NIT-153 | NIT-167 (US-02.02) | `weatherService`, `httpClient`, `weatherRepository` | Unit: weatherService, httpClient, weatherRepository; UX-06 | IN PROGRESS |
 | W-14 | NIT-153 | NIT-168 (US-02.01); NIT-165 (US-02.03) | `weatherParser`, `geocodingParser` | Unit: weatherParser, geocodingParser | IN PROGRESS |
 | W-15 | NIT-153 | NIT-168 (US-02.01) | `src/models/*` | `tsc --noEmit`; review | IN PROGRESS |
 | W-16 | NIT-158 | NIT-182 (US-07.01) | `weatherRepository`, `keyValueStorage` | UX-17 | NOT STARTED |
 | W-17 | NIT-158 | NIT-183 (US-07.02) | `weatherRepository`, offline indicator | UX-17, UX-18 | NOT STARTED |
-| W-18 | NIT-158 | NIT-184 (US-07.03); NIT-188 (US-08.03) | `httpClient`, `ErrorView` | UX-18, UX-19 | NOT STARTED |
-| W-19 | NIT-158 | NIT-184 (US-07.03) | parsers, `httpClient`, `AppError` | Unit: parser error cases | NOT STARTED |
+| W-18 | NIT-158 | NIT-184 (US-07.03); NIT-188 (US-08.03) | `httpClient`, `ErrorView` | Unit: httpClient; UX-18, UX-19 | IN PROGRESS |
+| W-19 | NIT-158 | NIT-184 (US-07.03) | parsers, `httpClient`, `AppError` | Unit: parser and httpClient error cases | IN PROGRESS |
 | W-20 | NIT-158 | NIT-185 (US-07.04); NIT-188 (US-08.03) | all ViewModels, `LoadingView` | UX-20 | NOT STARTED |
 | W-21 | NIT-154 | NIT-171 (US-03.03); NIT-172 (US-03.04) | forecast lists (`FlatList`) | UX-07, UX-08 | NOT STARTED |
 | W-22 | NIT-159 | NIT-187 (US-08.02) | `app.json`, responsive layouts | UX-21, UX-22 | NOT STARTED |
-| W-23 | NIT-158 | NIT-185 (US-07.04); NIT-167 (US-02.02) | `httpClient`, ViewModels | UX-20, UX-23 | NOT STARTED |
+| W-23 | NIT-158 | NIT-185 (US-07.04); NIT-167 (US-02.02) | `httpClient`, ViewModels | Unit: httpClient; UX-20, UX-23 | IN PROGRESS |
 | W-24 | NIT-160 | NIT-189 (US-09.01); NIT-216 (US-02.01) | `tests/**/*.test.ts` | TEST_REPORT §2 | IN PROGRESS |
 | W-25 | NIT-160 | NIT-190 (US-09.02) | — | TEST_REPORT §3 | NOT STARTED |
 | W-26 | NIT-152 | NIT-163 (US-01.03) | whole codebase, folder structure | Code review | NOT STARTED |
@@ -347,6 +347,10 @@ Only items that were actually checked are listed as verified.
 | ID | Verified (date, evidence) | Not yet verified / remaining |
 |---|---|---|
 | W-24 | Jest + `jest-expo` installed; `tests/parsers/weatherParser.test.ts` has 17 tests for the lab area "JSON parsing", all passing, with 3 mutation checks recorded (TEST_REPORT §2.3) (2026-11-20, NIT-216) | A second lab area (error-state logic or data transformation); merge to `dev` |
+| W-13 | `weatherService` (URL + `fetchForecast`), `httpClient` and `weatherRepository.getReport` written on the US-02.02 branch (NIT-211, NIT-212). A real request with the generated URL returned HTTP 200 with 7 daily and 168 hourly entries (2026-11-20). Unit tests pass with a fake `fetch` | Real-API checks for more locations and in the iOS Simulator (NIT-213); merge to `dev` |
+| W-18 | The data layer reports no connection as `AppError('network')` and no answer within 10 s as `AppError('timeout')` (unit tests, 2026-11-20, NIT-212) | User-facing message and retry action (US-07.03, US-08.03) |
+| W-19 | `httpClient` reports non-2xx as `AppError('http')` and invalid JSON as `AppError('parse')`; the parser reports missing or invalid fields as `AppError('parse')` (unit tests, 2026-11-20) | Handling in the ViewModel and UI without crashing (US-07.03) |
+| W-23 | `httpClient` uses `async/await` with `fetch`, which does not block the UI thread, and cancels slow requests with `AbortController` (2026-11-20, NIT-212) | Ignoring outdated results in ViewModels (US-07.04); UX-20, UX-23 |
 | W-14 | `src/parsers/weatherParser.ts` written on the US-02.01 branch (NIT-215). `npx tsc --noEmit` passes. A manual smoke test on a real Open-Meteo response (Stockholm, 2026-11-20) parsed 168 hourly and 7 daily entries, and broken inputs threw `AppError('parse')` (2026-11-20) | `geocodingParser` (US-02.03); merge to `dev`. Unit tests: 17/17 pass, with mutation evidence (NIT-216, 2026-11-20) |
 | W-15 | `src/models/Weather.ts` written on the US-02.01 branch (NIT-214); `npx tsc --noEmit` passes (2026-11-20) | Settings model; merge to `dev` |
 | W-28 | `tsconfig.json` has `strict: true`; `npx tsc --noEmit` passes on the scaffold (2026-11-10, NIT-193) | All application code. Status stays `NOT STARTED` because no app code exists yet. |
@@ -417,7 +421,7 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 
 | # | Question | Req. | Code location | Answer |
 |---|---|---|---|---|
-| Q1 | Walk through the function that makes the API request. Where is it, and what does it return? | W-13, W-23 | — | — |
+| Q1 | Walk through the function that makes the API request. Where is it, and what does it return? | W-13, W-23 | `src/services/api/httpClient.ts` → `getJson`; called by `weatherService.fetchForecast` | `getJson(url, { timeoutMs })` calls `fetch` with an `AbortController` timeout and returns the body as `unknown` JSON. It never returns a model: `weatherRepository.getReport` passes the JSON to `parseWeatherResponse`. Every failure comes back as a typed `AppError`. |
 | Q2 | How is the JSON response parsed into your data model? Show the parsing code. | W-14, W-15 | `src/parsers/weatherParser.ts` → `parseWeatherResponse` | A pure function takes `unknown` JSON. Small `read…` helpers check each field's type. The parallel `hourly`/`daily` arrays are zipped into one `HourlyForecast`/`DailyForecast` object per entry. Unix seconds become epoch ms, and API names map to model names (`temperature_2m` → `temperatureCelsius`). |
 | Q3 | What fields from the API response does your app use, and what does it ignore? Why those? | W-04 – W-07, W-15 | `src/parsers/weatherParser.ts`; `src/models/Weather.ts` | **Used:** `timezone` and `utc_offset_seconds` (to find "today" in local time); current temperature, feels-like temperature, humidity, weather code, wind and day/night; hourly temperature, weather code, rain probability and wind; daily min/max temperature, weather code, rain sum and probability, max wind, sunrise and sunset. These are what the home and detail screens show (W-04 – W-07). **Ignored:** `latitude`/`longitude` (we already have the location), `elevation`, `generationtime_ms` and the `*_units` objects (units are fixed by the request and encoded in field names). |
 | Q4 | What happens if the API returns a successful HTTP 200 but the JSON is missing a field your model expects? | W-14, W-19 | `src/parsers/weatherParser.ts` → `readNumber`, `readArray` | **Required field** (time, temperature, weather code): the parser throws `AppError('parse')` with the field's path, e.g. `current.temperature_2m: expected a finite number, got undefined`. A wrong type or an array of the wrong length is handled the same way. **Optional field:** `null` or missing becomes `undefined`, never an invented value. The ViewModel's handling of the error is planned in later stories. |
@@ -439,8 +443,8 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 
 | # | Question | Req. | Code location | Answer |
 |---|---|---|---|---|
-| Q13 | What does the app display if the network request times out? | W-18 | — | — |
-| Q14 | Where do you distinguish between a network error and an API error response (e.g., HTTP 404 or 500)? | W-18, W-19 | — | — |
+| Q13 | What does the app display if the network request times out? | W-18 | `src/services/api/httpClient.ts`; `FORECAST_TIMEOUT_MS` in `weatherService.ts` | After 10 s the `AbortController` cancels the request, and `getJson` throws `AppError('timeout')`. The on-screen message and retry button are planned (US-07.03); the ViewModel will derive the text from `kind`. |
+| Q14 | Where do you distinguish between a network error and an API error response (e.g., HTTP 404 or 500)? | W-18, W-19 | `src/services/api/httpClient.ts` → `getJson` | In one place. If `fetch` itself rejects, there was no answer: `network`, or `timeout` if our abort fired. If a response arrives with `!response.ok` (e.g. 404, 500), the server answered: `http`, with the status in the developer message. |
 | Q15 | What happens if the user has no internet connection and opens the app for the first time? | W-17, W-18 | — | — |
 | Q16 | What happens if they open it a second time, after having successfully loaded data before? | W-16, W-17 | — | — |
 | Q17 | Where is the error state declared, and how does it flow to the UI? | W-18, W-19, W-26 | — | — |
@@ -451,7 +455,7 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 | # | Question | Req. | Code location | Answer |
 |---|---|---|---|---|
 | Q19 | Show the MVVM layers in your code: what belongs to the View, what to the ViewModel, what to the Model/Repository? | W-26 | — | — |
-| Q20 | Why is the network call not made directly from the View? | W-13, W-26 | — | — |
+| Q20 | Why is the network call not made directly from the View? | W-13, W-26 | `src/services/api/`, `src/repositories/weatherRepository.ts` | The View only renders state. The network call sits in a service behind a repository, so it can be tested without UI (fake `fetch`), and the screen never deals with URLs, timeouts or JSON. The repository is also where caching will be added without changing screens (STYLE §3). |
 | Q21 | Where in the code is testable logic separated from UI code? What made that separation easy or hard? | W-24, W-26 | — | — |
 | Q22 | How does navigation between screens work? Why does the ViewModel not navigate itself? | W-07, W-26 | — | — |
 | Q23 | Open SPEC.md. Walk through how one requirement ID maps to the code that implements it. | W-31 | SPEC.md §11 | — |

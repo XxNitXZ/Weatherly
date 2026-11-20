@@ -59,3 +59,13 @@ export type WeatherReport = {
   readonly hourly: ReadonlyArray<HourlyForecast>;
   readonly daily: ReadonlyArray<DailyForecast>;
 };
+
+/**
+ * A report together with the time it was fetched (SPEC D-18). Returned by
+ * `weatherRepository`; the cache stores the same shape so the refresh policy
+ * and the "last updated" notice can use `fetchedAtEpochMs`.
+ */
+export type FetchedWeatherReport = {
+  readonly report: WeatherReport;
+  readonly fetchedAtEpochMs: number;
+};
