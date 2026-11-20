@@ -483,6 +483,52 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-007 – US-02.04 Coordinate search and validation
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-20 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 2 (Tyrone Asante) |
+| **Platform** | macOS |
+| **Linear user story / task** | US-02.04 (NIT-166): NIT-209 (validation) |
+| **Requirement IDs** | W-03 |
+| **Branch / PR** | `feat/coordinate-search-validation`, no PR yet |
+| **Task given to AI** | Plan US-02.04 and implement it one Linear Task at a time. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "Now to the next User Story." · "Yes." · "Go" |
+
+**Changes made by AI**
+> - Plan: the order NIT-209 (validation) → NIT-210 (tests) → NIT-208 (input form), because the form needs the validation's error types. Comma decimals are accepted (D-25).
+> - NIT-209:
+>   - `src/utils/coordinateValidation.ts`: `validateCoordinates` with a strict decimal pattern, per-field errors (`empty`, `notANumber`, `outOfRange`) and named bounds. Removed `src/utils/.gitkeep`.
+>   - `src/viewmodels/useCoordinateSearchViewModel.ts`: field errors plus `submit`, which returns a `Location` named by its coordinates, or `null`.
+>   - Docs: `SPEC.md` D-25, W-03 detail and status, §11.1, change log; `STYLE.md` §3.1, §3.2, §4.
+
+**Changes reviewed or modified by students**
+- Accepted as is: the US-02.04 plan, including the task order and comma decimals.
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+-
+
+**Verification results**
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npm run check` after NIT-209 | PASS, 74/74 tests (no new tests yet; they come in NIT-210) |
+| Smoke run of `validateCoordinates` (NIT-209) | 12 input pairs, all as specified, e.g. `59,33` → 59.33, `1e2` → `notANumber`, `95` → `outOfRange` (2026-11-20; the AI ran it with Node) |
+| Android Emulator (what was checked) | not run |
+| iOS Simulator (what was checked) | not run (planned in NIT-208) |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

@@ -57,6 +57,8 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/repositories/favoritesRepository.ts`, `settingsRepository.ts` | Read and write favourites and settings through `keyValueStorage`. | Planned (NIT-177, NIT-179 – NIT-181) |
 | `src/storage/keyValueStorage.ts` | Get (`unknown`) and set JSON values; the only importer of AsyncStorage (D-08). | Planned (NIT-182) |
 | `src/viewmodels/useSearchViewModel.ts` | `{ state: LoadState<ReadonlyArray<Location>>, search(query) }`. Empty query → `error` with `AppError('validation')`, no request. Only the latest search may update the state (search counter; also ignores results after unmount). `prepareSearchQuery(raw): string \| null` is the pure, tested trimming rule. | **Exists** (NIT-207) |
+| `src/viewmodels/useCoordinateSearchViewModel.ts` | `{ latitudeError?, longitudeError?, submit(latitudeText, longitudeText): Location \| null }`. Invalid input → field errors and `null`, no request. Valid → a `Location` named by its coordinates (e.g. `59.33, 18.07`). | **Exists** (NIT-209) |
+| `src/utils/coordinateValidation.ts` | `validateCoordinates(latitudeText, longitudeText)` → `{ isValid: true, coordinates }` or `{ isValid: false, latitudeError?, longitudeError? }` with `'empty' \| 'notANumber' \| 'outOfRange'`. Strict decimal format, `.` or `,` (SPEC D-25); bounds [-90, 90] and [-180, 180], inclusive. | **Exists** (NIT-209) |
 | `src/viewmodels/use…ViewModel.ts` (others) | Expose `LoadState<T>` plus intent functions (`refresh`, …). Never receive `navigation`. | Planned (NIT-170, …) |
 | `src/navigation/routes.ts`, `RootNavigator.tsx` | Typed route params and navigator setup. | Planned (NIT-173; SPEC OQ-05) |
 | `src/models/Weather.ts` | `CurrentWeather`, `HourlyForecast`, `DailyForecast` and `WeatherReport` (`timezone`, `utcOffsetSeconds`, `current`, `hourly`, `daily`). Written against a real Open-Meteo response. Times in `…EpochMs`, units in field names, API `null` values as optional fields. | **Exists** (NIT-214) |
@@ -73,7 +75,7 @@ Search and forecast share one screen, `HomeScreen` (SPEC D-22). It uses two View
 3. **locationRepository** → `geocodingService` (returns `unknown` JSON through `httpClient`) → `geocodingParser` (returns **`Location`** values or throws **`AppError`**).
 4. The ViewModel sets `success` with the locations, or `error` with the **`AppError`**. HomeScreen renders the result list, an empty state or an error.
 5. **User selects a location:** HomeScreen passes it to `useWeatherViewModel`. No navigation happens; the forecast appears on the same screen.
-   - Coordinate search (W-03) skips steps 2–4. The ViewModel validates the input with `coordinateValidation` and builds a **`Location`** directly; no network request is needed.
+   - Coordinate search (W-03) skips steps 2–4. `useCoordinateSearchViewModel` validates the input with `validateCoordinates` (`src/utils/coordinateValidation.ts`) and builds a **`Location`** directly; no network request is needed.
 6. **useWeatherViewModel** sets `loading` and calls `weatherRepository`.
 7. **weatherRepository** reads the cache through `keyValueStorage`:
    - If the entry is fresh (`refreshPolicy`), it returns it. This is a normal result, not an offline state.
@@ -106,12 +108,12 @@ Weatherly/
 │   ├── repositories/       # weatherRepository.ts, locationRepository.ts [exist]; favoritesRepository.ts, settingsRepository.ts
 │   ├── storage/            # .gitkeep; keyValueStorage.ts
 │   ├── navigation/         # .gitkeep; RootNavigator.tsx, routes.ts (typed route params)
-│   ├── viewmodels/         # loadState.ts, useSearchViewModel.ts [exist]; useWeatherViewModel.ts, ...
+│   ├── viewmodels/         # loadState.ts, useSearchViewModel.ts, useCoordinateSearchViewModel.ts [exist]; useWeatherViewModel.ts, ...
 │   ├── views/
 │   │   ├── screens/        # .gitkeep; HomeScreen.tsx, DayDetailScreen.tsx, FavoritesScreen.tsx, SettingsScreen.tsx
 │   │   └── components/     # .gitkeep; ForecastRow.tsx, LoadingView.tsx, ErrorView.tsx, ...
 │   ├── theme/              # .gitkeep; colors.ts, spacing.ts, typography.ts
-│   └── utils/              # .gitkeep; coordinateValidation.ts, refreshPolicy.ts, units.ts
+│   └── utils/              # coordinateValidation.ts [exists]; refreshPolicy.ts, units.ts
 ├── tests/                  # All unit tests, mirroring src/ (SPEC D-23)
 │   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json
 │   ├── helpers/            # fakeFetch.ts (fake fetch), jsonFixtures.ts (copy-with-one-change, parse-error assertion)

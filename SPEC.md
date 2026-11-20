@@ -144,7 +144,8 @@ Planned components follow the folder structure in [STYLE.md §4](STYLE.md#4-fold
 
 **W-03 – Coordinate search and validation**
 - Latitude must be in [-90, 90] and longitude in [-180, 180].
-- Accepts decimal numbers with a `.` decimal separator. Whether `,` is also accepted is decided during implementation and recorded in §13.
+- Accepts decimal numbers with `.` or `,` as the decimal separator (D-25): an optional sign, digits, and an optional decimal part with digits on both sides (`59.33`, `-33,87`). Scientific notation, hex, `Infinity`, `59.` and `.5` are rejected.
+- Each field reports its own error: `empty`, `notANumber` or `outOfRange`.
 - Invalid input shows an inline validation message, and no request is sent.
 - The validation logic is a pure function (`coordinateValidation`) and is a unit-test candidate (W-24).
 
@@ -308,7 +309,7 @@ The Lab B:2 instructions ask for a short statement of which parts were AI-assist
 |---|---|---|---|---|---|
 | W-01 | NIT-153 | NIT-165 (US-02.03); NIT-169 (US-03.01) | `HomeScreen`, `useSearchViewModel`, `locationRepository`, `geocodingService` | UX-01, UX-02, UX-03 | IN PROGRESS |
 | W-02 | NIT-153 | NIT-165 (US-02.03) | `locationRepository`, `geocodingService`, `geocodingParser`, `Location` | Unit: geocodingParser; UX-01 | IN PROGRESS |
-| W-03 | NIT-153 | NIT-166 (US-02.04) | `coordinateValidation`, `HomeScreen` | Unit: coordinateValidation; UX-04, UX-05 | NOT STARTED |
+| W-03 | NIT-153 | NIT-166 (US-02.04) | `coordinateValidation`, `useCoordinateSearchViewModel`, `CoordinateSearchForm`, `HomeScreen` | Unit: coordinateValidation; UX-04, UX-05 | IN PROGRESS |
 | W-04 | NIT-154 | NIT-170 (US-03.02) | `HomeScreen`, `useWeatherViewModel`, `CurrentWeather` | UX-06 | NOT STARTED |
 | W-05 | NIT-154 | NIT-171 (US-03.03) | `HomeScreen`, `DailyForecast` | UX-07 | NOT STARTED |
 | W-06 | NIT-154 | NIT-172 (US-03.04) | `HomeScreen`, `HourlyForecast` | UX-08 | NOT STARTED |
@@ -352,6 +353,7 @@ Only items that were actually checked are listed as verified.
 | W-18 | The data layer reports no connection as `AppError('network')` and no answer within 10 s as `AppError('timeout')` (unit tests, 2026-11-20, NIT-212) | User-facing message and retry action (US-07.03, US-08.03) |
 | W-19 | `httpClient` reports non-2xx as `AppError('http')` and invalid JSON as `AppError('parse')`; the parser reports missing or invalid fields as `AppError('parse')` (unit tests, 2026-11-20) | Handling in the ViewModel and UI without crashing (US-07.03) |
 | W-23 | `httpClient` uses `async/await` with `fetch`, which does not block the UI thread, and cancels slow requests with `AbortController` (2026-11-20, NIT-212) | Ignoring outdated results in ViewModels (US-07.04); UX-20, UX-23 |
+| W-03 | `validateCoordinates` and `useCoordinateSearchViewModel` written on the US-02.04 branch (NIT-209); a smoke run on 12 input pairs behaved as specified (2026-11-20) | Unit tests (NIT-210); input form and simulator check (NIT-208); placing it on the home screen (US-03.01) |
 | W-01 | `locationRepository.searchLocations` returns typed locations from the real API (Göteborg, Gothenburg, Kiruna, New York found; xqzvbn → empty list), checked from Node on 2026-11-20 (NIT-206). `useSearchViewModel` trims the query and sends no request for empty input; the trimming rule is unit-tested (NIT-207, 2026-11-20) | The hook's state changes are checked through UX-01 – UX-03 once the search UI exists (US-03.01) |
 | W-02 | Open-Meteo Geocoding chosen (D-24); service, parser and repository written with unit tests (NIT-206, 2026-11-20); same-named places carry region and country | Listing the results on screen (US-03.01); merge to `dev` |
 | W-14 | `weatherParser` (US-02.01, merged) and `geocodingParser` (US-02.03 branch, NIT-206) are separate pure modules sharing `jsonReaders`; neither views nor ViewModels parse JSON. Unit tests pass with mutation evidence (TEST_REPORT §2) (2026-11-20) | Merge US-02.03 to `dev` |
@@ -503,6 +505,7 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 | D-22 | 2026-11-20 | One `HomeScreen` combines search with the selected location's current conditions, today's hourly forecast and the seven-day summary. Selecting a day navigates to `DayDetailScreen`. There is no separate search or weather screen. | Decided | Matches the Lab B:2 description of the search/home screen and Linear US-03.01. Removes one screen and one navigation step, so the forecast appears where the user searched. `HomeScreen` uses two ViewModels, `useSearchViewModel` and `useWeatherViewModel` (STYLE §3.2). | NIT-169 (US-03.01) |
 | D-23 | 2026-11-20 | All unit tests live in a root `tests/` folder that mirrors `src/` (e.g. `tests/parsers/weatherParser.test.ts`), with saved API responses in `tests/fixtures/`. This replaces the earlier "tests next to the module" rule. `tsconfig.json` lists `"types": ["jest"]`, because TypeScript 6 no longer loads `@types` packages automatically. | Decided | Separates test code from app code, so `src/` holds only what ships in the app. Trade-off: test imports are longer (`../../src/...`), and a moved module must be moved in both trees. | NIT-216 |
 | D-24 | 2026-11-20 | Geocoding: **Open-Meteo Geocoding API** (`https://geocoding-api.open-meteo.com/v1/search?name=…&count=10&language=sv&format=json`), replacing the SMHI place search (D-06). | Decided | The lab's SMHI URL returns HTTP 404 for every query. The lab's other option, geocode.maps.co, now returns HTTP 401 without an API key, and a key would be embedded in the app bundle. The KTH proxy only answers its example place and is not allowed in the final app. Open-Meteo Geocoding is free, needs no key, covers the whole world, and comes from the same provider as the weather data. `language=sv` is used because with `en` a search for "Göteborg" does not find the city. Evidence: TEST_REPORT §1.3. Deviation from the lab's list of geocoding APIs; the teacher should be informed. | NIT-205 |
+| D-25 | 2026-11-20 | Coordinate input accepts both `.` and `,` as the decimal separator, with a strict format (optional sign, digits, optional decimal part with digits on both sides). Validated by the pure `validateCoordinates`; invalid input never reaches the network. | Decided | Swedish keyboards type a comma, so rejecting "59,33" would fail many real users. A strict pattern before `Number()` is needed because `Number()` turns "" into 0 and accepts "1e2", "0x10" and "Infinity". | NIT-166 (NIT-209) |
 
 D-05 – D-09 record the choices only. The libraries are installed with `npx expo install` in the user stories that implement them.
 
@@ -532,6 +535,7 @@ D-05 – D-09 record the choices only. The libraries are installed with `npx exp
 | 2026-11-20 | Renumbered the Epic 2 user stories by dependency. Aligned W-24 with the lab's three test areas. Replaced §12 with the 30 official oral examination questions. Added §10.1 AI Usage Summary. Added D-22 (one home screen) | NIT-153, NIT-169, NIT-189 |
 | 2026-11-20 | US-02.01: added `Weather.ts` and `weatherParser.ts`; installed Jest; added D-23 (root `tests/` folder); W-14, W-15 and W-24 set to IN PROGRESS; answered Q2 – Q4 and Q28 | NIT-168 (NIT-214 – NIT-216) |
 | 2026-11-20 | Geocoding switched from SMHI to Open-Meteo Geocoding (D-24, D-06 superseded); OQ-01 – OQ-04 resolved | NIT-165 (NIT-205) |
+| 2026-11-20 | US-02.04: added D-25 (comma decimals); W-03 detail and status updated | NIT-166 (NIT-209) |
 
 ## 15. End-of-Session Update Procedure
 
