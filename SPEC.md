@@ -90,7 +90,7 @@ Parser                           raw JSON → typed Model, validation
 Model                            plain TypeScript types, no logic dependencies
 ```
 
-Detailed layer rules, layer contracts, the search-to-forecast data flow, navigation ownership and the folder structure are in [STYLE.md §3–4](STYLE.md#3-mvvm-architecture). The `src/` folder structure exists. The only source modules so far are the shared types `AppError`, `Coordinates`/`Location` and `LoadState<T>` (NIT-163). All other modules are planned.
+Detailed layer rules, layer contracts, the search-to-forecast data flow, navigation ownership and the folder structure are in [STYLE.md §3–4](STYLE.md#3-mvvm-architecture). The `src/` folder structure exists. Which modules exist and which are still planned is tracked in the status column of STYLE §3.1.
 
 ---
 

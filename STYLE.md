@@ -57,7 +57,8 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/storage/keyValueStorage.ts` | Get (`unknown`) and set JSON values; the only importer of AsyncStorage (D-08). | Planned (NIT-182) |
 | `src/viewmodels/use…ViewModel.ts` | Expose `LoadState<T>` plus intent functions (`search`, `refresh`, …). Never receive `navigation`. | Planned (NIT-165, NIT-170, …) |
 | `src/navigation/routes.ts`, `RootNavigator.tsx` | Typed route params and navigator setup. | Planned (NIT-173; SPEC OQ-05) |
-| `src/models/Weather.ts`, `AppSettings.ts` | Weather and settings models. Written against a real Open-Meteo response and the settings story, not assumed. | Planned (NIT-168, NIT-179 – NIT-181) |
+| `src/models/Weather.ts` | `CurrentWeather`, `HourlyForecast`, `DailyForecast` and `WeatherReport` (`timezone`, `utcOffsetSeconds`, `current`, `hourly`, `daily`). Written against a real Open-Meteo response. Times in `…EpochMs`, units in field names, API `null` values as optional fields. | **Exists** (NIT-214) |
+| `src/models/AppSettings.ts` | Settings model, written in the settings story. | Planned (NIT-179 – NIT-181) |
 
 ### 3.2 Search-to-Forecast Data Flow
 
@@ -97,7 +98,7 @@ Weatherly/
 ├── App.tsx                 # [exists] App root: providers + navigation container only (still the Expo template)
 ├── index.ts                # [exists] Expo entry point (do not add logic)
 ├── src/
-│   ├── models/             # AppError.ts [exists], Location.ts [exists]; Weather.ts, AppSettings.ts
+│   ├── models/             # AppError.ts [exists], Location.ts [exists], Weather.ts [exists]; AppSettings.ts
 │   ├── services/api/       # .gitkeep; httpClient.ts, weatherService.ts, geocodingService.ts
 │   ├── parsers/            # .gitkeep; weatherParser.ts, geocodingParser.ts
 │   ├── repositories/       # .gitkeep; locationRepository.ts, weatherRepository.ts, favoritesRepository.ts, settingsRepository.ts

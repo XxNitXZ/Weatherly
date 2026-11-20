@@ -251,6 +251,57 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-004 – US-02.01 Weather models and JSON parser
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-20 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 2 (Tyrone Asante) |
+| **Platform** | macOS |
+| **Linear user story / task** | US-02.01 (NIT-168): NIT-214 (models) |
+| **Requirement IDs** | W-14, W-15 |
+| **Branch / PR** | `weather-models-parser`, no PR yet |
+| **Task given to AI** | Plan US-02.01, then implement it one Linear Task at a time. The student commits after each Task. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "Lets start working on EPIC-02." · "Good plan, … we are also standing in the new branch" |
+
+**Changes made by AI**
+> - Plan: fetched one real Open-Meteo forecast response for Stockholm (HTTP 200) and designed the models from it.
+>   - Hourly and daily data come as parallel arrays.
+>   - Times are Unix seconds, from `timeformat=unixtime`.
+>   - Wind is in m/s, from `wind_speed_unit=ms`.
+> - NIT-214: created `src/models/Weather.ts` with `CurrentWeather`, `HourlyForecast`, `DailyForecast` and `WeatherReport`.
+>   - Time, temperature and weather code are required fields.
+>   - Values the API may return as `null` are optional fields.
+>   - Times are `…EpochMs` (D-18), and units are part of the field names.
+> - `STYLE.md` §3.1 and §4: `Weather.ts` is marked as existing.
+> - `SPEC.md` §5 and `CONTEXT.md`: these no longer list the existing source files and point to STYLE §3.1 instead, so the list is kept in one place.
+
+**Changes reviewed or modified by students**
+- Accepted as is: the US-02.01 plan, including the field choices and adding Jest in this story.
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The accepted plan listed `CurrentWeather`'s extra fields (feels-like temperature, humidity, wind) without `?`. In the code they are optional, following the same "API `null` → optional" rule as the hourly and daily extras. The AI pointed this difference out.
+
+**Verification results**
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (2026-11-20, after NIT-214) |
+| Unit tests (names) | not run (Jest is added in NIT-216) |
+| Android Emulator (what was checked) | not run (no UI change) |
+| iOS Simulator (what was checked) | not run (no UI change) |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

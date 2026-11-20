@@ -59,7 +59,7 @@ Decided libraries are installed with `npx expo install` in the user story that f
 
 - One Expo project with Continuous Native Generation: the `android/` and `ios/` folders are generated and git-ignored.
 - App configuration is in `app.json`. The entry point is `index.ts` → `App.tsx`.
-- Source code lives in `src/`, following the MVVM layers in [STYLE.md §3–4](STYLE.md#3-mvvm-architecture). The folder structure exists. The only source files are the shared types `src/models/AppError.ts`, `src/models/Location.ts` and `src/viewmodels/loadState.ts`. Every other module is planned (STYLE §3.1).
+- Source code lives in `src/`, following the MVVM layers in [STYLE.md §3–4](STYLE.md#3-mvvm-architecture). The folder structure exists. Which modules exist and which are still planned is tracked in one place: the status column of STYLE §3.1.
 - The same code runs on both platforms. Platform-specific code (`Platform.OS`, `*.ios.tsx` / `*.android.tsx`) is used only when needed and documented in the PR.
 
 ## 6. Development Environments
