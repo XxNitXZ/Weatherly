@@ -259,7 +259,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Developer 2 (Tyrone Asante) |
 | **Platform** | macOS |
-| **Linear user story / task** | US-02.01 (NIT-168): NIT-214 (models) |
+| **Linear user story / task** | US-02.01 (NIT-168): NIT-214 (models), NIT-215 (parser) |
 | **Requirement IDs** | W-14, W-15 |
 | **Branch / PR** | `weather-models-parser`, no PR yet |
 | **Task given to AI** | Plan US-02.01, then implement it one Linear Task at a time. The student commits after each Task. |
@@ -277,6 +277,15 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - Times are `…EpochMs` (D-18), and units are part of the field names.
 > - `STYLE.md` §3.1 and §4: `Weather.ts` is marked as existing.
 > - `SPEC.md` §5 and `CONTEXT.md`: these no longer list the existing source files and point to STYLE §3.1 instead, so the list is kept in one place.
+> - NIT-215: created `src/parsers/weatherParser.ts` and removed `src/parsers/.gitkeep` (D-19).
+>   - `parseWeatherResponse(json: unknown): WeatherReport` is a pure function.
+>   - Typed `read…` helpers throw `AppError('parse')` with the field path.
+>   - Each hourly/daily array must match the length of its `time` array.
+>   - Optional `null` values or missing optional arrays become `undefined`.
+> - Docs:
+>   - `SPEC.md` §11: W-14 and W-15 set to `IN PROGRESS`, with §11.1 notes.
+>   - `SPEC.md` §12: answers for Q2 – Q4.
+>   - `STYLE.md` §3.1 and §4: `weatherParser.ts` marked as existing.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the US-02.01 plan, including the field choices and adding Jest in this story.
@@ -292,7 +301,8 @@ Record actual outcomes only. Write `not run` where applicable.
 | Check | Result |
 |---|---|
 | Read and understood line by line | |
-| `npx tsc --noEmit` | PASS (2026-11-20, after NIT-214) |
+| `npx tsc --noEmit` | PASS (2026-11-20, after NIT-214 and after NIT-215) |
+| Manual smoke test (NIT-215) | The AI compiled the parser to a scratch folder and ran it with Node on the saved Stockholm response. Result: 168 hourly and 7 daily entries. Each broken input threw `AppError('parse')` with the field path: missing field, string instead of number, short array, `null` required value, missing block, `null` input. A `null` sunrise and a missing optional array gave `undefined`. |
 | Unit tests (names) | not run (Jest is added in NIT-216) |
 | Android Emulator (what was checked) | not run (no UI change) |
 | iOS Simulator (what was checked) | not run (no UI change) |

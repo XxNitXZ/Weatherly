@@ -318,8 +318,8 @@ The Lab B:2 instructions ask for a short statement of which parts were AI-assist
 | W-11 | NIT-157 | NIT-180 (US-06.02) | `refreshPolicy`, `settingsRepository` | Unit: refreshPolicy; UX-15 | NOT STARTED |
 | W-12 | NIT-157 | NIT-181 (US-06.03) | `AppSettings`, `units`, `settingsRepository` | Unit: unit conversion (optional); UX-16 | NOT STARTED |
 | W-13 | NIT-153 | NIT-167 (US-02.02) | `weatherService`, `httpClient` | UX-06 | NOT STARTED |
-| W-14 | NIT-153 | NIT-168 (US-02.01); NIT-165 (US-02.03) | `weatherParser`, `geocodingParser` | Unit: weatherParser, geocodingParser | NOT STARTED |
-| W-15 | NIT-153 | NIT-168 (US-02.01) | `src/models/*` | `tsc --noEmit`; review | NOT STARTED |
+| W-14 | NIT-153 | NIT-168 (US-02.01); NIT-165 (US-02.03) | `weatherParser`, `geocodingParser` | Unit: weatherParser, geocodingParser | IN PROGRESS |
+| W-15 | NIT-153 | NIT-168 (US-02.01) | `src/models/*` | `tsc --noEmit`; review | IN PROGRESS |
 | W-16 | NIT-158 | NIT-182 (US-07.01) | `weatherRepository`, `keyValueStorage` | UX-17 | NOT STARTED |
 | W-17 | NIT-158 | NIT-183 (US-07.02) | `weatherRepository`, offline indicator | UX-17, UX-18 | NOT STARTED |
 | W-18 | NIT-158 | NIT-184 (US-07.03); NIT-188 (US-08.03) | `httpClient`, `ErrorView` | UX-18, UX-19 | NOT STARTED |
@@ -346,6 +346,8 @@ Only items that were actually checked are listed as verified.
 
 | ID | Verified (date, evidence) | Not yet verified / remaining |
 |---|---|---|
+| W-14 | `src/parsers/weatherParser.ts` written on the US-02.01 branch (NIT-215). `npx tsc --noEmit` passes. A manual smoke test on a real Open-Meteo response (Stockholm, 2026-11-20) parsed 168 hourly and 7 daily entries, and broken inputs threw `AppError('parse')` (2026-11-20) | Unit tests (NIT-216); `geocodingParser` (US-02.03); merge to `dev` |
+| W-15 | `src/models/Weather.ts` written on the US-02.01 branch (NIT-214); `npx tsc --noEmit` passes (2026-11-20) | Settings model; merge to `dev` |
 | W-28 | `tsconfig.json` has `strict: true`; `npx tsc --noEmit` passes on the scaffold (2026-11-10, NIT-193) | All application code. Status stays `NOT STARTED` because no app code exists yet. |
 | W-31 | Decision log (§13) exists with D-01 – D-13 (2026-11-10) | Both students reviewing and being able to explain each decision |
 | W-33 | `LLM_PROCESS.md` template with assistant and operator fields exists (NIT-204); `agents/claude.md` and `agents/codex.md` shared one rule set (2026-11-10); since 2026-11-18 the single rule set is the root `CLAUDE.md`, with `AGENTS.md` as a pointer (D-15) | First session entry LLM-001 (2026-11-18). Since D-21 the AI assistant writes an entry at the end of every session; entries must still be added for every remaining session. As of 2026-11-10, `agents/codex.md` had not yet been used with Codex on macOS. |
@@ -415,9 +417,9 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 | # | Question | Req. | Code location | Answer |
 |---|---|---|---|---|
 | Q1 | Walk through the function that makes the API request. Where is it, and what does it return? | W-13, W-23 | — | — |
-| Q2 | How is the JSON response parsed into your data model? Show the parsing code. | W-14, W-15 | — | — |
-| Q3 | What fields from the API response does your app use, and what does it ignore? Why those? | W-04 – W-07, W-15 | — | — |
-| Q4 | What happens if the API returns a successful HTTP 200 but the JSON is missing a field your model expects? | W-14, W-19 | — | — |
+| Q2 | How is the JSON response parsed into your data model? Show the parsing code. | W-14, W-15 | `src/parsers/weatherParser.ts` → `parseWeatherResponse` | A pure function takes `unknown` JSON. Small `read…` helpers check each field's type. The parallel `hourly`/`daily` arrays are zipped into one `HourlyForecast`/`DailyForecast` object per entry. Unix seconds become epoch ms, and API names map to model names (`temperature_2m` → `temperatureCelsius`). |
+| Q3 | What fields from the API response does your app use, and what does it ignore? Why those? | W-04 – W-07, W-15 | `src/parsers/weatherParser.ts`; `src/models/Weather.ts` | **Used:** `timezone` and `utc_offset_seconds` (to find "today" in local time); current temperature, feels-like temperature, humidity, weather code, wind and day/night; hourly temperature, weather code, rain probability and wind; daily min/max temperature, weather code, rain sum and probability, max wind, sunrise and sunset. These are what the home and detail screens show (W-04 – W-07). **Ignored:** `latitude`/`longitude` (we already have the location), `elevation`, `generationtime_ms` and the `*_units` objects (units are fixed by the request and encoded in field names). |
+| Q4 | What happens if the API returns a successful HTTP 200 but the JSON is missing a field your model expects? | W-14, W-19 | `src/parsers/weatherParser.ts` → `readNumber`, `readArray` | **Required field** (time, temperature, weather code): the parser throws `AppError('parse')` with the field's path, e.g. `current.temperature_2m: expected a finite number, got undefined`. A wrong type or an array of the wrong length is handled the same way. **Optional field:** `null` or missing becomes `undefined`, never an invented value. The ViewModel's handling of the error is planned in later stories. |
 | Q5 | Trace a complete data flow from the user pressing "search" to the forecast appearing on screen. | W-01, W-02, W-04, W-26 | — | — |
 | Q6 | How does your app handle caching — what is stored locally, and when is it refreshed? | W-11, W-16 | — | — |
 

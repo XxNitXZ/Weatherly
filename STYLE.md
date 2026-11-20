@@ -50,7 +50,7 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/services/api/geocodingService.ts` | Search SMHI by place name, returning `Promise<unknown>`. | Planned (NIT-165; SPEC OQ-01 – OQ-04 first) |
 | `src/services/api/weatherService.ts` | Fetch the Open-Meteo forecast for `Coordinates`, returning `Promise<unknown>`. | Planned (NIT-167) |
 | `src/parsers/geocodingParser.ts` | `(json: unknown) => ReadonlyArray<Location>`. Throws `AppError('parse', …)`. | Planned (NIT-165) |
-| `src/parsers/weatherParser.ts` | `(json: unknown) => WeatherReport`. Throws `AppError('parse', …)`. | Planned (NIT-168) |
+| `src/parsers/weatherParser.ts` | `parseWeatherResponse(json: unknown): WeatherReport`. Throws `AppError('parse', …)` with the field path. Optional `null`/missing values become `undefined`. | **Exists** (NIT-215) |
 | `src/repositories/locationRepository.ts` | `searchLocations(query): Promise<ReadonlyArray<Location>>`: calls `geocodingService`, then `geocodingParser`. No caching or other behaviour (SPEC D-17). | Planned (NIT-165) |
 | `src/repositories/weatherRepository.ts` | Returns a report with its `fetchedAtEpochMs` (SPEC D-18), and tells the caller when it fell back to a cached entry after a failed refresh (§11). | Planned (NIT-167, NIT-182, NIT-183) |
 | `src/repositories/favoritesRepository.ts`, `settingsRepository.ts` | Read and write favourites and settings through `keyValueStorage`. | Planned (NIT-177, NIT-179 – NIT-181) |
@@ -100,7 +100,7 @@ Weatherly/
 ├── src/
 │   ├── models/             # AppError.ts [exists], Location.ts [exists], Weather.ts [exists]; AppSettings.ts
 │   ├── services/api/       # .gitkeep; httpClient.ts, weatherService.ts, geocodingService.ts
-│   ├── parsers/            # .gitkeep; weatherParser.ts, geocodingParser.ts
+│   ├── parsers/            # weatherParser.ts [exists]; geocodingParser.ts
 │   ├── repositories/       # .gitkeep; locationRepository.ts, weatherRepository.ts, favoritesRepository.ts, settingsRepository.ts
 │   ├── storage/            # .gitkeep; keyValueStorage.ts
 │   ├── navigation/         # .gitkeep; RootNavigator.tsx, routes.ts (typed route params)
