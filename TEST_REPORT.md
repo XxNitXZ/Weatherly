@@ -27,8 +27,8 @@ Checks that the Expo project starts on each platform. Command: `npm ci`, then `n
 
 ## 2. Automated Unit Tests
 
-**Test framework:** Jest + `jest-expo` (SPEC D-09). Not installed or configured yet, so no unit tests exist and none have run.
-**Command (once configured):** `npm test`
+**Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
+**Command:** `npm test`
 
 ### 2.1 Test Categories
 
@@ -55,9 +55,23 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | coordinateValidation › rejects out-of-range latitude | W-03 | `90.0001, 0` | invalid, latitude error | | NOT RUN |
 | coordinateValidation › rejects out-of-range longitude | W-03 | `0, -180.5` | invalid, longitude error | | NOT RUN |
 | coordinateValidation › rejects non-numeric input | W-03 | `"abc", ""` | invalid | | NOT RUN |
-| weatherParser › parses a valid response | W-14, W-15 | valid API fixture | typed `WeatherReport` with 7 daily entries | | NOT RUN |
-| weatherParser › rejects a missing required field | W-19 | fixture without current temperature | throws `AppError('parse')` | | NOT RUN |
-| weatherParser › rejects a wrong field type | W-19 | temperature as string | throws `AppError('parse')` | | NOT RUN |
+| weatherParser › valid response › reads the timezone and UTC offset | W-15 | real fixture (Stockholm) | `Europe/Stockholm`, `3600` | as expected (2026-11-20) | PASS |
+| weatherParser › valid response › parses current conditions and converts seconds to milliseconds | W-14, W-15 | real fixture | `current` equals the expected object, times in ms, `isDay: true` | as expected (2026-11-20) | PASS |
+| weatherParser › valid response › turns the hourly arrays into one entry per hour | W-14, W-15 | real fixture | 168 entries; first entry equals the expected object | as expected (2026-11-20) | PASS |
+| weatherParser › valid response › turns the daily arrays into one entry per day | W-14, W-15 | real fixture | 7 entries; first entry equals the expected object | as expected (2026-11-20) | PASS |
+| weatherParser › valid response › maps is_day 0 to false | W-14 | `current.is_day = 0` | `isDay: false` | as expected (2026-11-20) | PASS |
+| weatherParser › missing required fields › throws a parse error when the current temperature is missing | W-19 | `current.temperature_2m` removed | `AppError('parse')` naming `current.temperature_2m` | as expected (2026-11-20) | PASS |
+| weatherParser › missing required fields › throws a parse error when the daily weather codes are missing | W-19 | `daily.weather_code` removed | `AppError('parse')` naming `daily.weather_code` | as expected (2026-11-20) | PASS |
+| weatherParser › missing required fields › throws a parse error when the hourly block is missing | W-19 | `hourly` removed | `AppError('parse')` naming `hourly` | as expected (2026-11-20) | PASS |
+| weatherParser › missing required fields › throws a parse error when the timezone is missing | W-19 | `timezone` removed | `AppError('parse')` naming `timezone` | as expected (2026-11-20) | PASS |
+| weatherParser › invalid data › throws a parse error when a temperature is a string | W-19 | `hourly.temperature_2m[5] = "0.7"` | `AppError('parse')` naming `hourly.temperature_2m[5]` | as expected (2026-11-20) | PASS |
+| weatherParser › invalid data › throws a parse error when a required value is null | W-19 | `hourly.temperature_2m[0] = null` | `AppError('parse')` naming `hourly.temperature_2m[0]` | as expected (2026-11-20) | PASS |
+| weatherParser › invalid data › throws a parse error when an array is shorter than its time array | W-19 | `daily.weather_code` with 6 of 7 entries | `AppError('parse')` naming `daily.weather_code` | as expected (2026-11-20) | PASS |
+| weatherParser › invalid data › throws a parse error when an optional array has the wrong length | W-19 | `daily.sunrise` with 3 of 7 entries | `AppError('parse')` naming `daily.sunrise` | as expected (2026-11-20) | PASS |
+| weatherParser › invalid data › throws a parse error when the response is not an object | W-19 | `null`, `[]`, `"not json"` | `AppError('parse')` naming `response` | as expected (2026-11-20) | PASS |
+| weatherParser › optional fields › turns a null optional value into undefined | W-14, W-15 | `daily.sunrise[0] = null` | day 0 `sunriseEpochMs` is `undefined`; day 1 unchanged | as expected (2026-11-20) | PASS |
+| weatherParser › optional fields › turns a missing optional array into undefined for every entry | W-14, W-15 | `hourly.precipitation_probability` removed | 168 entries, all `precipitationProbabilityPercent` `undefined` | as expected (2026-11-20) | PASS |
+| weatherParser › optional fields › turns a missing optional current value into undefined | W-14, W-15 | `current.wind_speed_10m` removed | `windSpeedMs` `undefined`; temperature unchanged | as expected (2026-11-20) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -70,14 +84,16 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 
 | Category | Mutation introduced | Test(s) that failed | Reverted? | Date | Status |
 |---|---|---|---|---|---|
-| | e.g. changed `<= 90` to `< 90` | | | | NOT RUN |
+| JSON parsing (`weatherParser`) | `readArray`: length check replaced with `false` | `…array is shorter than its time array`; `…optional array has the wrong length` (2 of 17 failed) | yes | 2026-11-20 | PASS |
+| JSON parsing (`weatherParser`) | `secondsToEpochMs`: `seconds * 1000` changed to `seconds` | the three valid-response object tests; `…null optional value into undefined` (4 of 17 failed) | yes | 2026-11-20 | PASS |
+| JSON parsing (`weatherParser`) | `readOptionalNumber`: `null` no longer treated as missing | `…null optional value into undefined` (1 of 17 failed) | yes | 2026-11-20 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
 
 | Date | Commit | Command | Total | Passed | Failed | Tester |
 |---|---|---|---|---|---|---|
-| | | | | | | |
+| 2026-11-20 | uncommitted, on `weather-models-parser` after `580b309` | `npm test` | 17 | 17 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -175,5 +191,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 25 executed | 0 of 25 executed |
-| Unit tests PASS / total | not configured | not configured |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 17 / 17 (run on macOS, 2026-11-20) |
 | Known open defects | | |

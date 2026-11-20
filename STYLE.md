@@ -110,11 +110,14 @@ Weatherly/
 │   │   └── components/     # .gitkeep; ForecastRow.tsx, LoadingView.tsx, ErrorView.tsx, ...
 │   ├── theme/              # .gitkeep; colors.ts, spacing.ts, typography.ts
 │   └── utils/              # .gitkeep; coordinateValidation.ts, refreshPolicy.ts, units.ts
+├── tests/                  # All unit tests, mirroring src/ (SPEC D-23)
+│   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json
+│   └── parsers/            # weatherParser.test.ts
 ├── CLAUDE.md, AGENTS.md    # Agent instructions (AGENTS.md points to CLAUDE.md)
 └── *.md                    # All other project documentation, at the root (SPEC D-14)
 ```
 
-Tests live next to the file they test: `weatherParser.ts` → `weatherParser.test.ts`.
+Tests live in the root `tests/` folder, separate from the app code, in the same subfolder as the file they test: `src/parsers/weatherParser.ts` → `tests/parsers/weatherParser.test.ts` (SPEC D-23).
 
 ## 5. Naming Conventions
 
@@ -230,11 +233,11 @@ Tests live next to the file they test: `weatherParser.ts` → `weatherParser.tes
 
 ## 13. Unit Testing Conventions
 
-- Framework: Jest with the `jest-expo` preset (D-09). It is not installed yet; it is added in the testing user story.
+- Framework: Jest with the `jest-expo` preset (D-09). Run all tests with `npm test`. Before every commit, run `npm run check` (`tsc --noEmit` + all tests). Before merging a story, also run `npx expo export --platform ios` and `npx expo-doctor`. `tsconfig.json` lists `"types": ["jest"]` so that `tsc` knows `describe`/`it`/`expect`.
 - Test **pure logic first**. W-24 requires at least two of the lab's areas: JSON parsing (parsers), error-state logic, and data transformation (e.g. grouping hourly/daily data, unit conversion). Coordinate validation and refresh policy may also be tested, but they do not count toward the two.
-- File naming: `<module>.test.ts`, next to the module.
+- File naming: `<module>.test.ts` in `tests/`, in the subfolder that mirrors the module's `src/` folder (D-23).
 - Structure: `describe('<module>')` → `it('<behaviour in plain English>')`, with an Arrange / Act / Assert body.
-- Use small hand-written JSON fixtures in the test file or in a `__fixtures__/` folder next to it. No live network calls in unit tests.
+- API fixtures are saved real responses in `tests/fixtures/`. Failure cases copy a fixture and change one thing. Small hand-written JSON may stay inside the test file. No live network calls in unit tests.
 - Cover the normal case, boundaries (e.g. latitude exactly 90 / 90.0001) and invalid input.
 - **Mutation check:** for each tested area, deliberately break the logic once, confirm at least one test fails, revert, and record this in [TEST_REPORT.md](TEST_REPORT.md).
 

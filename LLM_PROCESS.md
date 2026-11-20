@@ -259,8 +259,8 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Developer 2 (Tyrone Asante) |
 | **Platform** | macOS |
-| **Linear user story / task** | US-02.01 (NIT-168): NIT-214 (models), NIT-215 (parser) |
-| **Requirement IDs** | W-14, W-15 |
+| **Linear user story / task** | US-02.01 (NIT-168): NIT-214 (models), NIT-215 (parser), NIT-216 (tests) |
+| **Requirement IDs** | W-14, W-15, W-19, W-24 |
 | **Branch / PR** | `weather-models-parser`, no PR yet |
 | **Task given to AI** | Plan US-02.01, then implement it one Linear Task at a time. The student commits after each Task. |
 | **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
@@ -286,14 +286,27 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - `SPEC.md` §11: W-14 and W-15 set to `IN PROGRESS`, with §11.1 notes.
 >   - `SPEC.md` §12: answers for Q2 – Q4.
 >   - `STYLE.md` §3.1 and §4: `weatherParser.ts` marked as existing.
+> - NIT-216, testing:
+>   - Installed `jest`, `jest-expo` and `@types/jest` with `npx expo install`. The install put them in `dependencies`; the AI moved them to `devDependencies`.
+>   - Added the `npm test` script and the `jest-expo` preset.
+>   - At the student's request, added `npm run check` (`tsc --noEmit && jest`), the command to run before each commit.
+>   - Added `"types": ["jest"]` to `tsconfig.json`. Without it, `tsc` failed on `describe`/`it`/`expect`, because TypeScript 6 no longer loads `@types` packages automatically.
+>   - Saved the real response as `tests/fixtures/openMeteoForecast.json` and wrote 17 tests in `tests/parsers/weatherParser.test.ts`.
+>   - Ran 3 mutation checks and restored the parser after each one.
+> - Docs:
+>   - `TEST_REPORT.md` §2: real test names, results, mutation evidence and run history.
+>   - `SPEC.md`: added D-23 (root `tests/` folder), set W-24 to `IN PROGRESS`, answered Q28 and added a change-log line.
+>   - `STYLE.md` §4 and §13, and `CONTEXT.md`: updated for the `tests/` folder and installed Jest.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the US-02.01 plan, including the field choices and adding Jest in this story.
-- Modified (what and why):
+- Modified (what and why): the tests live in a separate root `tests/` folder instead of next to the parser, so test code is separate from app code (D-23).
 - Rejected (what and why):
 - Reviewed by (the other developer, in the PR):
 
 **AI mistakes or limitations observed**
+- The brief for NIT-215 was posted in the same turn as the code, so the student could not read it first. From NIT-216 on, the brief is posted alone and the AI waits for approval.
+- The AI first wrote a TEST_REPORT summary row that suggested the unit tests ran per platform, then corrected it. Jest runs in Node, not on a device.
 - The accepted plan listed `CurrentWeather`'s extra fields (feels-like temperature, humidity, wind) without `?`. In the code they are optional, following the same "API `null` → optional" rule as the hourly and daily extras. The AI pointed this difference out.
 
 **Verification results**
@@ -301,9 +314,10 @@ Record actual outcomes only. Write `not run` where applicable.
 | Check | Result |
 |---|---|
 | Read and understood line by line | |
-| `npx tsc --noEmit` | PASS (2026-11-20, after NIT-214 and after NIT-215) |
+| `npx tsc --noEmit` | PASS (2026-11-20, after NIT-214, NIT-215 and NIT-216) |
 | Manual smoke test (NIT-215) | The AI compiled the parser to a scratch folder and ran it with Node on the saved Stockholm response. Result: 168 hourly and 7 daily entries. Each broken input threw `AppError('parse')` with the field path: missing field, string instead of number, short array, `null` required value, missing block, `null` input. A `null` sunrise and a missing optional array gave `undefined`. |
-| Unit tests (names) | not run (Jest is added in NIT-216) |
+| Unit tests (names) | 17/17 PASS, `npm test` (2026-11-20). Names in TEST_REPORT §2.2. |
+| Mutation checks | 3 of 3 detected by at least one failing test (TEST_REPORT §2.3) |
 | Android Emulator (what was checked) | not run (no UI change) |
 | iOS Simulator (what was checked) | not run (no UI change) |
 

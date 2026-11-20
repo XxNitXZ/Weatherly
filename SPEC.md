@@ -66,11 +66,11 @@ To reach the higher level, the app must meet all mandatory requirements (§6) **
 | Geocoding API | SMHI place-search API (permitted by the lab). Integration details unverified, see §13.1 | Decided, details open (D-06) |
 | Navigation | React Navigation, minimal packages | Decided (D-07) |
 | Local persistence | `@react-native-async-storage/async-storage` | Decided (D-08) |
-| Unit testing | Jest with the `jest-expo` preset | Decided (D-09) |
+| Unit testing | Jest with the `jest-expo` preset; tests in the root `tests/` folder | Decided (D-09, D-23); installed |
 | State management | React hooks as ViewModels, no global state library | Proposed (D-10) |
 | Cross-platform testing | Android Emulator (Windows) and iOS Simulator (macOS) | Decided (D-12) |
 
-Only `expo`, `expo-status-bar`, `react` and `react-native` are installed as runtime dependencies today. The libraries decided above are **not installed yet**. Each is added with `npx expo install` in the user story that first needs it.
+Only `expo`, `expo-status-bar`, `react` and `react-native` are installed as runtime dependencies today. Jest, `jest-expo` and `@types/jest` are installed as dev dependencies (US-02.01). The other libraries decided above are **not installed yet**. Each is added with `npx expo install` in the user story that first needs it.
 
 ## 5. Architecture
 
@@ -328,7 +328,7 @@ The Lab B:2 instructions ask for a short statement of which parts were AI-assist
 | W-21 | NIT-154 | NIT-171 (US-03.03); NIT-172 (US-03.04) | forecast lists (`FlatList`) | UX-07, UX-08 | NOT STARTED |
 | W-22 | NIT-159 | NIT-187 (US-08.02) | `app.json`, responsive layouts | UX-21, UX-22 | NOT STARTED |
 | W-23 | NIT-158 | NIT-185 (US-07.04); NIT-167 (US-02.02) | `httpClient`, ViewModels | UX-20, UX-23 | NOT STARTED |
-| W-24 | NIT-160 | NIT-189 (US-09.01) | `*.test.ts` | TEST_REPORT §2 | NOT STARTED |
+| W-24 | NIT-160 | NIT-189 (US-09.01); NIT-216 (US-02.01) | `tests/**/*.test.ts` | TEST_REPORT §2 | IN PROGRESS |
 | W-25 | NIT-160 | NIT-190 (US-09.02) | — | TEST_REPORT §3 | NOT STARTED |
 | W-26 | NIT-152 | NIT-163 (US-01.03) | whole codebase, folder structure | Code review | NOT STARTED |
 | W-27 | NIT-152 | NIT-163 (US-01.03); NIT-164 (US-01.04) | whole codebase | Code review | NOT STARTED |
@@ -346,7 +346,8 @@ Only items that were actually checked are listed as verified.
 
 | ID | Verified (date, evidence) | Not yet verified / remaining |
 |---|---|---|
-| W-14 | `src/parsers/weatherParser.ts` written on the US-02.01 branch (NIT-215). `npx tsc --noEmit` passes. A manual smoke test on a real Open-Meteo response (Stockholm, 2026-11-20) parsed 168 hourly and 7 daily entries, and broken inputs threw `AppError('parse')` (2026-11-20) | Unit tests (NIT-216); `geocodingParser` (US-02.03); merge to `dev` |
+| W-24 | Jest + `jest-expo` installed; `tests/parsers/weatherParser.test.ts` has 17 tests for the lab area "JSON parsing", all passing, with 3 mutation checks recorded (TEST_REPORT §2.3) (2026-11-20, NIT-216) | A second lab area (error-state logic or data transformation); merge to `dev` |
+| W-14 | `src/parsers/weatherParser.ts` written on the US-02.01 branch (NIT-215). `npx tsc --noEmit` passes. A manual smoke test on a real Open-Meteo response (Stockholm, 2026-11-20) parsed 168 hourly and 7 daily entries, and broken inputs threw `AppError('parse')` (2026-11-20) | `geocodingParser` (US-02.03); merge to `dev`. Unit tests: 17/17 pass, with mutation evidence (NIT-216, 2026-11-20) |
 | W-15 | `src/models/Weather.ts` written on the US-02.01 branch (NIT-214); `npx tsc --noEmit` passes (2026-11-20) | Settings model; merge to `dev` |
 | W-28 | `tsconfig.json` has `strict: true`; `npx tsc --noEmit` passes on the scaffold (2026-11-10, NIT-193) | All application code. Status stays `NOT STARTED` because no app code exists yet. |
 | W-31 | Decision log (§13) exists with D-01 – D-13 (2026-11-10) | Both students reviewing and being able to explain each decision |
@@ -463,7 +464,7 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 | Q25 | Show a function the AI helped you write. Explain it line by line in your own words. | W-33 | — | — |
 | Q26 | Open SPEC.md and show us the AI meta-instructions at the top. Walk us through one requirement and find the code that implements it. **(Always asked first.)** | W-31, W-33 | SPEC.md §0, §11 | — |
 | Q27 | Where did the AI suggest something you pushed back on or changed? What was your reasoning? | W-33 | LLM_PROCESS.md | — |
-| Q28 | How did you verify that AI-generated code actually works correctly? Show a test case. | W-24, W-33 | — | — |
+| Q28 | How did you verify that AI-generated code actually works correctly? Show a test case. | W-24, W-33 | `tests/parsers/weatherParser.test.ts`; TEST_REPORT §2.3 | The parser is tested against a **real** saved Open-Meteo response, not an invented one. Each failure test changes one field, e.g. "throws a parse error when the current temperature is missing". Mutation checks broke the parser on purpose (removed the length check, skipped the seconds→ms conversion) and confirmed the tests fail. |
 | Q29 | What was the most effective prompt you wrote during this lab? What made it work? | W-33 | LLM_PROCESS.md | — |
 | Q30 | If you were starting this lab again with the same AI tools, what would you do differently? | W-33 | — | — |
 
@@ -493,6 +494,7 @@ The 30 official questions from the Lab B:2 instructions. The opening question is
 | D-20 | 2026-11-18 | `LoadState<T>` (in `src/viewmodels/loadState.ts`) has the states `idle`, `loading`, `success`, `refreshFailed` and `error`, with `isRefreshing` on the states that carry data. There is no "from cache" flag: a fresh cache hit is a normal `success`. Only `refreshFailed` shows an outdated or offline notice. | Decided | Separates "data came from the cache" from "data could not be updated", which W-17 actually requires. Shows existing data during a refresh without extra booleans (STYLE §7). | NIT-163 (NIT-199, NIT-200) |
 | D-21 | 2026-11-18 | Claude Code writes the `LLM_PROCESS.md` entry at the end of every session, based only on what happened in that session (CLAUDE.md rule 14). Entries do not say who wrote them. Fields the assistant cannot know are left empty. | Decided | The assistant has the full session in context, so the log is complete and consistent across both developers. Previously the students wrote the entries themselves. | NIT-191 (US-09.03) |
 | D-22 | 2026-11-20 | One `HomeScreen` combines search with the selected location's current conditions, today's hourly forecast and the seven-day summary. Selecting a day navigates to `DayDetailScreen`. There is no separate search or weather screen. | Decided | Matches the Lab B:2 description of the search/home screen and Linear US-03.01. Removes one screen and one navigation step, so the forecast appears where the user searched. `HomeScreen` uses two ViewModels, `useSearchViewModel` and `useWeatherViewModel` (STYLE §3.2). | NIT-169 (US-03.01) |
+| D-23 | 2026-11-20 | All unit tests live in a root `tests/` folder that mirrors `src/` (e.g. `tests/parsers/weatherParser.test.ts`), with saved API responses in `tests/fixtures/`. This replaces the earlier "tests next to the module" rule. `tsconfig.json` lists `"types": ["jest"]`, because TypeScript 6 no longer loads `@types` packages automatically. | Decided | Separates test code from app code, so `src/` holds only what ships in the app. Trade-off: test imports are longer (`../../src/...`), and a moved module must be moved in both trees. | NIT-216 |
 
 D-05 – D-09 record the choices only. The libraries are installed with `npx expo install` in the user stories that implement them.
 
@@ -519,6 +521,7 @@ D-05 – D-09 record the choices only. The libraries are installed with `npx exp
 | 2026-11-18 | Created the `src/` folder structure and the shared types `AppError`, `Coordinates`/`Location` and `LoadState<T>`; documented layer contracts, data flow and navigation ownership (STYLE §3.1 – §3.3); added D-17 – D-20 and widened D-16's scope | NIT-163 (NIT-199 – NIT-201) |
 | 2026-11-18 | Added D-21 (assistant writes the LLM_PROCESS.md session entries) | NIT-191 |
 | 2026-11-20 | Renumbered the Epic 2 user stories by dependency. Aligned W-24 with the lab's three test areas. Replaced §12 with the 30 official oral examination questions. Added §10.1 AI Usage Summary. Added D-22 (one home screen) | NIT-153, NIT-169, NIT-189 |
+| 2026-11-20 | US-02.01: added `Weather.ts` and `weatherParser.ts`; installed Jest; added D-23 (root `tests/` folder); W-14, W-15 and W-24 set to IN PROGRESS; answered Q2 – Q4 and Q28 | NIT-168 (NIT-214 – NIT-216) |
 
 ## 15. End-of-Session Update Procedure
 

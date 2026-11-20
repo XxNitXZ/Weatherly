@@ -50,7 +50,7 @@ As targeted by the team (see [SPEC.md §3 and §8](SPEC.md#8-quality-requirement
 | Geocoding API | SMHI place-search API (permitted by the lab) | Decided (SPEC D-06); integration details unverified (SPEC §13.1) |
 | Navigation | React Navigation, minimal packages | Decided (SPEC D-07); **not installed** |
 | Persistence | `@react-native-async-storage/async-storage` | Decided (SPEC D-08); **not installed** |
-| Unit testing | Jest + `jest-expo` | Decided (SPEC D-09); **not installed** |
+| Unit testing | Jest + `jest-expo` | Decided (SPEC D-09); installed as dev dependencies in US-02.01 (NIT-216). Run with `npm test`. |
 | Cross-platform testing | Android Emulator (Windows), iOS Simulator (macOS) | Decided (SPEC D-12) |
 
 Decided libraries are installed with `npx expo install` in the user story that first needs them, not before. Any library not in this table needs a decision entry in [SPEC.md §13](SPEC.md#13-decision-log) first.
