@@ -353,7 +353,7 @@ Only items that were actually checked are listed as verified.
 | W-18 | The data layer reports no connection as `AppError('network')` and no answer within 10 s as `AppError('timeout')` (unit tests, 2026-11-20, NIT-212) | User-facing message and retry action (US-07.03, US-08.03) |
 | W-19 | `httpClient` reports non-2xx as `AppError('http')` and invalid JSON as `AppError('parse')`; the parser reports missing or invalid fields as `AppError('parse')` (unit tests, 2026-11-20) | Handling in the ViewModel and UI without crashing (US-07.03) |
 | W-23 | `httpClient` uses `async/await` with `fetch`, which does not block the UI thread, and cancels slow requests with `AbortController` (2026-11-20, NIT-212) | Ignoring outdated results in ViewModels (US-07.04); UX-20, UX-23 |
-| W-03 | `validateCoordinates` and `useCoordinateSearchViewModel` written on the US-02.04 branch (NIT-209). 37 unit tests (valid, bounds, empty, malformed, both fields, error order) pass, and 4 mutation checks were detected (NIT-210, 2026-11-20) | Input form and simulator check (NIT-208); placing it on the home screen (US-03.01) |
+| W-03 | `validateCoordinates`, `useCoordinateSearchViewModel` and `CoordinateSearchForm` written on the US-02.04 branch. 37 validation tests and 6 message tests pass; 4 mutation checks detected (NIT-209, NIT-210). On the iOS Simulator, 6 scripted steps passed: valid pair, comma decimals, out-of-range and empty/malformed fields with inline messages, errors cleared on valid input, return-key flow (TEST_REPORT §1.4, 2026-11-20, NIT-208) | On-screen iOS keyboard minus key not yet verified; Android Emulator; placing the form on the home screen (US-03.01) |
 | W-01 | `locationRepository.searchLocations` returns typed locations from the real API (Göteborg, Gothenburg, Kiruna, New York found; xqzvbn → empty list), checked from Node on 2026-11-20 (NIT-206). `useSearchViewModel` trims the query and sends no request for empty input; the trimming rule is unit-tested (NIT-207, 2026-11-20) | The hook's state changes are checked through UX-01 – UX-03 once the search UI exists (US-03.01) |
 | W-02 | Open-Meteo Geocoding chosen (D-24); service, parser and repository written with unit tests (NIT-206, 2026-11-20); same-named places carry region and country | Listing the results on screen (US-03.01); merge to `dev` |
 | W-14 | `weatherParser` (US-02.01, merged) and `geocodingParser` (US-02.03 branch, NIT-206) are separate pure modules sharing `jsonReaders`; neither views nor ViewModels parse JSON. Unit tests pass with mutation evidence (TEST_REPORT §2) (2026-11-20) | Merge US-02.03 to `dev` |
@@ -536,6 +536,7 @@ D-05 – D-09 record the choices only. The libraries are installed with `npx exp
 | 2026-11-20 | US-02.01: added `Weather.ts` and `weatherParser.ts`; installed Jest; added D-23 (root `tests/` folder); W-14, W-15 and W-24 set to IN PROGRESS; answered Q2 – Q4 and Q28 | NIT-168 (NIT-214 – NIT-216) |
 | 2026-11-20 | Geocoding switched from SMHI to Open-Meteo Geocoding (D-24, D-06 superseded); OQ-01 – OQ-04 resolved | NIT-165 (NIT-205) |
 | 2026-11-20 | US-02.04: added D-25 (comma decimals); W-03 detail and status updated | NIT-166 (NIT-209) |
+| 2026-11-20 | US-02.04: `CoordinateSearchForm` and minimal theme tokens added; simulator check recorded | NIT-166 (NIT-208) |
 
 ## 15. End-of-Session Update Procedure
 

@@ -59,6 +59,8 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/viewmodels/useSearchViewModel.ts` | `{ state: LoadState<ReadonlyArray<Location>>, search(query) }`. Empty query → `error` with `AppError('validation')`, no request. Only the latest search may update the state (search counter; also ignores results after unmount). `prepareSearchQuery(raw): string \| null` is the pure, tested trimming rule. | **Exists** (NIT-207) |
 | `src/viewmodels/useCoordinateSearchViewModel.ts` | `{ latitudeError?, longitudeError?, submit(latitudeText, longitudeText): Location \| null }`. Invalid input → field errors and `null`, no request. Valid → a `Location` named by its coordinates (e.g. `59.33, 18.07`). | **Exists** (NIT-209) |
 | `src/utils/coordinateValidation.ts` | `validateCoordinates(latitudeText, longitudeText)` → `{ isValid: true, coordinates }` or `{ isValid: false, latitudeError?, longitudeError? }` with `'empty' \| 'notANumber' \| 'outOfRange'`. Strict decimal format, `.` or `,` (SPEC D-25); bounds [-90, 90] and [-180, 180], inclusive. | **Exists** (NIT-209) |
+| `src/views/components/CoordinateSearchForm.tsx` | Presentational form: latitude/longitude fields with inline error messages and a "Show weather" button. Props: `latitudeError?`, `longitudeError?`, `onSubmit(latitudeText, longitudeText)`. `coordinateErrorMessage(field, error)` owns the wording. iOS uses the `numbers-and-punctuation` keyboard (minus sign). Not yet placed on a screen (US-03.01). | **Exists** (NIT-208) |
+| `src/theme/colors.ts`, `spacing.ts`, `typography.ts` | Design tokens (§12). **Minimal starting set** created for the first component (US-02.04), only the tokens it uses; the visual design system is defined in US-08.01. | **Exists**, minimal (NIT-208) |
 | `src/viewmodels/use…ViewModel.ts` (others) | Expose `LoadState<T>` plus intent functions (`refresh`, …). Never receive `navigation`. | Planned (NIT-170, …) |
 | `src/navigation/routes.ts`, `RootNavigator.tsx` | Typed route params and navigator setup. | Planned (NIT-173; SPEC OQ-05) |
 | `src/models/Weather.ts` | `CurrentWeather`, `HourlyForecast`, `DailyForecast` and `WeatherReport` (`timezone`, `utcOffsetSeconds`, `current`, `hourly`, `daily`). Written against a real Open-Meteo response. Times in `…EpochMs`, units in field names, API `null` values as optional fields. | **Exists** (NIT-214) |
@@ -111,8 +113,8 @@ Weatherly/
 │   ├── viewmodels/         # loadState.ts, useSearchViewModel.ts, useCoordinateSearchViewModel.ts [exist]; useWeatherViewModel.ts, ...
 │   ├── views/
 │   │   ├── screens/        # .gitkeep; HomeScreen.tsx, DayDetailScreen.tsx, FavoritesScreen.tsx, SettingsScreen.tsx
-│   │   └── components/     # .gitkeep; ForecastRow.tsx, LoadingView.tsx, ErrorView.tsx, ...
-│   ├── theme/              # .gitkeep; colors.ts, spacing.ts, typography.ts
+│   │   └── components/     # CoordinateSearchForm.tsx [exists]; ForecastRow.tsx, LoadingView.tsx, ErrorView.tsx, ...
+│   ├── theme/              # colors.ts, spacing.ts, typography.ts [exist, minimal; US-08.01 extends them]
 │   └── utils/              # coordinateValidation.ts [exists]; refreshPolicy.ts, units.ts
 ├── tests/                  # All unit tests, mirroring src/ (SPEC D-23)
 │   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json
@@ -121,7 +123,9 @@ Weatherly/
 │   ├── parsers/            # weatherParser.test.ts, geocodingParser.test.ts
 │   ├── repositories/       # weatherRepository.test.ts, locationRepository.test.ts
 │   ├── services/           # weatherService.test.ts, httpClient.test.ts, geocodingService.test.ts
-│   └── viewmodels/         # useSearchViewModel.test.ts (pure helper only)
+│   ├── utils/              # coordinateValidation.test.ts
+│   ├── viewmodels/         # useSearchViewModel.test.ts (pure helper only)
+│   └── views/              # coordinateErrorMessage.test.ts
 ├── CLAUDE.md, AGENTS.md    # Agent instructions (AGENTS.md points to CLAUDE.md)
 └── *.md                    # All other project documentation, at the root (SPEC D-14)
 ```

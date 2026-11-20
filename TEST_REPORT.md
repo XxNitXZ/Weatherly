@@ -68,6 +68,23 @@ Real requests run by the AI with `curl` on 2026-11-20, to choose the geocoding A
 
 Result: `language=sv` is used, so both Swedish and English spellings find Swedish cities. Saved fixtures: `tests/fixtures/openMeteoGeocodingLund.json` (10 results) and `tests/fixtures/openMeteoGeocodingNoResults.json`.
 
+### 1.4 Coordinate Form Check (US-02.04, NIT-208)
+
+`App.tsx` was temporarily changed to show `CoordinateSearchForm` wired to `useCoordinateSearchViewModel`, plus a result line, then restored to the committed version (never committed). Code at `9729e05` on `feat/coordinate-search-validation`.
+
+| # | Platform | Date | Tester | Input (latitude / longitude) | Expected | Actual result (screenshot + Metro log) | Status |
+|---|---|---|---|---|---|---|---|
+| 1 | iOS Simulator (iPhone 18 Pro Max, iOS 27.2) | 2026-11-20 | Tyrone Asante | `59.33` / `18.07` | location, no errors | `Location: 59.33, 18.07 (lat 59.33, lon 18.07)` | PASS |
+| 2 | iOS Simulator | 2026-11-20 | Tyrone Asante | `59,33` / `18,07` | same location | `Location: 59.33, 18.07` | PASS |
+| 3 | iOS Simulator | 2026-11-20 | Tyrone Asante | `95` / `18` | latitude range message, no request | red latitude field, "Latitude must be between -90 and 90"; `Invalid input: no location, no request` | PASS |
+| 4 | iOS Simulator | 2026-11-20 | Tyrone Asante | `abc` / *(empty)* | two messages | "Use a decimal number, e.g. 59.33" and "Enter a longitude", both fields red | PASS |
+| 5 | iOS Simulator | 2026-11-20 | Tyrone Asante | `-33.87` / `151.21` after step 4 | errors cleared, location | errors gone; `Location: -33.87, 151.21` | PASS |
+| 6 | iOS Simulator | 2026-11-20 | Tyrone Asante | return key in latitude, then longitude | focus moves, then submits | as expected (reported by the tester) | PASS |
+| — | iOS Simulator | | | on-screen keyboard shows a minus key | minus key present | not verified: input was most likely typed on the Mac keyboard (software keyboard not visible in the screenshots) | NOT RUN |
+| — | Android Emulator (Windows) | | | steps 1–6 | | | NOT RUN |
+
+**Observation:** in step 4 the empty longitude field shows its grey placeholder "18.07" next to "Enter a longitude", which can read as a typed value. Candidate for the design story (US-08.01), e.g. placeholder "e.g. 18.07".
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -108,6 +125,7 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | coordinateValidation › both fields invalid › reports an error for each field, not only the first | W-03 | `abc`, `200` | `notANumber` and `outOfRange` | as expected (2026-11-20) | PASS |
 | coordinateValidation › error order › reports empty before checking the format | W-03 | `'   '` | `empty` | as expected (2026-11-20) | PASS |
 | coordinateValidation › error order › reports notANumber before checking the range | W-03 | `999e9` | `notANumber` | as expected (2026-11-20) | PASS |
+| coordinateErrorMessage › latitude/longitude × empty/notANumber/outOfRange (6 tests) | W-03 | each field and error kind | e.g. `Enter a latitude`, `Use a decimal number, e.g. 18.07`, `Longitude must be between -180 and 180` | as expected (2026-11-20) | PASS |
 | weatherParser › valid response › reads the timezone and UTC offset | W-15 | real fixture (Stockholm) | `Europe/Stockholm`, `3600` | as expected (2026-11-20) | PASS |
 | weatherParser › valid response › parses current conditions and converts seconds to milliseconds | W-14, W-15 | real fixture | `current` equals the expected object, times in ms, `isDay: true` | as expected (2026-11-20) | PASS |
 | weatherParser › valid response › turns the hourly arrays into one entry per hour | W-14, W-15 | real fixture | 168 entries; first entry equals the expected object | as expected (2026-11-20) | PASS |
@@ -212,6 +230,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-20 | uncommitted, on `feat/city-search-geocoding` after `126230c` | `npm run check` | 60 | 60 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-20 | uncommitted, on `feat/city-search-geocoding` after `d6f9a29` | `npm run check` | 74 | 74 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-20 | uncommitted, on `feat/coordinate-search-validation` after `dd442e8` | `npm run check` | 111 | 111 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-20 | uncommitted, on `feat/coordinate-search-validation` after `9729e05` | `npm run check` | 117 | 117 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -309,5 +328,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 25 executed | 0 of 25 executed |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 111 / 111 (run on macOS, 2026-11-20) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 117 / 117 (run on macOS, 2026-11-20) |
 | Known open defects | | |

@@ -491,7 +491,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Developer 2 (Tyrone Asante) |
 | **Platform** | macOS |
-| **Linear user story / task** | US-02.04 (NIT-166): NIT-209 (validation), NIT-210 (tests) |
+| **Linear user story / task** | US-02.04 (NIT-166): NIT-209 (validation), NIT-210 (tests), NIT-208 (input form) |
 | **Requirement IDs** | W-03 |
 | **Branch / PR** | `feat/coordinate-search-validation`, no PR yet |
 | **Task given to AI** | Plan US-02.04 and implement it one Linear Task at a time. |
@@ -509,6 +509,13 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - The first version used `result.latitudeError` directly, which `tsc` rejected because that field only exists on the invalid branch of the union. Fixed with `toMatchObject`.
 >   - 4 mutation checks, each detected.
 >   - Docs: `TEST_REPORT.md` §2 (the planned rows replaced by real results); `SPEC.md` §11.1 (W-03) and Q21.
+> - NIT-208:
+>   - `src/views/components/CoordinateSearchForm.tsx`: presentational form with inline errors. `coordinateErrorMessage` holds the wording. The iOS keyboard type includes a minus sign, and the return key moves to the next field or submits. Accessibility labels and alert role are set.
+>   - STYLE §12 forbids raw colours and sizes in components, and `src/theme/` was empty (US-08.01). The AI pointed this out and created minimal `colors.ts`, `spacing.ts` and `typography.ts` with only the tokens the form uses.
+>   - The `TextInput` ref type failed to type-check under React Native 0.88; fixed with the exported `TextInputInstance`.
+>   - 6 message tests in `tests/views/coordinateErrorMessage.test.ts`.
+>   - Simulator check: the AI temporarily wired the form into `App.tsx`, the student ran 6 steps on the iOS Simulator, and the AI then restored `App.tsx` (`git diff` empty).
+>   - Docs: `TEST_REPORT.md` §1.4 and §2, `SPEC.md` §11.1 (W-03) and change log, `STYLE.md` §3.1 and §4.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the US-02.04 plan, including the task order and comma decimals.
@@ -518,6 +525,7 @@ Record actual outcomes only. Write `not run` where applicable.
 
 **AI mistakes or limitations observed**
 - The first version of two "error order" tests did not type-check: they read `latitudeError` on a union type without narrowing. `tsc` (via `npm run check`) caught it before hand-over.
+- The NIT-208 brief promised to verify the minus key on the keyboard. The screenshots do not show the on-screen keyboard, so the AI recorded this step as not verified instead of passed.
 
 **Verification results**
 
@@ -529,7 +537,8 @@ Record actual outcomes only. Write `not run` where applicable.
 | Mutation checks (NIT-210) | 4 of 4 detected (TEST_REPORT §2.3) |
 | Smoke run of `validateCoordinates` (NIT-209) | 12 input pairs, all as specified, e.g. `59,33` → 59.33, `1e2` → `notANumber`, `95` → `outOfRange` (2026-11-20; the AI ran it with Node) |
 | Android Emulator (what was checked) | not run |
-| iOS Simulator (what was checked) | not run (planned in NIT-208) |
+| `npm run check` after NIT-208 | PASS, 117/117 tests (2026-11-20) |
+| iOS Simulator (what was checked) | Run by the student, 2026-11-20: 6 of 6 form steps passed (valid, comma, out of range, empty + malformed, errors cleared, return-key flow). On-screen minus key not verified (TEST_REPORT §1.4) |
 
 **Lessons learned**
 -
