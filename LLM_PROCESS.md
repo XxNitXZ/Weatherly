@@ -326,6 +326,59 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-005 – US-02.02 Integrate the weather REST API
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-20 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 2 (Tyrone Asante) |
+| **Platform** | macOS |
+| **Linear user story / task** | US-02.02 (NIT-167): NIT-211 (request parameters) |
+| **Requirement IDs** | W-13 |
+| **Branch / PR** | `feat/implement-weather-rest-api`, no PR yet |
+| **Task given to AI** | Plan US-02.02 and implement it one Linear Task at a time. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "What is the next User Story?" · "Plan is accepted." · "Okay, yes go ahead" |
+
+**Changes made by AI**
+> - Plan: three Tasks.
+>   - NIT-211: build the request URL.
+>   - NIT-212: `httpClient`, `fetchForecast` and a thin `weatherRepository`, so the service and the parser are joined.
+>   - NIT-213: real-API checks for four locations plus one run in the iOS Simulator.
+> - NIT-211: created `src/services/api/weatherService.ts` and removed `src/services/api/.gitkeep` (D-19).
+>   - It holds the base URL and named field lists that match the parser.
+>   - `buildForecastUrl(coordinates)` builds the query string by hand instead of using `URLSearchParams`, which has historically been incomplete in React Native.
+> - Added `tests/services/weatherService.test.ts` with 6 tests. One checks that the requested fields exactly match the fields in the parser's test fixture, so the request and the parser cannot drift apart.
+> - `STYLE.md` §3.1 and §4: the URL part of `weatherService.ts` is marked as existing.
+
+**Changes reviewed or modified by students**
+- Accepted as is: the US-02.02 plan.
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**Discussion**
+- The student asked whether the files should be split into `src/services/weatherService.ts` and `src/services/api/httpClient.ts`. The AI recommended keeping all three API files in `src/services/api/`, as documented in STYLE §4 and SPEC W-13, and explained why. The student agreed.
+
+**AI mistakes or limitations observed**
+-
+
+**Verification results**
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npm run check` (`tsc` + Jest) | PASS, 23/23 tests (2026-11-20, after NIT-211) |
+| Real request with the generated URL | HTTP 200 from Open-Meteo: 7 daily and 168 hourly entries, timezone `Europe/Stockholm` (2026-11-20; the AI ran it with Node) |
+| Android Emulator (what was checked) | not run (no UI change) |
+| iOS Simulator (what was checked) | not run (planned in NIT-213) |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

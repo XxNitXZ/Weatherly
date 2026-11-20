@@ -48,7 +48,7 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/viewmodels/loadState.ts` | `LoadState<T>`, the ViewModel → View state contract (§7). | **Exists** |
 | `src/services/api/httpClient.ts` | `getJson(url, { timeoutMs }): Promise<unknown>`. Throws `AppError` (`network`, `timeout`, `http`). | Planned (NIT-167) |
 | `src/services/api/geocodingService.ts` | Search SMHI by place name, returning `Promise<unknown>`. | Planned (NIT-165; SPEC OQ-01 – OQ-04 first) |
-| `src/services/api/weatherService.ts` | Fetch the Open-Meteo forecast for `Coordinates`, returning `Promise<unknown>`. | Planned (NIT-167) |
+| `src/services/api/weatherService.ts` | `buildForecastUrl(coordinates): string` builds the Open-Meteo URL from named field lists (`CURRENT_FIELDS`, `HOURLY_FIELDS`, `DAILY_FIELDS`) that match the parser. `fetchForecast(coordinates): Promise<unknown>` is planned. | URL: **Exists** (NIT-211); fetch: Planned (NIT-212) |
 | `src/parsers/geocodingParser.ts` | `(json: unknown) => ReadonlyArray<Location>`. Throws `AppError('parse', …)`. | Planned (NIT-165) |
 | `src/parsers/weatherParser.ts` | `parseWeatherResponse(json: unknown): WeatherReport`. Throws `AppError('parse', …)` with the field path. Optional `null`/missing values become `undefined`. | **Exists** (NIT-215) |
 | `src/repositories/locationRepository.ts` | `searchLocations(query): Promise<ReadonlyArray<Location>>`: calls `geocodingService`, then `geocodingParser`. No caching or other behaviour (SPEC D-17). | Planned (NIT-165) |
@@ -99,7 +99,7 @@ Weatherly/
 ├── index.ts                # [exists] Expo entry point (do not add logic)
 ├── src/
 │   ├── models/             # AppError.ts [exists], Location.ts [exists], Weather.ts [exists]; AppSettings.ts
-│   ├── services/api/       # .gitkeep; httpClient.ts, weatherService.ts, geocodingService.ts
+│   ├── services/api/       # weatherService.ts [exists]; httpClient.ts, geocodingService.ts
 │   ├── parsers/            # weatherParser.ts [exists]; geocodingParser.ts
 │   ├── repositories/       # .gitkeep; locationRepository.ts, weatherRepository.ts, favoritesRepository.ts, settingsRepository.ts
 │   ├── storage/            # .gitkeep; keyValueStorage.ts
@@ -112,7 +112,8 @@ Weatherly/
 │   └── utils/              # .gitkeep; coordinateValidation.ts, refreshPolicy.ts, units.ts
 ├── tests/                  # All unit tests, mirroring src/ (SPEC D-23)
 │   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json
-│   └── parsers/            # weatherParser.test.ts
+│   ├── parsers/            # weatherParser.test.ts
+│   └── services/           # weatherService.test.ts
 ├── CLAUDE.md, AGENTS.md    # Agent instructions (AGENTS.md points to CLAUDE.md)
 └── *.md                    # All other project documentation, at the root (SPEC D-14)
 ```
