@@ -347,7 +347,7 @@ Only items that were actually checked are listed as verified.
 | ID | Verified (date, evidence) | Not yet verified / remaining |
 |---|---|---|
 | W-24 | Jest + `jest-expo` installed; `tests/parsers/weatherParser.test.ts` has 17 tests for the lab area "JSON parsing", all passing, with 3 mutation checks recorded (TEST_REPORT §2.3) (2026-11-20, NIT-216) | A second lab area (error-state logic or data transformation); merge to `dev` |
-| W-13 | `weatherService` (URL + `fetchForecast`), `httpClient` and `weatherRepository.getReport` written on the US-02.02 branch (NIT-211, NIT-212). A real request with the generated URL returned HTTP 200 with 7 daily and 168 hourly entries (2026-11-20). Unit tests pass with a fake `fetch` | Real-API checks for more locations and in the iOS Simulator (NIT-213); merge to `dev` |
+| W-13 | `weatherService` (URL + `fetchForecast`), `httpClient` and `weatherRepository.getReport` written on the US-02.02 branch (NIT-211, NIT-212). Unit tests pass with a fake `fetch`. Real-API checks through `getReport` passed for 4 locations from Node and for Stockholm in the iOS Simulator (2026-11-20, NIT-213, TEST_REPORT §1.2) | Android Emulator check; merge to `dev`. Display of polar days is open (OQ-07) |
 | W-18 | The data layer reports no connection as `AppError('network')` and no answer within 10 s as `AppError('timeout')` (unit tests, 2026-11-20, NIT-212) | User-facing message and retry action (US-07.03, US-08.03) |
 | W-19 | `httpClient` reports non-2xx as `AppError('http')` and invalid JSON as `AppError('parse')`; the parser reports missing or invalid fields as `AppError('parse')` (unit tests, 2026-11-20) | Handling in the ViewModel and UI without crashing (US-07.03) |
 | W-23 | `httpClient` uses `async/await` with `fetch`, which does not block the UI thread, and cancels slow requests with `AbortController` (2026-11-20, NIT-212) | Ignoring outdated results in ViewModels (US-07.04); UX-20, UX-23 |
@@ -512,6 +512,7 @@ D-05 – D-09 record the choices only. The libraries are installed with `npx exp
 | OQ-04 | SMHI terms of use, rate limits, attribution, and whether a key is required | W-02 | Check SMHI's documentation |
 | OQ-05 | Which React Navigation navigator(s) to use (stack only, or stack plus tabs) | W-07, W-09, W-10 | Decide in the navigation user story and record it as a new decision |
 | OQ-06 | Course submission deadline and oral examination format | — | Copy from the course page into CONTEXT.md §14 |
+| OQ-07 | How should days without a normal sunrise/sunset be shown? Open-Meteo marks polar night as sunrise = sunset = local midnight, and midnight sun as sunrise = midnight, sunset = next midnight (no `null`). This happens in northern Sweden, e.g. Kiruna. | W-07 | Decide in the day detail story (US-04.03, NIT-175), e.g. show "Polar night" / "Midnight sun" instead of 00:00. Evidence: TEST_REPORT §1.2 |
 
 ## 14. Change Log
 

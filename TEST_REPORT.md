@@ -25,6 +25,28 @@ Checks that the Expo project starts on each platform. Command: `npm ci`, then `n
 | Android Emulator (Windows) | | | | | NOT RUN |
 | iOS Simulator (macOS) | 2026-11-18 | Tyrone Asante | `043b005` | Metro reported `iOS Bundled 5637ms index.ts (713 modules)`. Expo Go (SDK 58.0.0) opened the app on iPhone 18 Pro Max / iOS 27.2 and showed the `App.tsx` placeholder text "Open up App.tsx to start working on your app!". No errors in the terminal. `npx tsc --noEmit` passed. | PASS |
 
+### 1.2 Real-API Checks (US-02.02, NIT-213)
+
+Checks that `weatherRepository.getReport` works against the **real** Open-Meteo API, not a fixture or a fake `fetch`. Code at commit `bfaeb95` on `feat/implement-weather-rest-api`.
+
+**Node (run by the AI, 2026-11-20 ≈ 11:23 UTC).** The real modules were compiled to a scratch folder outside the repository and called directly.
+
+| Location | Coordinates | Actual result | Status |
+|---|---|---|---|
+| Stockholm | 59.33, 18.07 | `Europe/Stockholm` (UTC+1); 7 daily, 168 hourly; now 1.4 °C, code 51, day | PASS |
+| Sydney | -33.87, 151.21 | `Australia/Sydney` (UTC+11); 7 daily, 168 hourly; now 20.6 °C, code 3, night | PASS |
+| Gulf of Guinea | 0, 0 | `Etc/GMT` (UTC+0); 7 daily, 168 hourly; now 27.2 °C, code 0, day | PASS |
+| Longyearbyen (polar night) | 78.22, 15.65 | `Arctic/Longyearbyen` (UTC+1); 7 daily, 168 hourly; now -12.2 °C, code 45, night. **Finding:** sunrise and sunset are **not** `null`; both equal local midnight, with 0 s of daylight (see the note below the table) | PASS (parses), finding open |
+
+**Finding (polar night):** Open-Meteo reports "no sunrise" as `sunrise == sunset == local midnight`, not as `null`. The parser passes these values through, so a screen would show sunrise and sunset at 00:00. The comment in `Weather.ts` ("Missing during polar day or polar night") was wrong and has been corrected. A midnight-sun check at McMurdo (-77.85, 166.67) showed sunrise = local midnight and sunset = next midnight (86 400 s of daylight). **Decision (2026-11-20, Tyrone Asante):** keep the parser as it is and decide the display in the day detail story (SPEC OQ-07).
+
+**iOS Simulator (run by Tyrone Asante, 2026-11-20).** `App.tsx` was temporarily changed to call `getReport` for Stockholm, then restored to the committed version. It was never committed.
+
+| Platform | Date | Tester | Actual result (Metro log) | Status |
+|---|---|---|---|---|
+| iOS Simulator (macOS) | 2026-11-20 | Tyrone Asante | `iOS Bundled 254ms index.ts (644 modules)`; `NIT-213 OK: Stockholm, Europe/Stockholm, 7 days, 168 hours, now 1.4 °C (code 51), fetched 2026-11-20T11:24:27.063Z` | PASS |
+| Android Emulator (Windows) | | | | NOT RUN |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).

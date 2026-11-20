@@ -40,7 +40,14 @@ export type DailyForecast = {
   readonly precipitationSumMm?: number;
   readonly precipitationProbabilityMaxPercent?: number;
   readonly windSpeedMaxMs?: number;
-  /** Missing during polar day or polar night. */
+  /**
+   * Open-Meteo does not send `null` for polar days (checked against the real
+   * API on 2026-11-20, TEST_REPORT §1.2):
+   * - polar night: sunrise and sunset both equal local midnight
+   * - midnight sun: sunrise is local midnight, sunset is the next midnight
+   * How to display these days is decided in the day detail story (SPEC OQ-07).
+   * Optional only in case the API leaves the value out.
+   */
   readonly sunriseEpochMs?: number;
   readonly sunsetEpochMs?: number;
 };

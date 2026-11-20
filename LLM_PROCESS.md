@@ -334,7 +334,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Developer 2 (Tyrone Asante) |
 | **Platform** | macOS |
-| **Linear user story / task** | US-02.02 (NIT-167): NIT-211 (request parameters), NIT-212 (HTTP service and errors) |
+| **Linear user story / task** | US-02.02 (NIT-167): NIT-211 (request parameters), NIT-212 (HTTP service and errors), NIT-213 (real-API checks) |
 | **Requirement IDs** | W-13, W-18, W-19, W-23 |
 | **Branch / PR** | `feat/implement-weather-rest-api`, no PR yet |
 | **Task given to AI** | Plan US-02.02 and implement it one Linear Task at a time. |
@@ -366,9 +366,15 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - `SPEC.md` §11: W-13, W-18, W-19 and W-23 set to `IN PROGRESS`, with §11.1 notes.
 >   - `SPEC.md` §12: answers for Q1, Q13, Q14 and Q20.
 >   - `TEST_REPORT.md` §2: the Task 1 and Task 2 tests, the mutation checks and the run.
+> - NIT-213, real-API checks:
+>   - From Node, the AI compiled the real modules to a scratch folder and called `getReport` for Stockholm, Sydney, 0/0 and Longyearbyen. All four returned 7 daily and 168 hourly entries with the right timezone.
+>   - For the iOS Simulator, the AI temporarily changed `App.tsx` to call `getReport`. The student ran it, and the AI then restored `App.tsx`; `git diff` showed no changes.
+>   - Results are in `TEST_REPORT.md` §1.2 and `SPEC.md` §11.1 (W-13).
+>   - Finding: Open-Meteo marks polar night and midnight sun with midnight timestamps, not `null`. The AI also checked McMurdo for midnight sun and offered three options.
+>   - The student chose to fix the `Weather.ts` comment and add SPEC OQ-07, so the day detail story (US-04.03) decides the display.
 
 **Changes reviewed or modified by students**
-- Accepted as is: the US-02.02 plan.
+- Accepted as is: the US-02.02 plan; the recommended handling of the polar-day finding (comment fix + OQ-07).
 - Modified (what and why):
 - Rejected (what and why):
 - Reviewed by (the other developer, in the PR):
@@ -377,7 +383,7 @@ Record actual outcomes only. Write `not run` where applicable.
 - The student asked whether the files should be split into `src/services/weatherService.ts` and `src/services/api/httpClient.ts`. The AI recommended keeping all three API files in `src/services/api/`, as documented in STYLE §4 and SPEC W-13, and explained why. The student agreed.
 
 **AI mistakes or limitations observed**
--
+- The AI wrongly assumed (in the US-02.01 model comment and in the NIT-213 brief) that Open-Meteo sends `null` for sunrise and sunset during polar night. The real-API check showed that it sends sunrise = sunset = local midnight instead. Found by testing against the real API, not the fixture.
 
 **Verification results**
 
@@ -388,7 +394,8 @@ Record actual outcomes only. Write `not run` where applicable.
 | Mutation checks (NIT-212) | 3 of 3 detected (TEST_REPORT §2.3) |
 | Real request with the generated URL | HTTP 200 from Open-Meteo: 7 daily and 168 hourly entries, timezone `Europe/Stockholm` (2026-11-20; the AI ran it with Node) |
 | Android Emulator (what was checked) | not run (no UI change) |
-| iOS Simulator (what was checked) | not run (planned in NIT-213) |
+| Real API from Node (NIT-213) | 4 of 4 locations OK (TEST_REPORT §1.2) |
+| iOS Simulator (what was checked) | Run by the student, 2026-11-20. `getReport` for Stockholm inside the app logged `NIT-213 OK: Stockholm, Europe/Stockholm, 7 days, 168 hours, now 1.4 °C (code 51)` |
 
 **Lessons learned**
 -
