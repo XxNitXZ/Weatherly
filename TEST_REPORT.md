@@ -88,7 +88,7 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Forecast request URL | (extra) | `src/services/api/weatherService.ts` | W-13 | |
 | Hourly/daily grouping | Data transformation | decided in US-03.03 / US-03.04 | W-05, W-06 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
-| Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03 | |
+| Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
 | Refresh / staleness policy | (extra) | `src/utils/refreshPolicy.ts` | W-11, W-16 | |
 
 ### 2.2 Test Cases
@@ -97,11 +97,17 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 
 | Test name | Req. | Input | Expected result | Actual result | Status |
 |---|---|---|---|---|---|
-| coordinateValidation › accepts valid coordinates | W-03 | `59.33, 18.07` | valid | | NOT RUN |
-| coordinateValidation › accepts boundary values | W-03 | `90, 180` and `-90, -180` | valid | | NOT RUN |
-| coordinateValidation › rejects out-of-range latitude | W-03 | `90.0001, 0` | invalid, latitude error | | NOT RUN |
-| coordinateValidation › rejects out-of-range longitude | W-03 | `0, -180.5` | invalid, longitude error | | NOT RUN |
-| coordinateValidation › rejects non-numeric input | W-03 | `"abc", ""` | invalid | | NOT RUN |
+| coordinateValidation › valid input › accepts %j, %j (7 tests) | W-03 | `59.33/18.07`, `-33.87/151.21`, `59,33/18,07`, surrounding spaces and tabs, `59/18`, `+59.33/+18.07`, `0/0` | `isValid: true` with the exact numbers | as expected (2026-11-20) | PASS |
+| coordinateValidation › geographic bounds › accepts the exact bounds (3 tests) | W-03 | `90/180`, `-90/-180`, `90.0/-180.0` | `isValid: true` | as expected (2026-11-20) | PASS |
+| coordinateValidation › geographic bounds › rejects latitude as out of range (4 tests) | W-03, W-30 | `90.0001`, `-90.5`, `91`, `-1000` | `latitudeError: 'outOfRange'` only | as expected (2026-11-20) | PASS |
+| coordinateValidation › geographic bounds › rejects longitude as out of range (3 tests) | W-03, W-30 | `180.1`, `-181`, `360` | `longitudeError: 'outOfRange'` only | as expected (2026-11-20) | PASS |
+| coordinateValidation › missing input › reports an empty latitude (3 tests) | W-03, W-30 | `''`, `' '`, `'\t\n'` | `latitudeError: 'empty'` | as expected (2026-11-20) | PASS |
+| coordinateValidation › missing input › reports an empty longitude | W-03 | `59.33`, `''` | `longitudeError: 'empty'` | as expected (2026-11-20) | PASS |
+| coordinateValidation › missing input › reports both fields when both are empty | W-03 | `''`, `'  '` | both `empty` | as expected (2026-11-20) | PASS |
+| coordinateValidation › malformed input › rejects as not a number (12 tests) | W-03, W-30 | `abc`, `59.3.3`, `59,33,1`, `1e2`, `0x10`, `Infinity`, `NaN`, `59.`, `.5`, `--5`, `5 9`, `59.33°` | `latitudeError: 'notANumber'` | as expected (2026-11-20) | PASS |
+| coordinateValidation › both fields invalid › reports an error for each field, not only the first | W-03 | `abc`, `200` | `notANumber` and `outOfRange` | as expected (2026-11-20) | PASS |
+| coordinateValidation › error order › reports empty before checking the format | W-03 | `'   '` | `empty` | as expected (2026-11-20) | PASS |
+| coordinateValidation › error order › reports notANumber before checking the range | W-03 | `999e9` | `notANumber` | as expected (2026-11-20) | PASS |
 | weatherParser › valid response › reads the timezone and UTC offset | W-15 | real fixture (Stockholm) | `Europe/Stockholm`, `3600` | as expected (2026-11-20) | PASS |
 | weatherParser › valid response › parses current conditions and converts seconds to milliseconds | W-14, W-15 | real fixture | `current` equals the expected object, times in ms, `isDay: true` | as expected (2026-11-20) | PASS |
 | weatherParser › valid response › turns the hourly arrays into one entry per hour | W-14, W-15 | real fixture | 168 entries; first entry equals the expected object | as expected (2026-11-20) | PASS |
@@ -191,6 +197,10 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | JSON parsing (`geocodingParser`) | latitude and longitude swapped | 7 of 60 failed (mapping, missing/invalid coordinate and repository tests) | yes | 2026-11-20 | PASS |
 | Search query trimming | `prepareSearchQuery`: `raw.trim()` removed | 7 `prepareSearchQuery` tests (7 of 74 failed) | yes | 2026-11-20 | PASS |
 | Error-state logic (`toAppError`) | `AppError` no longer passed through (always wrapped) | `toAppError › returns an AppError unchanged` (1 of 74 failed) | yes | 2026-11-20 | PASS |
+| Coordinate validation | upper bound made exclusive (`value > max` → `value >= max`) | the exact-bounds tests `90/180` and `90.0/-180.0` (2 of 111 failed) | yes | 2026-11-20 | PASS |
+| Coordinate validation | `,` removed from the decimal pattern | `accepts "59,33", "18,07"` (1 of 111 failed) | yes | 2026-11-20 | PASS |
+| Coordinate validation | `text.trim()` removed | 5 tests (surrounding spaces, whitespace-only, error order) (5 of 111 failed) | yes | 2026-11-20 | PASS |
+| Coordinate validation | longitude error dropped when latitude is also invalid | the two "both fields" tests (2 of 111 failed) | yes | 2026-11-20 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -201,6 +211,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-20 | uncommitted, on `feat/implement-weather-rest-api` after `5089da9` | `npm run check` | 36 | 36 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-20 | uncommitted, on `feat/city-search-geocoding` after `126230c` | `npm run check` | 60 | 60 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-20 | uncommitted, on `feat/city-search-geocoding` after `d6f9a29` | `npm run check` | 74 | 74 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-20 | uncommitted, on `feat/coordinate-search-validation` after `dd442e8` | `npm run check` | 111 | 111 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -298,5 +309,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 25 executed | 0 of 25 executed |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 74 / 74 (run on macOS, 2026-11-20) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 111 / 111 (run on macOS, 2026-11-20) |
 | Known open defects | | |

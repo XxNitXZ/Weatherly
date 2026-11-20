@@ -491,7 +491,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Developer 2 (Tyrone Asante) |
 | **Platform** | macOS |
-| **Linear user story / task** | US-02.04 (NIT-166): NIT-209 (validation) |
+| **Linear user story / task** | US-02.04 (NIT-166): NIT-209 (validation), NIT-210 (tests) |
 | **Requirement IDs** | W-03 |
 | **Branch / PR** | `feat/coordinate-search-validation`, no PR yet |
 | **Task given to AI** | Plan US-02.04 and implement it one Linear Task at a time. |
@@ -504,6 +504,11 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - `src/utils/coordinateValidation.ts`: `validateCoordinates` with a strict decimal pattern, per-field errors (`empty`, `notANumber`, `outOfRange`) and named bounds. Removed `src/utils/.gitkeep`.
 >   - `src/viewmodels/useCoordinateSearchViewModel.ts`: field errors plus `submit`, which returns a `Location` named by its coordinates, or `null`.
 >   - Docs: `SPEC.md` D-25, W-03 detail and status, §11.1, change log; `STYLE.md` §3.1, §3.2, §4.
+> - NIT-210:
+>   - `tests/utils/coordinateValidation.test.ts` has 37 tests (valid, bounds, empty, malformed, both fields, error order); `it.each` gives each input its own test name.
+>   - The first version used `result.latitudeError` directly, which `tsc` rejected because that field only exists on the invalid branch of the union. Fixed with `toMatchObject`.
+>   - 4 mutation checks, each detected.
+>   - Docs: `TEST_REPORT.md` §2 (the planned rows replaced by real results); `SPEC.md` §11.1 (W-03) and Q21.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the US-02.04 plan, including the task order and comma decimals.
@@ -512,7 +517,7 @@ Record actual outcomes only. Write `not run` where applicable.
 - Reviewed by (the other developer, in the PR):
 
 **AI mistakes or limitations observed**
--
+- The first version of two "error order" tests did not type-check: they read `latitudeError` on a union type without narrowing. `tsc` (via `npm run check`) caught it before hand-over.
 
 **Verification results**
 
@@ -520,6 +525,8 @@ Record actual outcomes only. Write `not run` where applicable.
 |---|---|
 | Read and understood line by line | |
 | `npm run check` after NIT-209 | PASS, 74/74 tests (no new tests yet; they come in NIT-210) |
+| `npm run check` after NIT-210 | PASS, 111/111 tests (2026-11-20) |
+| Mutation checks (NIT-210) | 4 of 4 detected (TEST_REPORT §2.3) |
 | Smoke run of `validateCoordinates` (NIT-209) | 12 input pairs, all as specified, e.g. `59,33` → 59.33, `1e2` → `notANumber`, `95` → `outOfRange` (2026-11-20; the AI ran it with Node) |
 | Android Emulator (what was checked) | not run |
 | iOS Simulator (what was checked) | not run (planned in NIT-208) |
