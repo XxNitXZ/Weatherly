@@ -132,6 +132,125 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-002 – Renumber Epic 2 user stories by dependency
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-20 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 2 (Tyrone Asante) |
+| **Platform** | macOS |
+| **Linear user story / task** | EPIC 2 (NIT-153): NIT-165, NIT-166, NIT-167, NIT-168 |
+| **Requirement IDs** | none directly (backlog planning; SPEC traceability for W-01 – W-03, W-13 – W-15, W-23) |
+| **Branch / PR** | `dev`, no PR |
+| **Task given to AI** | Find the student's next assigned user story, then reorder the Epic 2 user stories by dependency. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "So what User Story on Linear is my next assigned one?" · "I want you to reorder the User Stories under Epic 2 by dependency" |
+
+**Changes made by AI**
+> - Queried Linear. Only EPIC 2 (NIT-153) was assigned to the student, and its four stories were unassigned.
+> - Worked out the dependency order from the planned layer contracts in STYLE.md §3.1 – §3.2:
+>   - The weather repository in NIT-167 calls the weather parser from NIT-168.
+>   - The geocoding service in NIT-165 uses the `httpClient` from NIT-167.
+>   - Coordinate search in NIT-166 extends `useSearchViewModel`, which NIT-165 creates.
+> - The Linear API cannot set manual sort order. At the student's choice, the Linear titles were renumbered:
+>
+>   | Linear issue | Story | Old number | New number |
+>   |---|---|---|---|
+>   | NIT-168 | Create Weather Models & JSON Parser | US-02.04 | US-02.01 |
+>   | NIT-167 | Integrate Weather REST API | US-02.03 | US-02.02 |
+>   | NIT-165 | Implement City Search with Geocoding | US-02.01 | US-02.03 |
+>   | NIT-166 | Implement Coordinate Search & Validation | US-02.02 | US-02.04 |
+>
+> - `SPEC.md`: updated the US numbers in the traceability matrix (W-01, W-02, W-03, W-13, W-14, W-15, W-23). Reordered the Epic 2 rows in the story mapping table.
+
+**Changes reviewed or modified by students**
+- Accepted as is: the dependency order and the renumbering.
+- Modified (what and why):
+- Rejected (what and why): adding Linear "blocked by" relations instead of renumbering. The student chose to renumber the titles.
+- Reviewed by (the other developer, in the PR): not yet reviewed (no PR).
+
+**AI mistakes or limitations observed**
+- The available Linear tools cannot change an issue's manual sort order, so the order is expressed through the US numbers.
+- LLM-001 still refers to "US-02.01 (NIT-165)", the numbering at that time. Use the NIT IDs, which do not change.
+
+**Verification results**
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | not run (documentation and Linear changes only) |
+| Unit tests (names) | not run |
+| Android Emulator (what was checked) | not run |
+| iOS Simulator (what was checked) | not run |
+
+**Lessons learned**
+- Linear issue IDs (NIT-xxx) are stable, but US numbers in titles can change. Cross-references should rely on the NIT ID.
+
+---
+
+### LLM-003 – Check the project documentation against the Lab B:2 instructions
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-20 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 2 (Tyrone Asante) |
+| **Platform** | macOS |
+| **Linear user story / task** | EPIC 2 (NIT-153) preparation; US-03.01 (NIT-169); US-09.01 (NIT-189) |
+| **Requirement IDs** | W-24, W-31, W-33; D-22 |
+| **Branch / PR** | `dev`, no PR |
+| **Task given to AI** | Read the Lab B:2 instructions and check that the planned implementation meets the teacher's expectations without overcomplicating it. Then apply the fixes the student chose. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "I want you to read this Weather App's assignment instructions and make sure that what we are implementing follows the teachers expactations, not overcomplicating it or underperforming." |
+
+**Changes made by AI**
+> - Found and read `Lab-B2-Weather.pdf` (10 pages) and compared it with SPEC.md and STYLE.md. Reported gaps, possible overcomplications and what they mean for US-02.01.
+> - `SPEC.md`:
+>   - W-24 now names the lab's three test areas: JSON parsing, error-state logic and data transformation.
+>   - §12 now holds the 30 official oral examination questions with requirement IDs. Answers are filled in as code is built.
+>   - Added §10.1 AI Usage Summary.
+>   - Added D-22: one `HomeScreen` combines search and forecast.
+>   - Renamed the planned `SearchScreen`/`WeatherScreen` to `HomeScreen`, and added change-log lines.
+> - `STYLE.md`:
+>   - §3.2 data flow rewritten for one home screen plus `DayDetailScreen`.
+>   - §4 screen file names updated.
+>   - §13 test areas aligned with W-24.
+> - `TEST_REPORT.md` §2.1: test categories mapped to the lab's three areas. Weather JSON parsing is selected.
+> - `CLAUDE.md` rule 14: fill in SPEC §12 answers when code that answers a question is added.
+> - Linear NIT-169 (US-03.01): added acceptance criteria for one home screen and for opening the detail screen from a day.
+> - Reworded three rules to match the agreed workflow:
+>   - SPEC §0 rule 11 and STYLE §18: the AI writes code from the students' prompts and explains core-logic decisions. The students review, test, modify and commit.
+>   - SPEC §15: the AI updates SPEC.md during the session, the student reviews it before committing, and only a student sets `VERIFIED`. A step for the §12 oral exam answers was added.
+
+**Changes reviewed or modified by students**
+- Accepted as is: the W-24 fix, the official 30-question map, the AI-usage section, the single home screen, and keeping `locationRepository`.
+- Modified (what and why): the AI-usage section states that Claude Code generated the code while the students checked, runtime tested and modified it, and did the Git work.
+- Rejected (what and why):
+  - Reverting D-21. The AI-written entries are kept as a source, and the student writes the final hand-in LLM_PROCESS.md themselves.
+  - The tutor-style "hint ladder" for Core code. The AI writes code from the students' prompts, and the students review, test and modify it.
+  - Updating the README now. It will be written when the code is done.
+- Reviewed by (the other developer, in the PR): not yet reviewed (no PR).
+
+**AI mistakes or limitations observed**
+- In LLM-001 and LLM-002, the AI agreed to write LLM_PROCESS.md entries before reading the lab instructions. The instructions' appendix says the AI should not write this file. The AI raised this after reading the PDF.
+- The student asked the AI to remove a line from the teacher's PDF appendix. The AI did not edit the course document.
+
+**Verification results**
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | not run (documentation and Linear changes only) |
+| Unit tests (names) | not run |
+| Android Emulator (what was checked) | not run |
+| iOS Simulator (what was checked) | not run |
+
+**Lessons learned**
+- Read the course instructions before deciding on the project workflow and documentation rules.
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

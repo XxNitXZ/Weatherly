@@ -63,18 +63,21 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 
 Planned flow. Only the types in **bold** exist today.
 
-1. **SearchScreen** (View): the user submits a place name. The screen calls `search(query)` from `useSearchViewModel`. It never calls an API.
+Search and forecast share one screen, `HomeScreen` (SPEC D-22). It uses two ViewModels: `useSearchViewModel` for search and `useWeatherViewModel` for the forecast.
+
+1. **HomeScreen** (View): the user submits a place name. The screen calls `search(query)` from `useSearchViewModel`. It never calls an API.
 2. **useSearchViewModel**: trims the query. Empty input sends no request (W-01). Otherwise it sets `LoadState` to `loading` and calls `locationRepository.searchLocations(query)`.
 3. **locationRepository** → `geocodingService` (returns `unknown` JSON through `httpClient`) → `geocodingParser` (returns **`Location`** values or throws **`AppError`**).
-4. The ViewModel sets `success` with the locations, or `error` with the **`AppError`**. SearchScreen renders the list, an empty state or an error.
-5. **User selects a location:** SearchScreen, not the ViewModel, navigates to the weather screen with the location's small, serialisable fields (§3.3).
+4. The ViewModel sets `success` with the locations, or `error` with the **`AppError`**. HomeScreen renders the result list, an empty state or an error.
+5. **User selects a location:** HomeScreen passes it to `useWeatherViewModel`. No navigation happens; the forecast appears on the same screen.
    - Coordinate search (W-03) skips steps 2–4. The ViewModel validates the input with `coordinateValidation` and builds a **`Location`** directly; no network request is needed.
-6. **WeatherScreen** reads the route params and passes the location to `useWeatherViewModel`, which sets `loading` and calls `weatherRepository`.
+6. **useWeatherViewModel** sets `loading` and calls `weatherRepository`.
 7. **weatherRepository** reads the cache through `keyValueStorage`:
    - If the entry is fresh (`refreshPolicy`), it returns it. This is a normal result, not an offline state.
    - Otherwise it calls `weatherService`, parses the response with `weatherParser`, stores the report with `fetchedAtEpochMs`, and returns it.
    - If that refresh fails and a cached entry exists, it returns the entry and reports the **`AppError`** that occurred. With no cached entry, it throws the error.
-8. **useWeatherViewModel** maps the result to `success`, `refreshFailed` (cached data plus an error) or `error` (**`LoadState<T>`**, §7). WeatherScreen renders the current, hourly and daily forecasts and, for `refreshFailed`, a "last updated" notice.
+8. **useWeatherViewModel** maps the result to `success`, `refreshFailed` (cached data plus an error) or `error` (**`LoadState<T>`**, §7). HomeScreen renders the current conditions, today's hourly forecast and the seven-day summary and, for `refreshFailed`, a "last updated" notice.
+9. **User selects a day:** HomeScreen, not the ViewModel, navigates to `DayDetailScreen` with the location's fields and the day's date (§3.3). Its ViewModel loads that day from `weatherRepository`.
 
 ### 3.3 Navigation Ownership
 
@@ -102,7 +105,7 @@ Weatherly/
 │   ├── navigation/         # .gitkeep; RootNavigator.tsx, routes.ts (typed route params)
 │   ├── viewmodels/         # loadState.ts [exists]; useWeatherViewModel.ts, useSearchViewModel.ts, ...
 │   ├── views/
-│   │   ├── screens/        # .gitkeep; WeatherScreen.tsx, SearchScreen.tsx, FavoritesScreen.tsx, ...
+│   │   ├── screens/        # .gitkeep; HomeScreen.tsx, DayDetailScreen.tsx, FavoritesScreen.tsx, SettingsScreen.tsx
 │   │   └── components/     # .gitkeep; ForecastRow.tsx, LoadingView.tsx, ErrorView.tsx, ...
 │   ├── theme/              # .gitkeep; colors.ts, spacing.ts, typography.ts
 │   └── utils/              # .gitkeep; coordinateValidation.ts, refreshPolicy.ts, units.ts
@@ -227,7 +230,7 @@ Tests live next to the file they test: `weatherParser.ts` → `weatherParser.tes
 ## 13. Unit Testing Conventions
 
 - Framework: Jest with the `jest-expo` preset (D-09). It is not installed yet; it is added in the testing user story.
-- Test **pure logic first**: parsers, coordinate validation, refresh policy, unit conversion. At least two areas are required (W-24).
+- Test **pure logic first**. W-24 requires at least two of the lab's areas: JSON parsing (parsers), error-state logic, and data transformation (e.g. grouping hourly/daily data, unit conversion). Coordinate validation and refresh policy may also be tested, but they do not count toward the two.
 - File naming: `<module>.test.ts`, next to the module.
 - Structure: `describe('<module>')` → `it('<behaviour in plain English>')`, with an Arrange / Act / Assert body.
 - Use small hand-written JSON fixtures in the test file or in a `__fixtures__/` folder next to it. No live network calls in unit tests.
@@ -280,7 +283,8 @@ Tests live next to the file they test: `weatherParser.ts` → `weatherParser.tes
 - `CLAUDE.md` points to this guide, SPEC.md and CONTEXT.md. There are no assistant-specific coding rules: this guide applies to all AI-assisted code.
 - Every AI session starts by reading SPEC.md, STYLE.md and CONTEXT.md (see [SPEC.md §0](SPEC.md#0-ai-meta-instructions)).
 - If the AI suggests a pattern that differs from this guide, follow this guide. If the guide does not cover the case, decide as a team and add the rule here, not only in `CLAUDE.md`.
-- **Core logic** (parsers, cache and refresh policy, validation, ViewModel state transitions): ask the AI for an explanation, pseudocode or a review **before** asking for complete code. A student must understand the logic before it is generated.
+- **Code generation:** the AI writes code from the students' prompts. The students review, test and modify it, and commit only code they can explain line by line.
+- **Core logic** (parsers, cache and refresh policy, validation, ViewModel state transitions): the AI explains the key decisions and trade-offs along with the code, so the students can defend them at the oral examination.
 - AI-generated code is treated like code from an unknown contributor. It must be reviewed line by line, type-checked, tested and run on a device or simulator before merging.
 - Prompts reference the requirement ID (`W-xx`) and the Linear issue they serve.
 - Reject AI suggestions that add libraries, layers or files not justified by this guide.

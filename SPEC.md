@@ -19,7 +19,7 @@ These instructions apply to every AI assistant working on this repository: **Cla
 8. **Be honest about platforms.** Do not claim the app was run on the Android Emulator or iOS Simulator unless that run actually happened in the session and its output was observed.
 9. **Do not write the reflection.** Do not write or edit the students' personal reflection ([REFLECTION.md](REFLECTION.md)).
 10. **English only.** All code, comments, identifiers, commit messages and documentation are in English.
-11. **Core logic: explain before generating.** For parsing, caching, validation and ViewModel logic, prefer explanation, pseudocode and review before generating complex code (see [STYLE.md §18](STYLE.md#18-ai-collaboration-guidelines)).
+11. **Code from the students' prompts.** The AI writes code according to the students' prompts. The students review, test and modify it, and must be able to explain every line before they commit it. For core logic (parsing, caching, validation and ViewModel logic), the AI explains the key decisions and trade-offs along with the code (see [STYLE.md §18](STYLE.md#18-ai-collaboration-guidelines)).
 12. **End-of-session reminder.** At the end of every session, remind the students to complete the end-of-session checklist in [CONTEXT.md §16](CONTEXT.md#16-end-of-session-checklist) and the update procedure in §15 of this file.
 
 ---
@@ -121,7 +121,7 @@ Detailed layer rules, layer contracts, the search-to-forecast data flow, navigat
 | W-21 | Forecast lists are scrollable. | UX |
 | W-22 | All screens work in portrait and landscape orientation. | UX |
 | W-23 | Network requests are asynchronous and never block the UI thread. | Data |
-| W-24 | Unit tests cover at least two required logic areas. | Testing |
+| W-24 | Unit tests cover at least two of the lab's logic areas: JSON parsing, error-state logic, data transformation. | Testing |
 | W-25 | At least 20 distinct UX interaction scenarios are defined, executed and documented. | Testing |
 
 ## 7. Detailed Requirements
@@ -133,7 +133,7 @@ Planned components follow the folder structure in [STYLE.md §4](STYLE.md#4-fold
 - Leading and trailing whitespace is trimmed, and empty input sends no request.
 - Results show the name plus context (region/country) so that places with the same name can be told apart.
 - An empty result list shows a "no locations found" message.
-- Planned: `SearchScreen`, `useSearchViewModel`, `locationRepository` (D-17), `geocodingService`.
+- Planned: `HomeScreen`, `useSearchViewModel`, `locationRepository` (D-17), `geocodingService`.
 
 **W-02 – Geocoding API integration**
 - Uses the SMHI place-search API (D-06).
@@ -234,7 +234,12 @@ Planned components follow the folder structure in [STYLE.md §4](STYLE.md#4-fold
 - Requests that are no longer needed (e.g. when navigating away or making a new search) are ignored or aborted.
 
 **W-24 – Unit tests**
-- Automated unit tests, written in Jest with `jest-expo` (D-09), cover at least two of: coordinate validation, JSON parsing, refresh/staleness policy, unit conversion.
+- Automated unit tests, written in Jest with `jest-expo` (D-09), cover at least two of the three areas named in the Lab B:2 instructions:
+  - **JSON parsing:** `weatherParser` (US-02.01) and `geocodingParser`. Planned first.
+  - **Error-state logic:** e.g. how a ViewModel maps a result or `AppError` to `LoadState` (D-20).
+  - **Data transformation:** e.g. grouping hourly data for today and daily data for the other days, or unit conversion.
+- The two areas are JSON parsing plus error-state logic or data transformation (decided 2026-11-20).
+- Coordinate validation and the refresh policy may also be tested, but they do not count toward the two areas.
 - Results are recorded in [TEST_REPORT.md](TEST_REPORT.md).
 
 **W-25 – UX scenarios**
@@ -275,6 +280,15 @@ AI usage rules:
 - The meta-instructions in §0 apply to every session.
 - The students write [REFLECTION.md](REFLECTION.md) themselves.
 
+### 10.1 AI Usage Summary
+
+The Lab B:2 instructions ask for a short statement of which parts were AI-assisted and which tools were used.
+
+- **Claude Code in VS Code** (both developers, D-15) generated the code from the students' prompts and drafted the project documentation.
+- The students manually checked all AI output, ran it on the Android Emulator and iOS Simulator, modified it where needed, and did all Git work themselves (commits, pushes and pull requests).
+- **ChatGPT** was used for planning and review ([LLM_PROCESS.md §1](LLM_PROCESS.md#1-ai-assistants-in-this-project)).
+- Per-session details, including the prompts used, are in [LLM_PROCESS.md](LLM_PROCESS.md).
+
 ---
 
 ## 11. Requirement Tracking
@@ -291,21 +305,21 @@ AI usage rules:
 
 | ID | Epic | User Story | Planned components | Tests | Status |
 |---|---|---|---|---|---|
-| W-01 | NIT-153 | NIT-165 (US-02.01); NIT-169 (US-03.01) | `SearchScreen`, `useSearchViewModel`, `locationRepository`, `geocodingService` | UX-01, UX-02, UX-03 | NOT STARTED |
-| W-02 | NIT-153 | NIT-165 (US-02.01) | `locationRepository`, `geocodingService`, `geocodingParser`, `Location` | Unit: geocodingParser; UX-01 | NOT STARTED |
-| W-03 | NIT-153 | NIT-166 (US-02.02) | `coordinateValidation`, `SearchScreen` | Unit: coordinateValidation; UX-04, UX-05 | NOT STARTED |
-| W-04 | NIT-154 | NIT-170 (US-03.02) | `WeatherScreen`, `useWeatherViewModel`, `CurrentWeather` | UX-06 | NOT STARTED |
-| W-05 | NIT-154 | NIT-171 (US-03.03) | `WeatherScreen`, `DailyForecast` | UX-07 | NOT STARTED |
-| W-06 | NIT-154 | NIT-172 (US-03.04) | `WeatherScreen`, `HourlyForecast` | UX-08 | NOT STARTED |
+| W-01 | NIT-153 | NIT-165 (US-02.03); NIT-169 (US-03.01) | `HomeScreen`, `useSearchViewModel`, `locationRepository`, `geocodingService` | UX-01, UX-02, UX-03 | NOT STARTED |
+| W-02 | NIT-153 | NIT-165 (US-02.03) | `locationRepository`, `geocodingService`, `geocodingParser`, `Location` | Unit: geocodingParser; UX-01 | NOT STARTED |
+| W-03 | NIT-153 | NIT-166 (US-02.04) | `coordinateValidation`, `HomeScreen` | Unit: coordinateValidation; UX-04, UX-05 | NOT STARTED |
+| W-04 | NIT-154 | NIT-170 (US-03.02) | `HomeScreen`, `useWeatherViewModel`, `CurrentWeather` | UX-06 | NOT STARTED |
+| W-05 | NIT-154 | NIT-171 (US-03.03) | `HomeScreen`, `DailyForecast` | UX-07 | NOT STARTED |
+| W-06 | NIT-154 | NIT-172 (US-03.04) | `HomeScreen`, `HourlyForecast` | UX-08 | NOT STARTED |
 | W-07 | NIT-155 | NIT-174 (US-04.02); NIT-175 (US-04.03); NIT-173 (US-04.01) | `DayDetailScreen`, `src/navigation/` | UX-09 | NOT STARTED |
 | W-08 | NIT-156 | NIT-176 (US-05.01); NIT-177 (US-05.02) | `favoritesRepository`, `useFavoritesViewModel` | UX-10, UX-11, UX-12, UX-24 | NOT STARTED |
 | W-09 | NIT-156 | NIT-178 (US-05.03); NIT-173 (US-04.01) | `FavoritesScreen` | UX-12, UX-13, UX-25 | NOT STARTED |
 | W-10 | NIT-157 | NIT-179 (US-06.01); NIT-173 (US-04.01) | `SettingsScreen`, `useSettingsViewModel`, `settingsRepository` | UX-14 | NOT STARTED |
 | W-11 | NIT-157 | NIT-180 (US-06.02) | `refreshPolicy`, `settingsRepository` | Unit: refreshPolicy; UX-15 | NOT STARTED |
 | W-12 | NIT-157 | NIT-181 (US-06.03) | `AppSettings`, `units`, `settingsRepository` | Unit: unit conversion (optional); UX-16 | NOT STARTED |
-| W-13 | NIT-153 | NIT-167 (US-02.03) | `weatherService`, `httpClient` | UX-06 | NOT STARTED |
-| W-14 | NIT-153 | NIT-168 (US-02.04); NIT-165 (US-02.01) | `weatherParser`, `geocodingParser` | Unit: weatherParser, geocodingParser | NOT STARTED |
-| W-15 | NIT-153 | NIT-168 (US-02.04) | `src/models/*` | `tsc --noEmit`; review | NOT STARTED |
+| W-13 | NIT-153 | NIT-167 (US-02.02) | `weatherService`, `httpClient` | UX-06 | NOT STARTED |
+| W-14 | NIT-153 | NIT-168 (US-02.01); NIT-165 (US-02.03) | `weatherParser`, `geocodingParser` | Unit: weatherParser, geocodingParser | NOT STARTED |
+| W-15 | NIT-153 | NIT-168 (US-02.01) | `src/models/*` | `tsc --noEmit`; review | NOT STARTED |
 | W-16 | NIT-158 | NIT-182 (US-07.01) | `weatherRepository`, `keyValueStorage` | UX-17 | NOT STARTED |
 | W-17 | NIT-158 | NIT-183 (US-07.02) | `weatherRepository`, offline indicator | UX-17, UX-18 | NOT STARTED |
 | W-18 | NIT-158 | NIT-184 (US-07.03); NIT-188 (US-08.03) | `httpClient`, `ErrorView` | UX-18, UX-19 | NOT STARTED |
@@ -313,7 +327,7 @@ AI usage rules:
 | W-20 | NIT-158 | NIT-185 (US-07.04); NIT-188 (US-08.03) | all ViewModels, `LoadingView` | UX-20 | NOT STARTED |
 | W-21 | NIT-154 | NIT-171 (US-03.03); NIT-172 (US-03.04) | forecast lists (`FlatList`) | UX-07, UX-08 | NOT STARTED |
 | W-22 | NIT-159 | NIT-187 (US-08.02) | `app.json`, responsive layouts | UX-21, UX-22 | NOT STARTED |
-| W-23 | NIT-158 | NIT-185 (US-07.04); NIT-167 (US-02.03) | `httpClient`, ViewModels | UX-20, UX-23 | NOT STARTED |
+| W-23 | NIT-158 | NIT-185 (US-07.04); NIT-167 (US-02.02) | `httpClient`, ViewModels | UX-20, UX-23 | NOT STARTED |
 | W-24 | NIT-160 | NIT-189 (US-09.01) | `*.test.ts` | TEST_REPORT §2 | NOT STARTED |
 | W-25 | NIT-160 | NIT-190 (US-09.02) | — | TEST_REPORT §3 | NOT STARTED |
 | W-26 | NIT-152 | NIT-163 (US-01.03) | whole codebase, folder structure | Code review | NOT STARTED |
@@ -359,10 +373,10 @@ Only items that were actually checked are listed as verified.
 
 | Epic | Key | Linear ID | User story title | Requirements |
 |---|---|---|---|---|
-| NIT-153 | US-02.01 | NIT-165 | Implement City Search with Geocoding | W-01, W-02, W-14 |
-| NIT-153 | US-02.02 | NIT-166 | Implement Coordinate Search & Validation | W-03 |
-| NIT-153 | US-02.03 | NIT-167 | Integrate Weather REST API | W-13, W-23 |
-| NIT-153 | US-02.04 | NIT-168 | Create Weather Models & JSON Parser | W-14, W-15 |
+| NIT-153 | US-02.01 | NIT-168 | Create Weather Models & JSON Parser | W-14, W-15 |
+| NIT-153 | US-02.02 | NIT-167 | Integrate Weather REST API | W-13, W-23 |
+| NIT-153 | US-02.03 | NIT-165 | Implement City Search with Geocoding | W-01, W-02, W-14 |
+| NIT-153 | US-02.04 | NIT-166 | Implement Coordinate Search & Validation | W-03 |
 | NIT-154 | US-03.01 | NIT-169 | Implement Home Screen & Search Interface | W-01 |
 | NIT-154 | US-03.02 | NIT-170 | Display Current Weather Conditions | W-04 |
 | NIT-154 | US-03.03 | NIT-171 | Display Seven-Day Forecast | W-05, W-21 |
@@ -394,22 +408,62 @@ Totals: 9 epics (NIT-152 – NIT-160) and 32 user stories (NIT-161 – NIT-192).
 
 ## 12. Oral Examination Mapping
 
-These are *anticipated* questions the team prepares for, not official examination questions.
+The 30 official questions from the Lab B:2 instructions. The opening question is always **Q26**. *Code location* and *Answer* are filled in with short, concrete answers as the code that answers each question is built. A dash means that code does not exist yet.
 
-| Topic | Requirements | Anticipated question | Where the answer is documented |
-|---|---|---|---|
-| Architecture | W-26 | Why MVVM? What does each layer do, and what may it not do? | STYLE.md §3 |
-| ViewModels | W-26, W-20 | Why are ViewModels custom hooks? How is loading/error state modelled? | STYLE.md §7 |
-| JSON parsing | W-14, W-15, W-19 | Why is parsing separate? What happens with missing fields? | STYLE.md §10 |
-| Caching | W-16, W-17, W-11 | How does the cache decide when data is stale? What is shown offline? | SPEC W-11, W-17; STYLE.md §11 |
-| Async | W-23, W-18 | How are requests made asynchronous? What happens if the user navigates away during a request? | STYLE.md §8 |
-| Validation | W-03 | How are coordinates validated, and how is it tested? | SPEC W-03; TEST_REPORT §2 |
-| Testing | W-24, W-25 | Which logic is unit tested and why? How do you know the tests detect faults? | TEST_REPORT §2 (mutation evidence) |
-| Orientation | W-22 | How does the layout adapt to landscape? | STYLE.md §14 |
-| API choice | W-13, W-02 | Why Open-Meteo for weather and SMHI for place search? | §13 D-05, D-06 |
-| Navigation | W-26 | Why is navigation kept out of ViewModels? | STYLE.md §3, §6 |
-| Cross-platform | W-32 | What differed between Android and iOS? | TEST_REPORT, LLM_PROCESS |
-| AI usage | W-33 | Which parts did AI generate, and how did you verify them? How did you keep the AI rules consistent, first across two assistants and then with one? | LLM_PROCESS.md; §13 D-13, D-15 |
+### Data & networking
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q1 | Walk through the function that makes the API request. Where is it, and what does it return? | W-13, W-23 | — | — |
+| Q2 | How is the JSON response parsed into your data model? Show the parsing code. | W-14, W-15 | — | — |
+| Q3 | What fields from the API response does your app use, and what does it ignore? Why those? | W-04 – W-07, W-15 | — | — |
+| Q4 | What happens if the API returns a successful HTTP 200 but the JSON is missing a field your model expects? | W-14, W-19 | — | — |
+| Q5 | Trace a complete data flow from the user pressing "search" to the forecast appearing on screen. | W-01, W-02, W-04, W-26 | — | — |
+| Q6 | How does your app handle caching — what is stored locally, and when is it refreshed? | W-11, W-16 | — | — |
+
+### State management
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q7 | Where does the fetched weather data live while the app is running? Show the declaration. | W-26 | — | — |
+| Q8 | What happens to the displayed data when the user searches for a new city? | W-01, W-20 | — | — |
+| Q9 | How does the UI know when new data has arrived? Trace the update from data layer to screen. | W-26 | — | — |
+| Q10 | What state is preserved if the user leaves the app and returns? | W-08, W-10, W-16 | — | — |
+| Q11 | Where in the code is the loading state managed? How do you prevent the UI from showing stale data while a new request is in flight? | W-20, W-23 | — | — |
+| Q12 | If the user rapidly searches for two cities, what happens? Can a race condition occur, and how do you guard against it? | W-23, W-30 | — | — |
+
+### Error handling
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q13 | What does the app display if the network request times out? | W-18 | — | — |
+| Q14 | Where do you distinguish between a network error and an API error response (e.g., HTTP 404 or 500)? | W-18, W-19 | — | — |
+| Q15 | What happens if the user has no internet connection and opens the app for the first time? | W-17, W-18 | — | — |
+| Q16 | What happens if they open it a second time, after having successfully loaded data before? | W-16, W-17 | — | — |
+| Q17 | Where is the error state declared, and how does it flow to the UI? | W-18, W-19, W-26 | — | — |
+| Q18 | What was the hardest error case to handle? Show the code. | W-30 | — | — |
+
+### Architecture
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q19 | Show the MVVM layers in your code: what belongs to the View, what to the ViewModel, what to the Model/Repository? | W-26 | — | — |
+| Q20 | Why is the network call not made directly from the View? | W-13, W-26 | — | — |
+| Q21 | Where in the code is testable logic separated from UI code? What made that separation easy or hard? | W-24, W-26 | — | — |
+| Q22 | How does navigation between screens work? Why does the ViewModel not navigate itself? | W-07, W-26 | — | — |
+| Q23 | Open SPEC.md. Walk through how one requirement ID maps to the code that implements it. | W-31 | SPEC.md §11 | — |
+| Q24 | What would you change about your architecture if you had to add hourly forecast support tomorrow? | W-06, W-26 | — | — |
+
+### AI & LLM usage
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q25 | Show a function the AI helped you write. Explain it line by line in your own words. | W-33 | — | — |
+| Q26 | Open SPEC.md and show us the AI meta-instructions at the top. Walk us through one requirement and find the code that implements it. **(Always asked first.)** | W-31, W-33 | SPEC.md §0, §11 | — |
+| Q27 | Where did the AI suggest something you pushed back on or changed? What was your reasoning? | W-33 | LLM_PROCESS.md | — |
+| Q28 | How did you verify that AI-generated code actually works correctly? Show a test case. | W-24, W-33 | — | — |
+| Q29 | What was the most effective prompt you wrote during this lab? What made it work? | W-33 | LLM_PROCESS.md | — |
+| Q30 | If you were starting this lab again with the same AI tools, what would you do differently? | W-33 | — | — |
 
 ## 13. Decision Log
 
@@ -436,6 +490,7 @@ These are *anticipated* questions the team prepares for, not official examinatio
 | D-19 | 2026-11-18 | The full `src/` folder structure is created up front. Folders without a file contain an empty `.gitkeep`, removed when the first real file is added. No empty modules or placeholder functions. | Decided | Makes the MVVM layers visible from the start (NIT-200). An exception to the earlier "create folders only when needed" rule, limited to this initial setup (STYLE §4). | NIT-163 (NIT-200) |
 | D-20 | 2026-11-18 | `LoadState<T>` (in `src/viewmodels/loadState.ts`) has the states `idle`, `loading`, `success`, `refreshFailed` and `error`, with `isRefreshing` on the states that carry data. There is no "from cache" flag: a fresh cache hit is a normal `success`. Only `refreshFailed` shows an outdated or offline notice. | Decided | Separates "data came from the cache" from "data could not be updated", which W-17 actually requires. Shows existing data during a refresh without extra booleans (STYLE §7). | NIT-163 (NIT-199, NIT-200) |
 | D-21 | 2026-11-18 | Claude Code writes the `LLM_PROCESS.md` entry at the end of every session, based only on what happened in that session (CLAUDE.md rule 14). Entries do not say who wrote them. Fields the assistant cannot know are left empty. | Decided | The assistant has the full session in context, so the log is complete and consistent across both developers. Previously the students wrote the entries themselves. | NIT-191 (US-09.03) |
+| D-22 | 2026-11-20 | One `HomeScreen` combines search with the selected location's current conditions, today's hourly forecast and the seven-day summary. Selecting a day navigates to `DayDetailScreen`. There is no separate search or weather screen. | Decided | Matches the Lab B:2 description of the search/home screen and Linear US-03.01. Removes one screen and one navigation step, so the forecast appears where the user searched. `HomeScreen` uses two ViewModels, `useSearchViewModel` and `useWeatherViewModel` (STYLE §3.2). | NIT-169 (US-03.01) |
 
 D-05 – D-09 record the choices only. The libraries are installed with `npx expo install` in the user stories that implement them.
 
@@ -460,13 +515,16 @@ D-05 – D-09 record the choices only. The libraries are installed with `npx exp
 | 2026-11-10 | Moved agent instructions to `agents/claude.md` and `agents/codex.md` (root `CLAUDE.md`/`AGENTS.md` removed); documented explicit loading; updated D-11 and D-13 | NIT-164 |
 | 2026-11-18 | Moved all Markdown files to the repository root (`docs/*.md` → root, `agents/claude.md` → `CLAUDE.md`, `agents/codex.md` → `AGENTS.md`); both developers now use Claude Code in VS Code; added D-14 – D-16, superseding D-11 and D-13 | NIT-163 |
 | 2026-11-18 | Created the `src/` folder structure and the shared types `AppError`, `Coordinates`/`Location` and `LoadState<T>`; documented layer contracts, data flow and navigation ownership (STYLE §3.1 – §3.3); added D-17 – D-20 and widened D-16's scope | NIT-163 (NIT-199 – NIT-201) |
+| 2026-11-18 | Added D-21 (assistant writes the LLM_PROCESS.md session entries) | NIT-191 |
+| 2026-11-20 | Renumbered the Epic 2 user stories by dependency. Aligned W-24 with the lab's three test areas. Replaced §12 with the 30 official oral examination questions. Added §10.1 AI Usage Summary. Added D-22 (one home screen) | NIT-153, NIT-169, NIT-189 |
 
 ## 15. End-of-Session Update Procedure
 
-At the end of every work session, a student (not the AI) updates this file:
+At the end of every work session, the AI assistant updates this file as part of the session's changes, and the student reviews them before committing. Only a student sets a status to `VERIFIED` (§0 rule 6).
 
 1. Update the **status** in §11 for each requirement touched. Use `VERIFIED` only after verifying on both platforms.
 2. Fill in any `TBD` Linear identifiers that are now known.
 3. Add new or changed decisions to §13 and resolve open ones.
 4. Add a line to the §14 change log.
-5. Then complete the checklist in [CONTEXT.md §16](CONTEXT.md#16-end-of-session-checklist).
+5. Fill in the code location and a short answer in §12 for any oral examination question that the new code answers.
+6. Then complete the checklist in [CONTEXT.md §16](CONTEXT.md#16-end-of-session-checklist).

@@ -45,4 +45,5 @@ If a request conflicts with these documents, stop and point out the conflict.
       - Base it only on what actually happened in the session.
       - Leave a field empty if you cannot know its value, such as "Read and understood line by line".
       - Do not add a note about who wrote the entry.
+    - If code added in the session answers an oral examination question, fill in its code location and a short, concrete answer in [SPEC.md §12](SPEC.md#12-oral-examination-mapping).
     - Remind the students to complete the checklist in CONTEXT.md §16.

@@ -32,15 +32,17 @@ Checks that the Expo project starts on each platform. Command: `npm ci`, then `n
 
 ### 2.1 Test Categories
 
-At least two areas are required (W-24).
+W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-state logic** and **data transformation**. Our plan is JSON parsing plus error-state logic or data transformation. The other categories are optional extras and do not count toward the two.
 
-| Category | Module (planned) | Requirement(s) | Selected? |
-|---|---|---|---|
-| Coordinate validation | `src/utils/coordinateValidation.ts` | W-03 | |
-| Weather JSON parsing | `src/parsers/weatherParser.ts` | W-14, W-15, W-19 | |
-| Geocoding JSON parsing | `src/parsers/geocodingParser.ts` | W-02, W-14, W-19 | |
-| Refresh / staleness policy | `src/utils/refreshPolicy.ts` | W-11, W-16 | |
-| Unit conversion | `src/utils/units.ts` | W-12 | |
+| Category | Lab area | Module (planned) | Requirement(s) | Selected? |
+|---|---|---|---|---|
+| Weather JSON parsing | JSON parsing | `src/parsers/weatherParser.ts` | W-14, W-15, W-19 | yes |
+| Geocoding JSON parsing | JSON parsing | `src/parsers/geocodingParser.ts` | W-02, W-14, W-19 | |
+| Result/error → `LoadState` mapping | Error-state logic | decided with the first ViewModel | W-17, W-18, W-19 | |
+| Hourly/daily grouping | Data transformation | decided in US-03.03 / US-03.04 | W-05, W-06 | |
+| Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
+| Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03 | |
+| Refresh / staleness policy | (extra) | `src/utils/refreshPolicy.ts` | W-11, W-16 | |
 
 ### 2.2 Test Cases
 
