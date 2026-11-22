@@ -21,6 +21,19 @@ export function prepareSearchQuery(raw: string): string | null {
 }
 
 /**
+ * True when `preparedQuery` repeats the search that is still loading or whose
+ * results are shown, so sending it again would only repeat the same request.
+ * Case is ignored because the geocoding API ignores it ("Lund", "lund" and
+ * "LUND" return the same results, checked 2026-11-22).
+ */
+export function isRepeatedSearch(preparedQuery: string, activeQuery: string | null): boolean {
+  return (
+    activeQuery !== null &&
+    preparedQuery.toLocaleLowerCase() === activeQuery.toLocaleLowerCase()
+  );
+}
+
+/**
  * ViewModel for place-name search (W-01, W-02; STYLE.md §3, §7).
  *
  * State flow for `search(query)`:
@@ -35,11 +48,17 @@ export function prepareSearchQuery(raw: string): string | null {
  * prevents an older, slower search from overwriting a newer one (Q12), and
  * results that arrive after the screen is gone are ignored too.
  *
+ * Repeating the search that is loading or already shown sends no second
+ * request (`isRepeatedSearch`). After an error, the same query can be
+ * searched again, which is how the user retries.
+ *
  * Navigation stays in the screen (STYLE.md §3.3).
  */
 export function useSearchViewModel(): SearchViewModel {
   const [state, setState] = useState<LoadState<ReadonlyArray<Location>>>({ status: 'idle' });
   const latestSearchId = useRef(0);
+  // The query whose search is loading or whose results are shown; null otherwise.
+  const activeQuery = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -56,22 +75,29 @@ export function useSearchViewModel(): SearchViewModel {
       }
     } catch (error) {
       if (searchId === latestSearchId.current) {
+        activeQuery.current = null;
         setState({ status: 'error', error: toAppError(error) });
       }
     }
   }
 
   function search(query: string): void {
+    const preparedQuery = prepareSearchQuery(query);
+    if (preparedQuery !== null && isRepeatedSearch(preparedQuery, activeQuery.current)) {
+      return;
+    }
+
     // A new search, even an empty one, makes any running search outdated.
     latestSearchId.current += 1;
     const searchId = latestSearchId.current;
 
-    const preparedQuery = prepareSearchQuery(query);
     if (preparedQuery === null) {
+      activeQuery.current = null;
       setState({ status: 'error', error: new AppError('validation', 'Search query is empty') });
       return;
     }
 
+    activeQuery.current = preparedQuery;
     setState({ status: 'loading' });
     void runSearch(preparedQuery, searchId);
   }

@@ -545,6 +545,288 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-008 – US-03.01 Home screen and search interface
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-22 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows (no Android SDK or emulator installed) |
+| **Linear user story / task** | US-03.01 (NIT-169): NIT-217 (layout and input modes), NIT-218 (search actions → ViewModel state), NIT-219 (scrollable results and layout) |
+| **Requirement IDs** | W-01, W-02, W-03, W-18, W-20, W-24 |
+| **Branch / PR** | `feat/NIT-169-home-search` (from `dev` at `6f057f5`), uncommitted, no PR |
+| **Task given to AI** | Implement the whole user story: a home screen with place-name and coordinate search, results, empty/loading/error states and selection feedback, wired into `App.tsx`, without weather data or navigation. Earlier in the same session, a read-only analysis of the repository before Epic 3 (no files changed). |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "Implement the entire User Story, including its three subtasks: NIT-217 … NIT-218 … NIT-219" |
+
+**Changes made by AI**
+> - Asked three questions before coding, because the request and the docs pulled in different directions. The answers were: install `react-native-safe-area-context` (D-26), keep `app.json` portrait but build a responsive layout (STYLE §14, W-22 stays in US-08.02), and English UI text (D-27).
+> - Installed `react-native-safe-area-context` with `npx expo install` (`package.json`, `package-lock.json`).
+> - NIT-217:
+>   - `src/views/screens/HomeScreen.tsx`: one vertical `FlatList` whose header holds the title, mode switch, both forms and the selected location. Both forms stay mounted, so typed text survives a mode switch. Uses `SafeAreaView` (D-26) and `KeyboardAvoidingView`, with content width capped by `CONTENT_MAX_WIDTH`.
+>   - `src/views/components/SearchModeSwitch.tsx` and `CitySearchForm.tsx`.
+>   - `App.tsx` replaced: `SafeAreaProvider` + `HomeScreen`.
+>   - Removed `src/views/screens/.gitkeep`. New theme tokens: `surface`, `primarySubtle`, `CONTENT_MAX_WIDTH`, `heading`, `title`, `bold`.
+> - NIT-218:
+>   - `useSearchViewModel`: added `isRepeatedSearch` and `activeQuery`, so a repeated search for the query that is loading or shown sends no request (D-28). The case-insensitive comparison was checked against the real API first ("Lund", "lund", "LUND" gave the same results).
+>   - `src/views/components/SearchStatus.tsx`: `describeSearchStatus` and `searchErrorMessage`.
+>   - `src/views/components/SelectedLocationCard.tsx`.
+> - NIT-219: `src/views/components/LocationResultItem.tsx` (accessible, selectable row) and `src/utils/locationFormatting.ts`.
+> - Tests: `tests/utils/locationFormatting.test.ts` (14), `tests/views/searchStatus.test.ts` (19), and 5 `isRepeatedSearch` tests added to `tests/viewmodels/useSearchViewModel.test.ts`. Ran 4 mutation checks.
+> - Docs:
+>   - `SPEC.md`: D-26 – D-28, §4, W-01 detail, W-20 status, §11.1, Q12/Q17/Q19, change log.
+>   - `STYLE.md`: §3.1, §3.2, §3.3, §4, §6, §12.
+>   - `TEST_REPORT.md`: §1.5, §2.1 – §2.4.
+>   - `CONTEXT.md`: §4, §18.
+
+**Changes reviewed or modified by students**
+- Accepted as is: the three decisions above, chosen by the student in the session's question dialog.
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- `ListEmptyComponent={… : null}` did not type-check; `tsc` caught it and it was changed to `undefined`.
+- The coordinates for Lund (England) in a test were first written from memory and were wrong. They were replaced with the real API values before the tests were run.
+- In the earlier analysis part of the session, `npx jest` was run while Jest was not installed locally, so npx downloaded a temporary Jest into the npm cache (not into the project). `npm test` would have failed without downloading anything.
+- `git rm` staged the `.gitkeep` deletion; the AI unstaged it so that nothing was staged at hand-over.
+- D-26 – D-28 were first inserted above D-25 in the decision log and then moved below it.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-22) |
+| Unit tests (names) | `npm run check`: 155/155 PASS (117 before the session); new: `formatLocationDetails`, `formatCoordinates`, `isSameLocation`, `describeSearchStatus`, `searchErrorMessage`, `isRepeatedSearch` |
+| Mutation checks | 4 of 4 detected (TEST_REPORT §2.3) |
+| `npx expo-doctor` | 20/20 checks passed |
+| Bundle build | `npx expo export` for Android (623 modules) and iOS (625 modules) without errors (TEST_REPORT §1.5); this does not run the app |
+| Android Emulator (what was checked) | not run (no Android SDK on the Windows machine) |
+| iOS Simulator (what was checked) | not run (Windows machine) |
+
+**Lessons learned**
+-
+
+---
+
+### LLM-009 – Reverse geocoding proposal and US-03.02 Current weather conditions
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-22 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows (no Android SDK or emulator installed) |
+| **Linear user story / task** | US-03.02 (NIT-170); before it, a reverse-geocoding proposal for coordinate search (US-03.01) |
+| **Requirement IDs** | W-04, W-18, W-20, W-23, W-24 |
+| **Branch / PR** | `feat/NIT-169-home-search` (on request, together with the uncommitted US-03.01 work), uncommitted, no PR |
+| **Task given to AI** | (1) Investigate reverse geocoding for coordinate search and propose a solution before implementing it. (2) Implement NIT-170: a weather ViewModel and a current-weather display on the home screen for both search modes. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | (1) "First report the proposed reverse-geocoding API, trade-offs and required changes, then stop for approval." (2) "NIT-170 – Current Weather Conditions … Implement ONLY NIT-170." |
+
+**Changes made by AI**
+> - **Reverse geocoding (no code):**
+>   - Tested Open-Meteo (no reverse endpoint, 404), geocode.maps.co (401 without a key), BigDataCloud, Photon and Nominatim with real requests.
+>   - Read the usage terms. BigDataCloud only allows the device's own GPS position; Nominatim allows user-triggered requests with an identifying User-Agent, at most 1 request/s, and OpenStreetMap attribution.
+>   - Proposed Nominatim with a compliance plan, then stopped for approval. The student decided not to implement reverse geocoding.
+> - **NIT-170 code:**
+>   - `src/viewmodels/useWeatherViewModel.ts`: location and weather in one state value; repeat check; newest-wins ordering (D-30).
+>   - `src/viewmodels/latestRequest.ts`.
+>   - `src/utils/weatherCode.ts`: WMO table copied from the Open-Meteo docs, read by a helper agent.
+>   - `src/utils/weatherFormatting.ts`: units, rounding and local time (D-29).
+>   - `src/views/components/CurrentWeatherCard.tsx` and `WeatherStatus.tsx`.
+>   - `HomeScreen.tsx`: the selection moved from screen state into `useWeatherViewModel`; the list scrolls to the top after a selection.
+>   - `SelectedLocationCard.tsx`: comment only. `typography.ts`: `display` token.
+> - **Tests:**
+>   - `tests/utils/weatherCode.test.ts` (36), `tests/utils/weatherFormatting.test.ts` (21), `tests/viewmodels/latestRequest.test.ts` (5), `tests/viewmodels/useWeatherViewModel.test.ts` (4), `tests/views/weatherStatus.test.ts` (18).
+>   - 7 mutation checks.
+> - **Docs:**
+>   - `SPEC.md`: D-29, D-30, W-04 detail and status, §11.1, Q5/Q7/Q8/Q9, change log.
+>   - `STYLE.md`: §3.1, §3.2, §4, §12.
+>   - `TEST_REPORT.md`: §1.6, §2.1 – §2.4.
+>   - `CONTEXT.md`: §18.
+
+**Changes reviewed or modified by students**
+- Accepted as is:
+- Modified (what and why):
+- Rejected (what and why): reverse geocoding (Nominatim proposal); the student decided not to implement it.
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The first live check called `getReport` inside Jest and failed with `HTTP undefined`: the `jest-expo` preset replaces `fetch` with a stub. The check was redone by fetching the real URL with `curl` and running the parser and formatter on it.
+- D-29 and D-30 were first inserted above D-28 in the decision log and then moved below it (the same slip as in LLM-008).
+- A planned file name (`useDayDetailViewModel.ts`) was written into the STYLE §4 tree without any decision behind it, and then removed.
+- The first version of `CurrentWeatherCard` had a magic number (`minWidth: 90`), against STYLE §12; it was removed.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-22) |
+| Unit tests (names) | `npm run check`: 239/239 PASS (155 before); new: `describeWeatherCode`, `formatTemperature`, `formatPercent`, `formatWindSpeed`, `formatLocalTime`, `presentCurrentWeather`, `createLatestRequestGuard`, `isRepeatedWeatherLoad`, `describeWeatherStatus`, `weatherErrorMessage` |
+| Mutation checks | 7 of 7 detected (TEST_REPORT §2.3) |
+| `npx expo-doctor` | 20/20 checks passed |
+| Live data check | today's Open-Meteo responses for 59.3293/18.0686, Lund and Sydney parsed and formatted (TEST_REPORT §1.6); the ViewModel and the UI were not part of this check |
+| Bundle build | Android (632 modules) and iOS (634 modules) without errors |
+| Android Emulator (what was checked) | not run (no Android SDK on the Windows machine) |
+| iOS Simulator (what was checked) | not run (Windows machine) |
+| Physical device (Expo Go) | not run |
+
+**Lessons learned**
+-
+
+---
+
+### LLM-010 – US-03.03 Seven-day forecast and US-03.04 Today's hourly forecast
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-22 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows (no Android SDK or emulator installed) |
+| **Linear user story / task** | US-03.03 (NIT-171), US-03.04 (NIT-172), one session, implemented one after the other |
+| **Requirement IDs** | W-05, W-06, W-21, W-24 |
+| **Branch / PR** | `feat/NIT-169-home-search` (on request, with the uncommitted US-03.01 and US-03.02 work), uncommitted, no PR |
+| **Task given to AI** | Implement the seven-day forecast, verify it, then implement today's remaining hours, all from the existing weather report, with correct time-zone and daylight-saving handling. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "IMPLEMENT BOTH REMAINING USER STORIES: NIT-171 – Seven-Day Forecast, NIT-172 – Today's Hourly Forecast … implement and verify them sequentially." |
+
+**Changes made by AI**
+> - **Investigation before coding:**
+>   - A helper agent read the Hermes Intl documentation; it does not mention the `timeZone` option.
+>   - Real Open-Meteo responses across three daylight-saving changes (Stockholm, New York, Sydney) showed the API uses one fixed offset per response, with 24-hour days. Design decision D-31 follows the API's day boundaries and offset instead of `Intl`.
+>   - The Stockholm response is saved as `tests/fixtures/openMeteoForecastDstStockholm.json`.
+> - **NIT-171:**
+>   - `src/utils/forecastSelection.ts` (`findTodayIndex`, `selectForecastDays`).
+>   - `src/utils/forecastFormatting.ts` (`formatDayLabel`, read at local noon; `presentDailyForecast`).
+>   - `DailyForecastRow.tsx`, `DailyForecastList.tsx` (plain rows, no nested vertical list).
+>   - `forecast` and `forecastForState` in `useWeatherViewModel` (D-32); `HomeScreen` integration.
+>   - 29 tests and 4 mutation checks; `npm run check` 268/268 before starting NIT-172.
+> - **NIT-172:**
+>   - `findTodayBounds`, `selectRemainingHoursToday` and `selectForecast`; `presentHourlyForecast`.
+>   - `HourlyForecastItem.tsx`, `HourlyForecastList.tsx` (horizontal `FlatList`); `HOURLY_ITEM_WIDTH` token; `HomeScreen` integration.
+>   - 20 tests and 5 mutation checks.
+> - **Docs:**
+>   - `SPEC.md`: D-31, D-32, OQ-08, W-05/W-06 detail, W-05/W-06/W-21 status, §11.1, Q24, change log.
+>   - `STYLE.md`: §3.1, §3.2, §4, §12.
+>   - `TEST_REPORT.md`: §1.7, §2.1 – §2.4.
+>   - `CONTEXT.md`: §18.
+
+**Changes reviewed or modified by students**
+- Accepted as is:
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- One mutation check (removing the `Number.isFinite` check) did not make any test fail. The check was redundant, so it was removed as dead code and the result was recorded as a survived mutant.
+- A shell command that appended tests failed as a whole because of nested quotes and wrote nothing; the tests were then added with the editing tool.
+- D-31/D-32 and OQ-08 were again first inserted above their predecessors and then moved into numeric order (same slip as in LLM-008 and LLM-009).
+- A comment on `HOURLY_ITEM_WIDTH` first claimed that "Moderate drizzle" fits on two lines, which nobody has seen on a screen; it was reworded.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-22) |
+| Unit tests (names) | `npm run check`: 268/268 after NIT-171, 288/288 after NIT-172 (239 before); new: `selectForecastDays`, `findTodayIndex`, `formatDayLabel`, `presentDailyForecast`, `forecastForState`, `selectRemainingHoursToday`, `findTodayBounds`, `selectForecast`, `presentHourlyForecast` |
+| Mutation checks | 8 of 9 detected; 1 survived and led to removing redundant code (TEST_REPORT §2.3) |
+| `npx expo-doctor` | 20/20 checks passed |
+| Live data check | today's Open-Meteo responses for 59.3293/18.0686, New York and Sydney: 7 days each, all 24 h, correct remaining hours for the local time (TEST_REPORT §1.7); ViewModel and UI not included |
+| Bundle build | Android (638 modules) and iOS (640 modules) without errors |
+| Android Emulator (what was checked) | not run (no Android SDK on the Windows machine) |
+| iOS Simulator (what was checked) | not run (Windows machine) |
+| Physical device (Expo Go) | not run |
+
+**Lessons learned**
+-
+
+---
+
+### LLM-011 – Weather-first home screen redesign
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-22 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows (no Android SDK or emulator installed) |
+| **Linear user story / task** | UI/UX redesign of the home screen (no Linear ID given); touches W-04 – W-06, W-29 |
+| **Requirement IDs** | W-01 – W-06, W-18, W-21, W-29 |
+| **Branch / PR** | `feat/NIT-169-home-search` (on request, with the uncommitted Epic 3 work), uncommitted, no PR |
+| **Task given to AI** | Redesign `HomeScreen` into a weather-first interface. Compact search moves into a separate sheet with both modes; there is a hero, an hourly card, a seven-day card and a blue sky style. No API or logic rewrite. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "Redesign the existing HomeScreen into a modern, premium weather application interface … This is a UI/UX redesign, NOT an API rewrite." |
+
+**Changes made by AI**
+> - **Checks before coding:**
+>   - React Native 0.88's own `backgroundImage`/`boxShadow` (TypeScript probe) mean gradients need no library.
+>   - No icon package was installed. The AI asked, and the student chose `@expo/vector-icons` over emoji or text only.
+>   - Sky colours were chosen by computing WCAG contrast; the first candidate was rejected at 2.90:1.
+> - **Dependencies:**
+>   - `npx expo install @expo/vector-icons`.
+>   - Expo Doctor then reported the missing required peer `expo-font`, and one test suite failed to load because `expo-asset` was only nested inside `expo`.
+>   - Both were installed with `npx expo install`, which also added their config plugins to `app.json`.
+> - **New code:**
+>   - `src/theme/sky.ts`.
+>   - `src/utils/weatherIcon.ts` (`weatherIconName`, `isDaytimeAt` from real sunrise/sunset).
+>   - `formatTemperatureShort` and `presentWeatherHero` (`weatherFormatting.ts`); `presentForecastDayRow` and `presentForecastHourItem` (`forecastFormatting.ts`); `selectTodayForecast`. These build on the existing presenters, whose tests are unchanged.
+>   - Components: `WeatherIcon`, `HomeHeader`, `WeatherHero`, `WeatherCard`, `WelcomePanel`, and `src/views/screens/LocationSearchSheet.tsx`.
+> - **Reworked:**
+>   - `HomeScreen` (sky, header, scroll body, sheet).
+>   - `HourlyForecastList`/`Item`, `DailyForecastList`/`Row`.
+>   - `WeatherStatus`: on the sky, with a "Try again" button; its pure functions are unchanged.
+>   - `App.tsx` (status bar moved into the screens); theme tokens.
+> - **Removed (now unused, uncommitted files from this branch):** `CurrentWeatherCard.tsx`, `SelectedLocationCard.tsx`, the `display` font token.
+> - **Tests:** `tests/utils/weatherIcon.test.ts` (42), `tests/utils/homePresentation.test.ts` (18); 5 mutation checks.
+> - **Docs:**
+>   - `SPEC.md`: D-33, D-34, D-29 note, stack, W-04/W-29/W-18 notes, Q5/Q9/Q19, change log.
+>   - `STYLE.md`: §3.1, §3.2, §4, §6, §12.
+>   - `TEST_REPORT.md`: §1.8, §2.2 – §2.4.
+>   - `CONTEXT.md`: §18.
+
+**Changes reviewed or modified by students**
+- Accepted as is: `@expo/vector-icons` for icons (chosen in the session's question dialog).
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- Installing `@expo/vector-icons` alone was not enough: its peer `expo-font` and the `expo-asset` it imports were missing at the top level. Expo Doctor and the test run caught this before hand-over.
+- The `ScrollView` ref was first typed as `ScrollView`; React Native 0.88 needs `ScrollViewInstance`, and `tsc` caught it.
+- A `letterSpacing` value was a magic number, against STYLE §12; it was removed.
+- Removing a STYLE §3.1 table row risked leaving a blank line inside the table; it was checked and the table is intact.
+- The change-log row was first inserted above the previous row and then moved (the same ordering slip as in earlier sessions).
+- Nothing visual could be checked: no emulator, simulator or device in this session.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-22) |
+| Unit tests (names) | `npm run check`: 348/348 PASS (288 before, all unchanged); new: `weatherIconName`, `isDaytimeAt`, `formatTemperatureShort`, `selectTodayForecast`, `presentWeatherHero`, `presentForecastDayRow`, `presentForecastHourItem`, `skyVariantFor` |
+| Mutation checks | 5 of 5 detected (TEST_REPORT §2.3) |
+| `npx expo-doctor` | 20/20 checks passed (19/20 before `expo-font` was installed) |
+| Bundle build | Android (722 modules) and iOS (724 modules) without errors |
+| Android Emulator (what was checked) | not run (no Android SDK on the Windows machine) |
+| iOS Simulator (what was checked) | not run (Windows machine) |
+| Physical device (Expo Go) | not run |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

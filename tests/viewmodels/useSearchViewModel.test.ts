@@ -1,4 +1,4 @@
-import { prepareSearchQuery } from '../../src/viewmodels/useSearchViewModel';
+import { isRepeatedSearch, prepareSearchQuery } from '../../src/viewmodels/useSearchViewModel';
 
 /**
  * Tests for the pure part of the search ViewModel (W-01).
@@ -28,5 +28,28 @@ describe('prepareSearchQuery', () => {
 
   it.each(['', ' ', '   ', '\t', '\n \t'])('returns null for an empty query (%j)', (raw) => {
     expect(prepareSearchQuery(raw)).toBeNull();
+  });
+});
+
+describe('isRepeatedSearch', () => {
+  it('is false when no search is loading or shown', () => {
+    expect(isRepeatedSearch('Lund', null)).toBe(false);
+  });
+
+  it('is true for the same query', () => {
+    expect(isRepeatedSearch('Lund', 'Lund')).toBe(true);
+  });
+
+  it('ignores case, as the geocoding API does', () => {
+    expect(isRepeatedSearch('lund', 'Lund')).toBe(true);
+    expect(isRepeatedSearch('GÖTEBORG', 'Göteborg')).toBe(true);
+  });
+
+  it('is false for a different query', () => {
+    expect(isRepeatedSearch('Lund', 'Kiruna')).toBe(false);
+  });
+
+  it('is false for a longer query that starts the same way', () => {
+    expect(isRepeatedSearch('Lunds', 'Lund')).toBe(false);
   });
 });

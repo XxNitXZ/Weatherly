@@ -85,6 +85,98 @@ Result: `language=sv` is used, so both Swedish and English spellings find Swedis
 
 **Observation:** in step 4 the empty longitude field shows its grey placeholder "18.07" next to "Enter a longitude", which can read as a typed value. Candidate for the design story (US-08.01), e.g. placeholder "e.g. 18.07".
 
+### 1.5 Home Screen Bundle Check (US-03.01, NIT-169)
+
+`npx expo export` builds the JavaScript bundle that Expo Go loads, so it catches broken imports and modules that do not resolve. It does **not** run the app: no screen is rendered and nothing is tapped. The output went to a temporary folder outside the repository. Code uncommitted on `feat/NIT-169-home-search` after `6f057f5`. There was no Android Emulator or iOS Simulator on the Windows machine used (no Android SDK installed).
+
+| Platform | Date | Command | Actual result | Status |
+|---|---|---|---|---|
+| Android | 2026-11-22 | `npx expo export --platform android` | `Android Bundled 6430ms index.ts (623 modules)`, no errors | PASS |
+| iOS | 2026-11-22 | `npx expo export --platform ios` | `iOS Bundled 6314ms index.ts (625 modules)`, no errors | PASS |
+| Android Emulator (Windows) | | run the home screen: UX-01 – UX-05 | | NOT RUN |
+| iOS Simulator (macOS) | | run the home screen: UX-01 – UX-05 | | NOT RUN |
+
+### 1.6 Current Weather: Live Data and Bundle Check (US-03.02, NIT-170)
+
+Code uncommitted on `feat/NIT-169-home-search` after `6f057f5`, on Windows without an emulator or simulator. **What was checked:** the real data path below the ViewModel. `buildForecastUrl` built the request; the live Open-Meteo response was fetched with `curl` (the `jest-expo` preset replaces `fetch` inside Jest with a stub, so `getReport` itself could not reach the network there); then `parseWeatherResponse` and `presentCurrentWeather` ran on it. **Not checked:** `useWeatherViewModel`, `HomeScreen` and `CurrentWeatherCard` on a screen.
+
+| Input | Date | Actual result (formatted current weather) | Status |
+|---|---|---|---|
+| typed `59.3293`, `18.0686` | 2026-11-22, 11:16 UTC | `Europe/Stockholm`, UTC+1: 2 °C, Light drizzle, feels like -6 °C, humidity 78 %, wind 9.1 m/s, observed 12:15 | PASS |
+| Lund (search result, `55.70584`, `13.19321`) | 2026-11-22 | `Europe/Stockholm`, UTC+1: 3 °C, Clear sky, feels like -2 °C, humidity 79 %, wind 4.2 m/s, observed 12:15 | PASS |
+| Sydney (`-33.87`, `151.21`) | 2026-11-22 | `Australia/Sydney`, UTC+11: 24 °C, Overcast, feels like 26 °C, humidity 76 %, wind 5.0 m/s, observed 22:15 | PASS |
+| Bundles | 2026-11-22 | `npx expo export`: `Android Bundled … (632 modules)`, `iOS Bundled … (634 modules)`, no errors | PASS |
+| Android Emulator (Windows) | | select a place by name and by coordinates; current weather appears (UX-06) | NOT RUN |
+| iOS Simulator (macOS) | | same as above (UX-06) | NOT RUN |
+
+The observation times are consistent: 12:15 in Stockholm (UTC+1) and 22:15 in Sydney (UTC+11) are both 11:15 UTC, the last 15-minute step before the check at 11:16 UTC.
+
+### 1.7 Forecast Days and Hours: Time Zones, Daylight Saving and Live Data (US-03.03, US-03.04)
+
+Code uncommitted on `feat/NIT-169-home-search` after `6f057f5`, on Windows without an emulator or simulator.
+
+**A. How Open-Meteo handles daylight-saving changes (evidence for SPEC D-31).**
+- Requests: the same fields as `buildForecastUrl`, with `start_date`/`end_date` around a clock change, `timezone=auto`, `timeformat=unixtime`.
+- The Stockholm response is saved as `tests/fixtures/openMeteoForecastDstStockholm.json`.
+
+| Place and dates | Clock change | `utc_offset_seconds` | Day starts (UTC) | Hours per day | Gaps between hours |
+|---|---|---|---|---|---|
+| Stockholm, 24–26 Oct 2026 | 25 Oct, UTC+2 → UTC+1 | 3600 | 23:00, 23:00, 23:00 | 24, 24, 24 | none (72 × 1 h) |
+| New York, 31 Oct – 2 Nov 2026 | 1 Nov, UTC−4 → UTC−5 | −18000 | 05:00, 05:00, 05:00 | 24, 24, 24 | none |
+| Sydney, 3–5 Oct 2026 | 4 Oct, UTC+10 → UTC+11 | 39600 | 13:00, 13:00, 13:00 | 24, 24, 24 | none |
+
+**Finding:** the API applies one fixed offset (the current one) to the whole response, also before a clock change. Sunrise shown with that offset compared with the wall clock (checked with Node's `Intl`):
+
+| Place | Day before the change | After the change |
+|---|---|---|
+| Sydney | 06:30, wall clock 05:30 | 06:28 / 06:28 |
+| Stockholm | 06:47, wall clock 07:47 | 06:49 / 06:49 |
+
+Times before the change are one hour off from the wall clock (SPEC OQ-08).
+
+**B. Live data through the real request, parser, selection and formatting** (2026-11-22, 11:37 UTC; same `curl` method as §1.6, ViewModel and UI not included):
+
+| Place | Days | All days 24 h | Today | Remaining hours | Status |
+|---|---|---|---|---|---|
+| typed `59.3293`, `18.0686` (Europe/Stockholm, 12:37 local) | 7 | yes | "Today 22 Nov", then Mon 23 Nov … Sat 28 Nov | 12: 12:00 … 23:00 | PASS |
+| New York (America/New_York, 06:37 local) | 7 | yes | "Today 22 Nov" | 18: 06:00 … 23:00 | PASS |
+| Sydney (Australia/Sydney, 22:37 local) | 7 | yes | "Today 22 Nov" | 2: 22:00 … 23:00 | PASS |
+| Bundles | — | — | `Android Bundled … (638 modules)`, `iOS Bundled … (640 modules)`, no errors | — | PASS |
+| Android Emulator (Windows) | | | UX-07, UX-08 | | NOT RUN |
+| iOS Simulator (macOS) | | | UX-07, UX-08 | | NOT RUN |
+
+### 1.8 Weather-First Home Screen Redesign: Build Checks (SPEC D-33, D-34)
+
+Code uncommitted on `feat/NIT-169-home-search` after `6f057f5`, on Windows without an emulator or simulator. **Nothing has been seen on a screen.** Everything visual below is unverified.
+
+**What was checked:**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Contrast of the sky colours (computed, WCAG 2.1 formula) | 2026-11-22 | White text ≥ 6.33:1; 85 % white text ≥ 4.85:1 on every day/night gradient stop, inside glass cards and on today's row. The first candidate (lighter blue with white cards) was rejected at 2.90:1. | PASS |
+| TypeScript accepts `backgroundImage: 'linear-gradient(…)'` and `boxShadow` | 2026-11-22 | `npx tsc --noEmit` passed with a temporary probe file (deleted afterwards) | PASS |
+| Icon glyph names exist | 2026-11-22 | All 16 weather glyphs and the `magnify` and `close` icons are in the installed MaterialCommunityIcons glyph map | PASS |
+| Expo Doctor after installing `@expo/vector-icons` only | 2026-11-22 | **19/20**: "Missing peer dependency: expo-font, Required by: @expo/vector-icons" | FAIL |
+| Unit tests after that install | 2026-11-22 | `tests/views/weatherStatus.test.ts` could not load: "Cannot find module 'expo-asset' from 'node_modules/expo-font/…'" (`expo-asset` existed only inside `expo`) | FAIL |
+| Fix | 2026-11-22 | `npx expo install expo-font` and `npx expo install expo-asset` (58.0.21, the version already inside `expo`); Expo added both config plugins to `app.json` | — |
+| Expo Doctor after the fix | 2026-11-22 | 20/20 checks passed | PASS |
+| Bundles | 2026-11-22 | `Android Bundled … (722 modules)`, `iOS Bundled … (724 modules)`, icon font exported as an asset, no errors | PASS |
+| Protected layers unchanged | 2026-11-22 | `git diff` empty for `src/services`, `src/parsers`, `src/repositories`, `src/models`, `coordinateValidation.ts`, `useCoordinateSearchViewModel.ts`; `app.json` orientation still `portrait` | PASS |
+
+**Still to check on the Android Emulator and iOS Simulator** (all NOT RUN):
+
+| # | What to check |
+|---|---|
+| R-1 | The gradient sky and card shadows are drawn (or the solid fallback colour appears), day and night |
+| R-2 | Icons appear in the hero, hourly items and day rows (the font loads in Expo Go) |
+| R-3 | First launch shows the welcome panel; "Search for a place" and the header button open the sheet |
+| R-4 | Both search modes work in the sheet; choosing a result or valid coordinates closes it and loads the weather |
+| R-5 | Sheet safe areas and status bar on both platforms (Android edge-to-edge modal) |
+| R-6 | Keyboard does not cover the fields or results in the sheet |
+| R-7 | "Try again" after an offline error loads the weather once the connection is back |
+| R-8 | Small screen (e.g. iPhone SE size) and large text: hero, header and day rows fit without overlap |
+| R-9 | Screen reader reads the hero, hourly and day summaries; icons are skipped |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -101,9 +193,18 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | HTTP outcome → `AppError` kind | Error-state logic (data layer) | `src/services/api/httpClient.ts` | W-18, W-19, W-23 | yes |
 | Caught value → `AppError` (`toAppError`) | Error-state logic (ViewModel) | `src/models/AppError.ts` | W-18, W-19 | yes |
 | Result/error → `LoadState` transitions | Error-state logic (ViewModel) | `useSearchViewModel` (hook not unit-tested; checked via UX-01 – UX-03 in US-03.01) | W-01, W-17, W-18, W-19 | |
+| Search `LoadState` → what the screen shows; `AppError` kind → message | Error-state logic (View) | `describeSearchStatus`, `searchErrorMessage` in `src/views/components/SearchStatus.tsx` (US-03.01) | W-01, W-18, W-19, W-20 | proposed |
 | Search query trimming | (extra) | `prepareSearchQuery` in `src/viewmodels/useSearchViewModel.ts` | W-01 | |
+| Repeated search detection | (extra) | `isRepeatedSearch` in `src/viewmodels/useSearchViewModel.ts` (US-03.01) | W-01, W-23 | |
+| Location display text | (extra) | `src/utils/locationFormatting.ts` (US-03.01) | W-01, W-03 | |
+| Weather `LoadState` → loading/error; `AppError` kind → message | Error-state logic (View) | `describeWeatherStatus`, `weatherErrorMessage` in `src/views/components/WeatherStatus.tsx` (US-03.02) | W-04, W-18, W-19, W-20 | proposed |
+| Current weather → display texts (units, rounding, local time, missing values) | Data transformation | `presentCurrentWeather` and formatters in `src/utils/weatherFormatting.ts` (US-03.02) | W-04 | proposed |
+| WMO weather code → description | Data transformation | `src/utils/weatherCode.ts` (US-03.02) | W-04 | |
+| Request ordering (newest wins) | (extra) | `src/viewmodels/latestRequest.ts` (US-03.02) | W-23 | |
+| Repeated weather load detection | (extra) | `isRepeatedWeatherLoad` in `src/viewmodels/useWeatherViewModel.ts` (US-03.02) | W-04, W-23 | |
 | Forecast request URL | (extra) | `src/services/api/weatherService.ts` | W-13 | |
-| Hourly/daily grouping | Data transformation | decided in US-03.03 / US-03.04 | W-05, W-06 | |
+| Hourly/daily grouping | Data transformation | `selectForecastDays`, `selectRemainingHoursToday`, `findTodayBounds` in `src/utils/forecastSelection.ts` (US-03.03, US-03.04) | W-05, W-06 | proposed |
+| Forecast day/hour display texts | Data transformation | `formatDayLabel`, `presentDailyForecast`, `presentHourlyForecast` in `src/utils/forecastFormatting.ts` (US-03.03, US-03.04) | W-05, W-06 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
 | Refresh / staleness policy | (extra) | `src/utils/refreshPolicy.ts` | W-11, W-16 | |
@@ -192,6 +293,37 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | AppError › toAppError › wraps a thrown string as kind "unknown" | W-19 | `'something broke'` | `AppError('unknown')` | as expected (2026-11-20) | PASS |
 | AppError › toAppError › wraps undefined as kind "unknown" | W-19 | `undefined` | `AppError('unknown')` | as expected (2026-11-20) | PASS |
 | AppError › toAppError › keeps instanceof working for AppError | — | `new AppError('validation', …)` | instance of `AppError` and `Error`; `name` is `AppError` | as expected (2026-11-20) | PASS |
+| describeSearchStatus › idle / loading / results / empty results (4 tests) | W-01, W-20 | `idle`, `loading`, `success` with Lund, `success` with `[]` | neutral hint; `{ kind: 'loading' }`; `null`; "No places found…" (neutral) | as expected (2026-11-22) | PASS |
+| describeSearchStatus › treats an empty query as a hint, not an error | W-01 | `error` with `AppError('validation')` | "Enter a place name to search.", tone `neutral` | as expected (2026-11-22) | PASS |
+| describeSearchStatus › shows a %s failure as an error (6 tests) | W-18, W-19 | `error` with kind `network`, `timeout`, `http`, `parse`, `storage`, `unknown` | tone `error` with the matching `searchErrorMessage` | as expected (2026-11-22) | PASS |
+| searchErrorMessage › kind → message (7 tests) + never shows the developer message | W-18, W-19 | each `AppErrorKind`; an `http` error whose message contains "HTTP 500" | one fixed message per kind; "HTTP 500" not in the text | as expected (2026-11-22) | PASS |
+| isRepeatedSearch (5 tests) | W-01, W-23 | `Lund`/`null`, `Lund`/`Lund`, `lund`/`Lund`, `GÖTEBORG`/`Göteborg`, `Lund`/`Kiruna`, `Lunds`/`Lund` | `false`, `true`, `true`, `true`, `false`, `false` | as expected (2026-11-22) | PASS |
+| formatLocationDetails (6 tests) | W-01 | real Lund (Skåne län, Sverige); region or country missing; equal region and country; empty region; coordinate location | "Skåne län, Sverige", "Sverige", "Skåne län", "Singapore", "Sverige", `undefined` | as expected (2026-11-22) | PASS |
+| formatCoordinates (5 tests) | W-03 | `59.33/18.07`, `-33.87/151.21`, `40.71427/-74.00597`, `0/0`, `-90/-180` | "59.33° N, 18.07° E", "33.87° S, 151.21° E", "40.71° N, 74.01° W", "0.00° N, 0.00° E", "90.00° S, 180.00° W" | as expected (2026-11-22) | PASS |
+| isSameLocation (3 tests) | W-01 | equal copy; Lund (England, real result); other name | `true`, `false`, `false` | as expected (2026-11-22) | PASS |
+| describeWeatherCode › each documented code (29 tests) | W-04 | 0, 1, 2, 3, 45, 48, 51 … 99 | the Open-Meteo table text, e.g. `3` → "Overcast", `97` → "Heavy thunderstorm" | as expected (2026-11-22) | PASS |
+| describeWeatherCode › unknown codes (6 tests) + every code in the real fixture | W-04 | `4`, `50`, `98`, `100`, `-1`, `2.5`; fixture codes 0, 1, 2, 3, 51, 53, 61, 71, 73, 85 | "Unknown conditions"; fixture codes all known | as expected (2026-11-22) | PASS |
+| formatTemperature / formatPercent / formatWindSpeed (14 tests) | W-04 | e.g. `1.2`, `-2.6`, `-0.4`, `-0.5`; `72.6`; `3.14`, `0` | "1 °C", "-3 °C", "0 °C" (never "-0"); "73 %"; "3.1 m/s", "0.0 m/s" | as expected (2026-11-22) | PASS |
+| formatLocalTime (4 tests) | W-04 | fixture time with +3600; offsets −5 h, +5.5 h; 23:30 UTC with +1 h | "11:15", "19:00", "05:30", "00:30" | as expected (2026-11-22) | PASS |
+| presentCurrentWeather › real fixture / missing optional values / unknown code | W-04, W-15 | parsed `openMeteoForecast.json`; a `CurrentWeather` without optional fields; code `42` | temperature "1 °C", Overcast, observed "11:15", feels like "-3 °C", "89 %", "3.1 m/s"; optional texts `undefined`; "Unknown conditions" | as expected (2026-11-22) | PASS |
+| createLatestRequestGuard (5 tests) | W-23 | two starts; `cancelAll`; two guards; Lund (30 ms) and Kiruna (5 ms) started in that order | only the newest is latest; nothing is latest after `cancelAll`; guards independent; only Kiruna is applied | as expected (2026-11-22) | PASS |
+| isRepeatedWeatherLoad (4 tests) | W-04, W-23 | `null`; same Lund; another place; typed coordinates differing in the 4th decimal | `false`, `true`, `false`, `false` | as expected (2026-11-22) | PASS |
+| describeWeatherStatus (10 tests) + weatherErrorMessage (8 tests) | W-18 – W-20 | `idle`, `loading`, `success` with the real fixture, `error` for each `AppErrorKind`; a `parse` error naming `temperature_2m` | `null`, loading, `null`, one fixed message per kind; developer text never shown | as expected (2026-11-22) | PASS |
+| selectForecastDays (7 tests) | W-05 | real forecast at its fetch time; now on day 3; 9, 3 and 0 days; now before the first / after the last day | 7 days with today first; days 3–6; at most 7; 3 (none invented); all days without "today"; none | as expected (2026-11-22) | PASS |
+| findTodayIndex (5 tests) | W-05, W-06 | exact day start; 1 ms before; 23:59:59.999 local; end of the last day; real daylight-saving response | that day; previous day; still day 0; 6 then −1; API starts all at 23:00 UTC, 25 Oct → index 1 | as expected (2026-11-22) | PASS |
+| formatDayLabel (7 tests) | W-05 | the 7 real days; UTC+1, UTC−5, UTC+14; 31 Dec → 1 Jan; day start one hour off around a clock change | "Fri 20 Nov" … "Thu 26 Nov"; location date, not UTC date; "Fri 1 Jan"; still "24 Oct" | as expected (2026-11-22) | PASS |
+| presentDailyForecast (5 tests) | W-05 | real today; real day 5; no optional values; code 42; min above max | "Today", "20 Nov", "Light drizzle", "2 °C"/"0 °C" with full screen-reader text; "Wed", high "0 °C" (from −0.2), low "-5 °C" (from −5.5); works; "Unknown conditions"; shown as sent | as expected (2026-11-22) | PASS |
+| forecastForState (5 tests) | W-05, W-06 | `idle`, `loading`, `error`; `success`; `refreshFailed` | `null`; 7 days and 13 hours from the same report; still 7 days | as expected (2026-11-22) | PASS |
+| selectRemainingHoursToday (12 tests) | W-06 | real forecast at 11:15 local; end of an hour; 23:30 local; local midnight; early hours only; no hours; one instant in Stockholm and New York; real daylight-saving weekend; no daily data; NaN/±Infinity times; shuffled input | 13 hours 11:00–23:00 (current hour kept, ended hour dropped); 12; only 23:00; 24 of the next day; `[]`; `[]`; 20 vs 2; 24 + 24 + 24, all 72 once; same as with daily data; only the finite entry; same order, nothing added | as expected (2026-11-22) | PASS |
+| findTodayBounds (4 tests) | W-06 | real forecast; no daily data at UTC+1, UTC−5, UTC+5:30 | API start and next start; local midnight computed from the offset | as expected (2026-11-22) | PASS |
+| selectForecast (1 test) | W-05, W-06 | real forecast at its fetch time | 7 days, 13 hours, today = first day | as expected (2026-11-22) | PASS |
+| weatherIconName (35 tests) + every fixture code | D-34 | each of the 29 WMO codes by day and by night; `4`, `50`, `98`, `100`, `-1`, `2.5`; the real fixture codes | the planned glyph (e.g. 0 → `weather-sunny` / `weather-night`, 80 → `weather-partly-rainy` / `weather-rainy`); `weather-cloudy-alert`; no fixture code unknown | as expected (2026-11-22) | PASS |
+| isDaytimeAt (6 tests) | D-34 | real Stockholm day (sunrise 07:53, sunset 15:12) at 08:00, 14:00, 07:00, 15:00, 02:00; polar night; midnight sun; no sunrise/sunset; outside the days | day, day, night, night, night; never day; always day; day (fallback); day (fallback) | as expected (2026-11-22) | PASS |
+| formatTemperatureShort, selectTodayForecast (6 tests) | D-33 | `1.2`, `-2.6`, `-0.4`, `25.5`; selection with and without today | "1°", "-3°", "0°", "26°"; today's entry / `undefined` | as expected (2026-11-22) | PASS |
+| presentWeatherHero (4 tests) | W-04, D-33 | real current + today; no today; feels-like and wind missing; clear night | "1°", Overcast, `weather-cloudy`, H "2°" L "0°", full spoken summary; no high/low; "Now 1 °C, Overcast. Humidity 89 %. Observed …"; `weather-night` | as expected (2026-11-22) | PASS |
+| presentForecastDayRow (2 tests), presentForecastHourItem (3 tests) | W-05, W-06, D-33 | real day 0 and day 5; real hour 11 at fetch time, hour 12, clear hours at 12:00 and 21:00 | icon and compact temperatures added, full units in the label; "Now" with "Now, 11:00: …"; "12:00"; `weather-sunny` / `weather-night` | as expected (2026-11-22) | PASS |
+| skyVariantFor (3 tests) | D-33 | `true`, `false`, `undefined` | day, night, day | as expected (2026-11-22) | PASS |
+| presentHourlyForecast (3 tests) | W-06 | real hour 11; UTC−5; no optional values with code 42 | "11:00", "1 °C", "Light drizzle"; "22:00", "-2 °C"; "00:00", "Unknown conditions" | as expected (2026-11-22) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -219,6 +351,31 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Coordinate validation | `,` removed from the decimal pattern | `accepts "59,33", "18,07"` (1 of 111 failed) | yes | 2026-11-20 | PASS |
 | Coordinate validation | `text.trim()` removed | 5 tests (surrounding spaces, whitespace-only, error order) (5 of 111 failed) | yes | 2026-11-20 | PASS |
 | Coordinate validation | longitude error dropped when latitude is also invalid | the two "both fields" tests (2 of 111 failed) | yes | 2026-11-20 | PASS |
+| Error-state logic (`describeSearchStatus`) | empty query (`validation`) shown with tone `error` | `…treats an empty query as a hint, not an error` (1 of 19 failed) | yes | 2026-11-22 | PASS |
+| Error-state logic (`describeSearchStatus`) | empty-results check `data.length === 0` changed to `< 0` | `…"no places found" message for an empty result list` (1 of 19 failed) | yes | 2026-11-22 | PASS |
+| Repeated search detection | case-insensitive comparison replaced with `===` | `isRepeatedSearch › ignores case, as the geocoding API does` (1 of 14 failed) | yes | 2026-11-22 | PASS |
+| Location display text | duplicate check in `formatLocationDetails` removed | `…shows a value only once when region and country are the same` (1 of 14 failed) | yes | 2026-11-22 | PASS |
+| WMO code → description | unknown-code fallback replaced with `''` | the 6 unknown-code tests (6 of 36 failed) | yes | 2026-11-22 | PASS |
+| WMO code → description | code 97 text changed to "Thunderstorm" | `97 → "Heavy thunderstorm"` (1 of 36 failed) | yes | 2026-11-22 | PASS |
+| Current weather → display texts | location UTC offset ignored in `formatLocalTime` | 5 of 21 failed (offset tests, real-fixture presentation) | yes | 2026-11-22 | PASS |
+| Current weather → display texts | feels-like formatted from the air temperature | `…formats the current conditions of the saved real forecast` (1 of 21 failed) | yes | 2026-11-22 | PASS |
+| Request ordering | `isLatest` true for every request | 3 of 5 failed (older request, `cancelAll`, the Lund/Kiruna race) | yes | 2026-11-22 | PASS |
+| Repeated weather load detection | every location treated as repeated | 2 of 4 failed (another place, 4th-decimal difference) | yes | 2026-11-22 | PASS |
+| Error-state logic (`describeWeatherStatus`) | `loading` mapped to `null` (no indicator) | `…shows the loading indicator while the weather loads` (1 of 18 failed) | yes | 2026-11-22 | PASS |
+| Hourly/daily grouping (days) | day end made inclusive (`now <= end`) | 3 of 12 failed (start of a day, 1 ms before, end of the last day) | yes | 2026-11-22 | PASS |
+| Hourly/daily grouping (days) | earlier days no longer left out (`slice(0, 7)`) | `…starts at the day that contains now…` (1 of 21 failed) | yes | 2026-11-22 | PASS |
+| Forecast display texts | day label read at local midnight instead of noon | `…stays on the right date when a day start is one hour off…` (1 of 12 failed) | yes | 2026-11-22 | PASS |
+| Forecast display texts | today not titled "Today" | `…presents today from the real forecast` (1 of 12 failed) | yes | 2026-11-22 | PASS |
+| Hourly/daily grouping (hours) | hour in progress dropped (`time >= now`) | 4 of 29 failed | yes | 2026-11-22 | PASS |
+| Hourly/daily grouping (hours) | tomorrow's 00:00 included (`time <= end`) | 7 of 29 failed | yes | 2026-11-22 | PASS |
+| Hourly/daily grouping (hours) | fallback day start with the offset's sign flipped | 4 of 29 failed (fallback tests) | yes | 2026-11-22 | PASS |
+| Forecast display texts | hour shown in UTC instead of location time | 3 of 15 failed | yes | 2026-11-22 | PASS |
+| Icons (redesign) | hour judged at its start instead of its middle | `…before sunrise and after sunset as night…` (1 of 42 failed) | yes | 2026-11-22 | PASS |
+| Icons (redesign) | clear night shows the sun | 3 of 60 failed | yes | 2026-11-22 | PASS |
+| Home presentation (redesign) | current hour not labelled "Now" | `…labels the hour in progress "Now"` (1 of 18 failed) | yes | 2026-11-22 | PASS |
+| Home presentation (redesign) | hero high shows the low | `…shows the real current weather with today's high and low` (1 of 18 failed) | yes | 2026-11-22 | PASS |
+| Home presentation (redesign) | missing `isDay` gives a night sky | `skyVariantFor › isDay undefined → day sky` (1 of 18 failed) | yes | 2026-11-22 | PASS |
+| Hourly/daily grouping (hours) | `Number.isFinite` check removed | **none failed (survived)**. The check was redundant: `NaN` fails every comparison and ±Infinity lies outside today. The check was then removed from the code as dead code; the test for non-finite times still passes. | yes | 2026-11-22 | FAIL (mutant survived) |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -231,6 +388,13 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-20 | uncommitted, on `feat/city-search-geocoding` after `d6f9a29` | `npm run check` | 74 | 74 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-20 | uncommitted, on `feat/coordinate-search-validation` after `dd442e8` | `npm run check` | 111 | 111 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-20 | uncommitted, on `feat/coordinate-search-validation` after `9729e05` | `npm run check` | 117 | 117 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-22 | `6f057f5` on `feat/NIT-169-home-search`, before changes (Windows) | `npm run check` | 117 | 117 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-22 | uncommitted, on `feat/NIT-169-home-search` after `6f057f5` (Windows) | `npm run check` | 155 | 155 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-22 | uncommitted, on `feat/NIT-169-home-search` after `6f057f5`, with US-03.02 (Windows) | `npm run check` | 239 | 239 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-22 | uncommitted, same branch, with US-03.03 (Windows) | `npm run check` | 268 | 268 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-22 | uncommitted, same branch, with US-03.04 (Windows) | `npm run check` | 288 | 288 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-22 | same branch, after installing `@expo/vector-icons` only (Windows) | `npx jest` | 270 run | 270 | 1 suite failed to load (`expo-asset` not found) | Claude Code (session with Developer 1) |
+| 2026-11-22 | same branch, redesign complete (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 
 ## 3. UX Interaction Scenarios
 
