@@ -52,6 +52,7 @@ As targeted by the team (see [SPEC.md §3 and §8](SPEC.md#8-quality-requirement
 | Persistence | `@react-native-async-storage/async-storage` | Decided (SPEC D-08); **not installed** |
 | Unit testing | Jest + `jest-expo` | Decided (SPEC D-09); installed as dev dependencies in US-02.01 (NIT-216). Run with `npm test`. |
 | Cross-platform testing | Android Emulator (Windows), iOS Simulator (macOS) | Decided (SPEC D-12) |
+| Safe areas | `react-native-safe-area-context` | Decided (SPEC D-26); installed in US-03.01 (NIT-169) |
 
 Decided libraries are installed with `npx expo install` in the user story that first needs them, not before. Any library not in this table needs a decision entry in [SPEC.md §13](SPEC.md#13-decision-log) first.
 
@@ -210,12 +211,18 @@ Complete this at the end of every work session (AI-assisted or not):
 
 Update this section when the state changes.
 
-**State on `dev`** (from `git log`, as of 2026-11-20, commit `836ad62`):
+**State on `dev`** (from `git log`, as of 2026-11-22, commit `6f057f5`):
 - Project setup: Expo SDK 58 + TypeScript (US-01.01), Git and GitHub with `main`/`dev` (US-01.02), MVVM folder structure and shared types (US-01.03), project documentation (US-01.04). The app runs on the iOS Simulator (TEST_REPORT §1.1); the Android Emulator run is still open.
-- US-02.01 (merged): weather models (`Weather.ts`) and `weatherParser`, with Jest unit tests in `tests/`.
-- US-02.02 (merged): `httpClient`, `weatherService` and `weatherRepository.getReport` against the real Open-Meteo API, checked from Node and in the iOS Simulator (TEST_REPORT §1.2).
-- No screens yet: `App.tsx` is still the Expo template.
+- Epic 2 (US-02.01 – US-02.04) on `dev`: weather models and `weatherParser`; `httpClient`, `weatherService` and `weatherRepository.getReport`; Open-Meteo geocoding with `locationRepository` and `useSearchViewModel`; coordinate validation, `useCoordinateSearchViewModel` and `CoordinateSearchForm`. 117 unit tests.
+- No screens on `dev` yet: `App.tsx` is still the Expo template.
 
-**In progress:** US-02.03, City Search with Geocoding (NIT-165) on `feat/city-search-geocoding`. Geocoding uses Open-Meteo instead of SMHI (D-24).
+**In progress** on `feat/NIT-169-home-search`, not yet committed and not yet run on a device:
+- US-03.01, Home Screen & Search Interface (NIT-169): `HomeScreen` with place-name and coordinate search, wired into `App.tsx`.
+- US-03.02, Current Weather Conditions (NIT-170): `useWeatherViewModel`; the current weather is now shown by `WeatherHero`.
+- US-03.03, Seven-Day Forecast (NIT-171), and US-03.04, Today's Hourly Forecast (NIT-172): `DailyForecastList` and `HourlyForecastList`, from the same report.
+- Weather-first redesign of the home screen (SPEC D-33, D-34): header with search button, weather hero, glass forecast cards on a day/night sky, search in `LocationSearchSheet`, icons from `@expo/vector-icons`.
+- All four Epic 3 stories and the redesign are on this one branch at the team's request, so the pull request will cover all of them.
+
+**Windows machine (Developer 1), 2026-11-22:** dependencies installed and `npm run check` passes; no Android SDK or emulator installed yet (`ANDROID_HOME` not set).
 
 Which modules exist is tracked in STYLE §3.1; requirement status in SPEC §11.

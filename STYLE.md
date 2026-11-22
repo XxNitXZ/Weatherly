@@ -56,23 +56,48 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/repositories/weatherRepository.ts` | `getReport(coordinates): Promise<FetchedWeatherReport>`: `fetchForecast` → `parseWeatherResponse` → `{ report, fetchedAtEpochMs }` (SPEC D-18). Errors pass through unchanged. Planned: cache, refresh policy, and reporting a fallback to a cached entry after a failed refresh (§11). | **Exists** without cache (NIT-212); cache planned (NIT-182, NIT-183) |
 | `src/repositories/favoritesRepository.ts`, `settingsRepository.ts` | Read and write favourites and settings through `keyValueStorage`. | Planned (NIT-177, NIT-179 – NIT-181) |
 | `src/storage/keyValueStorage.ts` | Get (`unknown`) and set JSON values; the only importer of AsyncStorage (D-08). | Planned (NIT-182) |
-| `src/viewmodels/useSearchViewModel.ts` | `{ state: LoadState<ReadonlyArray<Location>>, search(query) }`. Empty query → `error` with `AppError('validation')`, no request. Only the latest search may update the state (search counter; also ignores results after unmount). `prepareSearchQuery(raw): string \| null` is the pure, tested trimming rule. | **Exists** (NIT-207) |
+| `src/viewmodels/useSearchViewModel.ts` | `{ state: LoadState<ReadonlyArray<Location>>, search(query) }`. Empty query → `error` with `AppError('validation')`, no request. Only the latest search may update the state (search counter; also ignores results after unmount). Repeating the query that is loading or shown sends no request; after an error it can be searched again (SPEC D-28). `prepareSearchQuery(raw): string \| null` and `isRepeatedSearch(query, activeQuery): boolean` are the pure, tested rules. | **Exists** (NIT-207; repeat guard NIT-218) |
 | `src/viewmodels/useCoordinateSearchViewModel.ts` | `{ latitudeError?, longitudeError?, submit(latitudeText, longitudeText): Location \| null }`. Invalid input → field errors and `null`, no request. Valid → a `Location` named by its coordinates (e.g. `59.33, 18.07`). | **Exists** (NIT-209) |
 | `src/utils/coordinateValidation.ts` | `validateCoordinates(latitudeText, longitudeText)` → `{ isValid: true, coordinates }` or `{ isValid: false, latitudeError?, longitudeError? }` with `'empty' \| 'notANumber' \| 'outOfRange'`. Strict decimal format, `.` or `,` (SPEC D-25); bounds [-90, 90] and [-180, 180], inclusive. | **Exists** (NIT-209) |
-| `src/views/components/CoordinateSearchForm.tsx` | Presentational form: latitude/longitude fields with inline error messages and a "Show weather" button. Props: `latitudeError?`, `longitudeError?`, `onSubmit(latitudeText, longitudeText)`. `coordinateErrorMessage(field, error)` owns the wording. iOS uses the `numbers-and-punctuation` keyboard (minus sign). Not yet placed on a screen (US-03.01). | **Exists** (NIT-208) |
-| `src/theme/colors.ts`, `spacing.ts`, `typography.ts` | Design tokens (§12). **Minimal starting set** created for the first component (US-02.04), only the tokens it uses; the visual design system is defined in US-08.01. | **Exists**, minimal (NIT-208) |
-| `src/viewmodels/use…ViewModel.ts` (others) | Expose `LoadState<T>` plus intent functions (`refresh`, …). Never receive `navigation`. | Planned (NIT-170, …) |
+| `src/views/components/CoordinateSearchForm.tsx` | Presentational form: latitude/longitude fields with inline error messages and a "Show weather" button. Props: `latitudeError?`, `longitudeError?`, `onSubmit(latitudeText, longitudeText)`. `coordinateErrorMessage(field, error)` owns the wording. iOS uses the `numbers-and-punctuation` keyboard (minus sign). Used by `LocationSearchSheet`. | **Exists** (NIT-208) |
+| `src/views/screens/HomeScreen.tsx` | Weather-first home screen (SPEC D-22, D-33): `HomeHeader`, then `WelcomePanel`, `WeatherStatus` or `WeatherHero` + forecast cards, on the day/night sky. Owns the three ViewModels and passes the search ones to `LocationSearchSheet`; choosing a place closes the sheet and calls `load(location)` (D-30). Holds only whether the sheet is open. Body is a vertical `ScrollView` (§6). | **Exists** (NIT-217 – NIT-219, NIT-170 – NIT-172, redesign) |
+| `src/viewmodels/useWeatherViewModel.ts` | `{ location: Location \| null, state: LoadState<FetchedWeatherReport>, forecast: ForecastSelection \| null, load(location) }`. Location and weather in one state value; same location as loading/shown → no request; after an error, `load` again retries. Only the newest load may update the state. `forecast` comes from the same report via `forecastForState(state)`, as of `fetchedAtEpochMs` (SPEC D-32). `isRepeatedWeatherLoad` and `forecastForState` are pure and tested. No cache yet (Epic 7). | **Exists** (NIT-170; `forecast` NIT-171, NIT-172) |
+| `src/utils/forecastSelection.ts` | `selectForecast(report, nowEpochMs): ForecastSelection` (`days`, `todayDateEpochMs?`, `todayHours`), built from `selectForecastDays`, `selectRemainingHoursToday`, `findTodayIndex` and `findTodayBounds`. "Today" uses the API's day boundaries (SPEC D-31). Filters only; never creates or reorders entries. | **Exists** (NIT-171, NIT-172) |
+| `src/utils/forecastFormatting.ts` | `formatDayLabel(dateEpochMs, utcOffsetSeconds)` (read at local noon), `presentDailyForecast(day, utcOffsetSeconds, isToday)`, `presentHourlyForecast(hour, utcOffsetSeconds)`; for the redesigned rows, `presentForecastDayRow` (adds icon, `highShort`, `lowShort`) and `presentForecastHourItem(hour, offset, daily, nowEpochMs)` (adds "Now", icon, `temperatureShort`). English names, no `Intl`. | **Exists** (NIT-171, NIT-172, redesign) |
+| `src/views/components/DailyForecastList.tsx`, `DailyForecastRow.tsx` | Seven-day `WeatherCard`: plain mapped rows (not a `FlatList`, §6) with dividers, empty message; a compact row shows "Today"/weekday and date, icon, low, high; today highlighted. | **Exists** (NIT-171, redesign) |
+| `src/views/components/HourlyForecastList.tsx`, `HourlyForecastItem.tsx` | "Rest of today" `WeatherCard`: horizontal `FlatList` of hours ("Now"/time, icon, temperature), or a message when no hour is left. | **Exists** (NIT-172, redesign) |
+| `src/viewmodels/latestRequest.ts` | `createLatestRequestGuard(): { start(): number, isLatest(id): boolean, cancelAll() }`, the request-ordering rule as a plain, tested object. Used by `useWeatherViewModel`. | **Exists** (NIT-170) |
+| `src/utils/weatherCode.ts` | `describeWeatherCode(code): string` from the Open-Meteo WMO table; `UNKNOWN_WEATHER_DESCRIPTION` for unlisted codes (SPEC D-29). | **Exists** (NIT-170) |
+| `src/utils/weatherFormatting.ts` | `formatTemperature`, `formatTemperatureShort` ("2°"), `formatPercent`, `formatWindSpeed`, `formatLocalTime(epochMs, utcOffsetSeconds)`, `presentCurrentWeather(current, utcOffsetSeconds): CurrentWeatherPresentation` (optional values stay `undefined`) and `presentWeatherHero(current, offset, today?)`. The rounding policy of §12. | **Exists** (NIT-170, redesign) |
+| `src/views/components/WeatherHero.tsx` | The current weather as the screen's hero (SPEC D-33): icon, large temperature, condition, today's high/low, feels-like/humidity/wind, observation time. Props: `current`, `utcOffsetSeconds`, `today?`. Texts from `presentWeatherHero`. Replaced `CurrentWeatherCard`. | **Exists** (redesign) |
+| `src/views/components/HomeHeader.tsx`, `WelcomePanel.tsx`, `WeatherCard.tsx`, `WeatherIcon.tsx` | Header with the selected place and a search button; first-launch panel; the shared glass card; the icon wrapper (hidden from screen readers). | **Exists** (redesign) |
+| `src/views/screens/LocationSearchSheet.tsx` | Modal search sheet with both modes (place name, coordinates), results and status; receives `searchViewModel` and `coordinateViewModel` from `HomeScreen`, so results survive closing it. Choosing a place calls `onSelectLocation`. | **Exists** (redesign) |
+| `src/utils/weatherIcon.ts` | `weatherIconName(code, isDay): WeatherIconName` (MaterialCommunityIcons glyph names) and `isDaytimeAt(timeEpochMs, daily)` from the real sunrise/sunset (SPEC D-34). | **Exists** (redesign) |
+| `src/theme/sky.ts` | Sky gradients (day/night), base colours, text and glass-card colours with computed WCAG contrast, card shadow, `skyVariantFor(isDay)`. | **Exists** (redesign) |
+| `src/views/components/WeatherStatus.tsx` | Loading indicator, or error message with a "Try again" button (`onRetry`), on the sky. `describeWeatherStatus(state)` (pure) and `weatherErrorMessage(error)` own the decision and the wording. | **Exists** (NIT-170, redesign) |
+| `src/views/components/CitySearchForm.tsx` | Presentational place-name field and "Search" button. Props: `onSubmit(query)` with the raw text. | **Exists** (NIT-217) |
+| `src/views/components/SearchModeSwitch.tsx` | `SearchMode` (`'city' \| 'coordinates'`) and two tabs. Props: `mode`, `onChangeMode(mode)`. | **Exists** (NIT-217) |
+| `src/views/components/SearchStatus.tsx` | What the result area shows when there is no list: loading, hint, "no places found" or error. `describeSearchStatus(state): SearchStatusContent \| null` (pure) and `searchErrorMessage(error): string` own the decision and the wording (§8). | **Exists** (NIT-218) |
+| `src/views/components/LocationResultItem.tsx` | One selectable result: name plus region and country, `Selected` mark. Props: `location`, `isSelected`, `onSelect(location)`. | **Exists** (NIT-219) |
+| `src/utils/locationFormatting.ts` | Pure display helpers: `formatLocationDetails(location): string \| undefined`, `formatCoordinates(coordinates): string`, `isSameLocation(a, b): boolean`. | **Exists** (NIT-219) |
+| `src/theme/colors.ts`, `spacing.ts`, `typography.ts` | Design tokens (§12). **Minimal starting set**: only the tokens the existing components use (US-02.04, extended in US-03.01, e.g. `surface`, `primarySubtle`, `CONTENT_MAX_WIDTH`). The visual design system is defined in US-08.01. | **Exists**, minimal (NIT-208, NIT-217) |
+| `src/viewmodels/use…ViewModel.ts` (others) | Expose `LoadState<T>` plus intent functions (`refresh`, …). Never receive `navigation`. | Planned (NIT-174, …) |
 | `src/navigation/routes.ts`, `RootNavigator.tsx` | Typed route params and navigator setup. | Planned (NIT-173; SPEC OQ-05) |
 | `src/models/Weather.ts` | `CurrentWeather`, `HourlyForecast`, `DailyForecast` and `WeatherReport` (`timezone`, `utcOffsetSeconds`, `current`, `hourly`, `daily`). Written against a real Open-Meteo response. Times in `…EpochMs`, units in field names, API `null` values as optional fields. | **Exists** (NIT-214) |
 | `src/models/AppSettings.ts` | Settings model, written in the settings story. | Planned (NIT-179 – NIT-181) |
 
 ### 3.2 Search-to-Forecast Data Flow
 
-Planned flow. Only the types in **bold** exist today.
+Steps 1–6 and 8 exist (US-03.01 – US-03.04), without the cache:
+- `useWeatherViewModel` holds the chosen `Location`, calls `weatherRepository.getReport` and maps the result to `success` or `error`.
+- From the same report, `forecastForState` chooses today's remaining hours and the seven days.
+- `HomeScreen` shows the current conditions, the rest of today and the seven-day forecast.
+
+Planned: the cache and `refreshFailed` in step 7 (Epic 7), and step 9 (Epic 4). In the planned parts, only the types in **bold** exist today.
 
 Search and forecast share one screen, `HomeScreen` (SPEC D-22). It uses two ViewModels: `useSearchViewModel` for search and `useWeatherViewModel` for the forecast.
 
-1. **HomeScreen** (View): the user submits a place name. The screen calls `search(query)` from `useSearchViewModel`. It never calls an API.
+1. **LocationSearchSheet** (View, opened from `HomeScreen`'s search button; SPEC D-33): the user submits a place name. The sheet calls `search(query)` from `useSearchViewModel`, which `HomeScreen` owns and passes in. It never calls an API.
 2. **useSearchViewModel**: trims the query. Empty input sends no request (W-01). Otherwise it sets `LoadState` to `loading` and calls `locationRepository.searchLocations(query)`.
 3. **locationRepository** → `geocodingService` (returns `unknown` JSON through `httpClient`) → `geocodingParser` (returns **`Location`** values or throws **`AppError`**).
 4. The ViewModel sets `success` with the locations, or `error` with the **`AppError`**. HomeScreen renders the result list, an empty state or an error.
@@ -91,7 +116,7 @@ Search and forecast share one screen, `HomeScreen` (SPEC D-22). It uses two View
 - Screens own navigation. They call `navigation.navigate` in response to a user event or a ViewModel result.
 - ViewModels never import React Navigation and never receive the `navigation` object. They expose state and intents only, so they stay testable without a navigator.
 - Route params carry only small serialisable values, such as the fields of a `Location`, never functions or whole reports (§6). The receiving screen's ViewModel loads the data itself.
-- Route param types are defined once in `src/navigation/routes.ts` (planned, NIT-173). React Navigation is not installed yet; until then `App.tsx` stays the Expo template screen.
+- Route param types are defined once in `src/navigation/routes.ts` (planned, NIT-173). React Navigation is not installed yet; until then `App.tsx` renders `HomeScreen` directly inside `SafeAreaProvider`.
 
 ## 4. Folder Structure
 
@@ -101,7 +126,7 @@ All `src/` folders below exist (NIT-163). Files marked `[exists]` are in the rep
 
 ```
 Weatherly/
-├── App.tsx                 # [exists] App root: providers + navigation container only (still the Expo template)
+├── App.tsx                 # [exists] App root: providers + navigation container only (today: SafeAreaProvider + HomeScreen)
 ├── index.ts                # [exists] Expo entry point (do not add logic)
 ├── src/
 │   ├── models/             # AppError.ts [exists], Location.ts [exists], Weather.ts [exists]; AppSettings.ts
@@ -110,22 +135,27 @@ Weatherly/
 │   ├── repositories/       # weatherRepository.ts, locationRepository.ts [exist]; favoritesRepository.ts, settingsRepository.ts
 │   ├── storage/            # .gitkeep; keyValueStorage.ts
 │   ├── navigation/         # .gitkeep; RootNavigator.tsx, routes.ts (typed route params)
-│   ├── viewmodels/         # loadState.ts, useSearchViewModel.ts, useCoordinateSearchViewModel.ts [exist]; useWeatherViewModel.ts, ...
+│   ├── viewmodels/         # loadState.ts, latestRequest.ts, useSearchViewModel.ts, useCoordinateSearchViewModel.ts,
+│   │                       #   useWeatherViewModel.ts [exist]; ...
 │   ├── views/
-│   │   ├── screens/        # .gitkeep; HomeScreen.tsx, DayDetailScreen.tsx, FavoritesScreen.tsx, SettingsScreen.tsx
-│   │   └── components/     # CoordinateSearchForm.tsx [exists]; ForecastRow.tsx, LoadingView.tsx, ErrorView.tsx, ...
-│   ├── theme/              # colors.ts, spacing.ts, typography.ts [exist, minimal; US-08.01 extends them]
-│   └── utils/              # coordinateValidation.ts [exists]; refreshPolicy.ts, units.ts
+│   │   ├── screens/        # HomeScreen.tsx, LocationSearchSheet.tsx [exist]; DayDetailScreen.tsx, FavoritesScreen.tsx, ...
+│   │   └── components/     # Search: CitySearchForm, CoordinateSearchForm, SearchModeSwitch, SearchStatus, LocationResultItem
+│   │                       # Weather: HomeHeader, WelcomePanel, WeatherHero, WeatherStatus, WeatherCard, WeatherIcon,
+│   │                       #   HourlyForecastList, HourlyForecastItem, DailyForecastList, DailyForecastRow [all .tsx, exist]
+│   ├── theme/              # colors.ts, spacing.ts, typography.ts, sky.ts [exist; US-08.01 extends them]
+│   └── utils/              # coordinateValidation.ts, locationFormatting.ts, weatherCode.ts, weatherIcon.ts, weatherFormatting.ts,
+│                           #   forecastSelection.ts, forecastFormatting.ts [exist]; refreshPolicy.ts, units.ts
 ├── tests/                  # All unit tests, mirroring src/ (SPEC D-23)
-│   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json
+│   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json, openMeteoForecastDstStockholm.json
 │   ├── helpers/            # fakeFetch.ts (fake fetch), jsonFixtures.ts (copy-with-one-change, parse-error assertion)
 │   ├── models/             # AppError.test.ts
 │   ├── parsers/            # weatherParser.test.ts, geocodingParser.test.ts
 │   ├── repositories/       # weatherRepository.test.ts, locationRepository.test.ts
 │   ├── services/           # weatherService.test.ts, httpClient.test.ts, geocodingService.test.ts
-│   ├── utils/              # coordinateValidation.test.ts
-│   ├── viewmodels/         # useSearchViewModel.test.ts (pure helper only)
-│   └── views/              # coordinateErrorMessage.test.ts
+│   ├── utils/              # coordinateValidation, locationFormatting, weatherCode, weatherIcon, weatherFormatting,
+│   │                       #   forecastSelection, forecastFormatting, homePresentation tests
+│   ├── viewmodels/         # useSearchViewModel, useWeatherViewModel (pure helpers only), latestRequest tests
+│   └── views/              # coordinateErrorMessage.test.ts, searchStatus.test.ts, weatherStatus.test.ts
 ├── CLAUDE.md, AGENTS.md    # Agent instructions (AGENTS.md points to CLAUDE.md)
 └── *.md                    # All other project documentation, at the root (SPEC D-14)
 ```
@@ -166,6 +196,9 @@ Tests live in the root `tests/` folder, separate from the app code, in the same 
   - Pass only small serialisable params (e.g. a location ID or coordinates), never whole data objects or functions.
   - ViewModels never receive the `navigation` object. A screen reacts to a ViewModel result (e.g. "location selected") by calling `navigation.navigate` itself.
 - Use `FlatList` for any list that can grow (forecast rows, search results, favourites).
+- **A screen scrolls as one.** Never nest a vertical `FlatList` inside a vertical `ScrollView`. Put the content above a list in `ListHeaderComponent` (as `LocationSearchSheet` does), or map short, fixed-length lists inside the `ScrollView` (as `HomeScreen` does with the seven days). Horizontal lists inside a vertical scroll are fine.
+- A modal (`Modal`) is a separate native window: wrap its content in its own `SafeAreaProvider` and set its own status-bar style.
+- Screens with text input set `keyboardShouldPersistTaps="handled"` on their scroll container, so a tap on a result works while the keyboard is open, and wrap content in `KeyboardAvoidingView` (`behavior="padding"` on iOS).
 
 ## 7. Hooks & State Management
 
@@ -239,10 +272,19 @@ Tests live in the root `tests/` folder, separate from the app code, in the same 
 ## 12. UI Styling Principles
 
 - All colours, spacing and font sizes come from `src/theme/`. No magic numbers or hex values in components.
+- **Weather-first home screen (SPEC D-33):**
+  - Content sits on the sky gradient from `src/theme/sky.ts` (day or night, from `current.isDay`), using `skyColors` for text and glass cards and `WeatherCard` for every section.
+  - The sky colours were chosen by computed WCAG contrast. A new colour on the sky must keep small text at 4.5:1 or more.
+  - Gradients and shadows use React Native's `backgroundImage` and `boxShadow` styles, with a solid `backgroundColor` underneath.
+- **Icons (SPEC D-34):** draw weather icons only through `WeatherIcon` with a name from `weatherIconName`. Icons are decorative, so the condition must always be in the element's text or accessibility label.
 - Use `StyleSheet.create` at the bottom of each component file.
 - One consistent visual language across screens: same header style, card style, loading view and error view (shared components).
-- Respect safe areas on iOS notch devices and Android status bars.
-- Show weather values with units and a sensible rounding policy, consistently everywhere.
+- Respect safe areas on iOS notch devices and Android status bars with `react-native-safe-area-context` (SPEC D-26): one `SafeAreaProvider` in `App.tsx`, and `SafeAreaView` **from that package** at the root of each screen. React Native's own `SafeAreaView` is deprecated and iOS-only; do not use it.
+- Show weather values with units and a sensible rounding policy, consistently everywhere. The policy (SPEC D-29) lives in `src/utils/weatherFormatting.ts`:
+  - temperatures and percentages are rounded to whole numbers, and wind to one decimal
+  - a non-breaking space goes before the unit; the compact "2°" (`formatTemperatureShort`) is used only in the hero and the forecast lists, with the full unit in their accessibility labels (D-33)
+  - times are shown in the location's local time, using the report's fixed offset like the API itself (SPEC D-31); `Intl` time zones are not used
+  - views never format weather values themselves.
 
 ## 13. Unit Testing Conventions
 
