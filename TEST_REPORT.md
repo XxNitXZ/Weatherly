@@ -205,6 +205,40 @@ Code uncommitted on `feat/NIT-156-favorites` after `8150846`, on Windows. No scr
 | Restart persistence (UX-12) on the Android Emulator | | Needs the favourites UI; no Android SDK on the Windows machine yet | NOT RUN |
 | Restart persistence (UX-12) on the iOS Simulator | | Needs the favourites UI | NOT RUN |
 
+### 1.11 Favourites UI: Star, Favourites Screen and Return to Home (NIT-239, US-05.03)
+
+Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with PR #3), on Windows. Developer 2's NIT-230 commit (`1bdc00b`, `HomeScreen` signature and day rows) is not in this branch.
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Earlier tests after the source changes, before new tests | 2026-11-23 | `npx tsc --noEmit` without errors; `npx jest` 27 suites, 480 / 480 (ViewModel and repository changes did not break a test) | PASS |
+| `npm run check` after the changes | 2026-11-23 | `tsc --noEmit` without errors; Jest 31 suites, 537 / 537 (480 earlier, 57 new) | PASS |
+| Android and iOS bundles | 2026-11-23 | `npx expo export --platform android --platform ios` (output outside the repository): both bundles exported without errors | PASS |
+| Expo Doctor | 2026-11-23 | `npx expo-doctor`: 20/20 checks passed | PASS |
+| Glyphs used | 2026-11-23 | `star`, `star-outline`, `star-box-multiple-outline`, `trash-can-outline`, `alert-circle-outline` are in the installed MaterialCommunityIcons glyph map; `tsc` checks the names | PASS |
+| `popTo` and `useFocusEffect` exist | 2026-11-23 | In the installed `@react-navigation/native` 7.5.2 / core 7.25.0 typings | PASS |
+| Mutation checks | 2026-11-23 | 6 deliberate faults, each detected, all reverted (§2.3) | PASS |
+| Physical device, Android Emulator, iOS Simulator | | Not available in this session | NOT RUN |
+
+**Manual checks for the final verification** (each on the Android Emulator and the iOS Simulator; all NOT RUN):
+
+| # | Action | Expected result | Status |
+|---|---|---|---|
+| F-1 | Open the app with no place selected | No star in the header; the favourites button and search are shown | NOT RUN |
+| F-2 | Choose Lund, tap the outlined star (UX-10) | Star becomes filled after saving; a screen reader reads "Remove Lund from favourites" | NOT RUN |
+| F-3 | Tap the filled star (UX-11) | Star becomes outlined | NOT RUN |
+| F-4 | Save Lund, search another place, then choose Lund again | Star outlined for the other place, filled for Lund | NOT RUN |
+| F-5 | Search "Lund" again and pick the same result, or enter `55.7058, 13.1932` (UX-24) | Star is already filled; tapping it removes Lund; no second Lund on the favourites screen | NOT RUN |
+| F-6 | Open Favourites with nothing saved (UX-25) | Empty state with the star icon and "Search for a place, then tap the star…" | NOT RUN |
+| F-7 | Save two places, open Favourites | Both listed, newest first, with region and country; a coordinate place shows its coordinates | NOT RUN |
+| F-8 | Tap a favourite (UX-13) | Back on Home with that place's weather; header shows the place; star filled | NOT RUN |
+| F-9 | Tap the favourite that Home already shows | Home again, no new loading indicator (no request) | NOT RUN |
+| F-10 | Remove the shown place on Favourites, then go back | The row disappears; on Home the star is outlined | NOT RUN |
+| F-11 | Save favourites, fully close and reopen the app (UX-12) | Favourites still listed; the star is filled for a saved place | NOT RUN |
+| F-12 | Tap a day row after returning from Favourites (needs NIT-230 merged) | `DayDetail` opens for that place | NOT RUN |
+| F-13 | Back button, iOS swipe-back and the Android back button on Favourites | Home with the same place and scroll position | NOT RUN |
+| F-14 | Landscape and a small phone on Favourites | List scrolls; content stays inside the safe area | NOT RUN |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -237,6 +271,8 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Stored favourites JSON → `Location[]` | JSON parsing | `parseStoredFavorites`, `toStoredFavorites` in `src/parsers/favoritesParser.ts` (US-05.02) | W-08, W-19 | proposed |
 | Storage failures → `AppError` kind | Error-state logic (data layer) | `src/storage/keyValueStorage.ts`, `src/repositories/favoritesRepository.ts` (US-05.02) | W-08 | |
 | Favourites load/save result → `LoadState`, write gating | Error-state logic (ViewModel) | `loadFavoritesState`, `reloadingState`, `planFavoritesChange`, `saveFavoritesChange`, `isFavoriteIn` in `src/viewmodels/useFavoritesViewModel.ts` (US-05.01, US-05.02) | W-08 | proposed |
+| Favourites state → star, list, empty and error views; `AppError` kind → message | Error-state logic (View) | `presentFavoriteToggle` in `HomeHeader.tsx`, `describeFavoritesStatus`, `favoritesLoadErrorMessage`, `favoritesSaveErrorMessage` in `FavoritesStatus.tsx`, `presentFavoriteItem` in `FavoriteListItem.tsx` (NIT-239, US-05.03) | W-08, W-09 | |
+| Read/write order across screens | (extra) | `favoritesRepository` (US-05.03, SPEC D-40) | W-08, W-09 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
 | Refresh / staleness policy | (extra) | `src/utils/refreshPolicy.ts` | W-11, W-16 | |
@@ -364,6 +400,12 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | keyValueStorage (8 tests) | W-08 | AsyncStorage Jest mock: nothing stored; stored JSON; broken JSON text; rejected `getItem`/`setItem`; delayed `setItem` | `undefined`; the value; `parse`; `storage` (earlier value kept); `writeJson` resolves only after the write is confirmed | as expected (2026-11-23) | PASS |
 | favoritesRepository (18 tests) | W-08 | first launch; valid stored list; stored duplicates; malformed JSON, version 2, array root, missing field, latitude 91; read failure; save of two places, of `[]`, of duplicates; write failure; save → load (restart); damaged value then an explicit save; fake `fetch` | `[]`; newest-first list; first-saved duplicate kept; `parse` with the stored text untouched; `storage`; versioned JSON under `weatherly:favorites`; earlier favourites kept after a failed write; exact coordinates restored; recovery only by an explicit save; no network call | as expected (2026-11-23) | PASS |
 | useFavoritesViewModel › pure state rules (28 tests) | W-08 | load results (list, `[]`, `storage`, `parse`, other errors); reload from each state; changes with a saved list, while saving and without a saved list; duplicate adds; failing and delayed saves; the rules on the real repository: add/toggle/remove, five identical adds, a failed write then a retry, damaged storage | success / error with the same kind / `unknown`, never rejects; list kept visible while reloading; no write while saving, after a failed read or for a no-op; new list only after a confirmed write, else the last saved list and the error; storage always equals the state; one write for five adds; damaged text untouched | as expected (2026-11-23) | PASS |
+| homeHeader › presentFavoriteToggle, the star on the home screen (10 tests) | W-08 | saved and unsaved places; a coordinate place; a disabled star; Lund saved / Kiruna not; typed Lund within the tolerance; saving, reloading and loading states | outlined "Add … to favourites" / filled "Remove … from favourites"; follows the selected place; disabled with a hint while saving, reading or loading; the last list stays visible while reading | as expected (2026-11-23) | PASS |
+| favoriteListItem › presentFavoriteItem (3 tests) | W-09 | Lund; a place with a country only; a typed place | "Skåne län, Sverige"; "Monaco"; "33.87° S, 151.21° E"; select and remove labels | as expected (2026-11-23) | PASS |
+| favoritesStatus (22 tests) | W-09, W-18 | loading/idle; empty list; list with entries (also while reading); `parse` and `storage` read errors; every `AppError` kind for both messages; reset confirmation | loading; empty state explaining the star; `null`; reset offered only for `parse`; readable texts without the developer message; save texts say the favourites are unchanged; confirmation says "for good" and "cannot be undone" | as expected (2026-11-23) | PASS |
+| favoriteRoutes (6 tests) | W-09 | Home params with a geocoded and a coordinate place; a favourite read back from storage; chosen place equal to / different from the shown place; no place shown | params survive a JSON round trip; the forecast URL uses the saved coordinates exactly; no new weather request for the shown place, a load otherwise | as expected (2026-11-23) | PASS |
+| useFavoritesViewModel › canChangeFavorites, canResetFavorites, resetStoredFavorites, two screens (13 tests) | W-08, W-09 | saved, refreshing, loading and error states with and without a write; damaged storage then reset; reset with a failing write; two ViewModel copies on the real repository | changes only from a current list and without a write; reset only after a failed read; damaged text replaced by `{"version":1,"favorites":[]}` only by the reset, kept when it fails; a removal on Favourites is seen by Home after its focus reload; no duplicate from two screens; storage unchanged after a failed removal | as expected (2026-11-23) | PASS |
+| favoritesRepository › order of reads and writes (3 tests) | W-08, W-09 | a read started during a delayed write; a failed write followed by another; three operations started at once | the read waits and returns the new list; the next operation still runs; results follow the start order | as expected (2026-11-23) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -424,6 +466,12 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Stored favourites parsing | `null` region/country accepted as missing | the 2 `null` tests (2 of 47 failed) | yes | 2026-11-23 | PASS |
 | Favourites write gating | changes allowed while a write runs | `…writes nothing while another write is running (rapid repeated taps)` (1 of 28 failed) | yes | 2026-11-23 | PASS |
 | Favourites save outcome | failed write reported with the new list | 3 of 28 failed (failed write, non-AppError failure, consistency after a failed write) | yes | 2026-11-23 | PASS |
+| Read/write order across screens | `favoritesRepository` runs each operation at once (no queue) | `…lets a read started during a write wait for it, so the read sees the new list` (1 of 21 failed) | yes | 2026-11-23 | PASS |
+| Favourites write gating | changes allowed while the list is read again | `canChangeFavorites › blocks changes while the list is read again…`; `the star on the home screen › is disabled while the favorites are read again…` (2 of 147 failed) | yes | 2026-11-23 | PASS |
+| Favourites reset gating | reset allowed for any state except loading | `canResetFavorites › never allows deleting a list that was read successfully, or while reading` (1 of 69 failed) | yes | 2026-11-23 | PASS |
+| Favourite star | filled and outlined icons swapped | 7 of 10 failed (`presentFavoriteToggle` and `the star on the home screen`) | yes | 2026-11-23 | PASS |
+| Favourites error view | "Delete saved favourites" offered for every read error | `describeFavoritesStatus › offers deleting the saved favourites only for damaged data` (1 of 22 failed) | yes | 2026-11-23 | PASS |
+| Favourite row texts | coordinates fallback removed | `presentFavoriteItem › falls back to the coordinates for a place entered as coordinates` (1 of 3 failed) | yes | 2026-11-23 | PASS |
 | Hourly/daily grouping (hours) | `Number.isFinite` check removed | **none failed (survived)**. The check was redundant: `NaN` fails every comparison and ±Infinity lies outside today. The check was then removed from the code as dead code; the test for non-finite times still passes. | yes | 2026-11-22 | FAIL (mutant survived) |
 | | | | | | NOT RUN |
 
@@ -447,6 +495,8 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-23 | uncommitted, on `feat/Epic-04` after `e406795`, with NIT-229 | `npm run check` | 348 | 348 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, with NIT-239 and US-05.03 (Windows) | `npm run check` | 537 | 537 | 0 | Claude Code (session with Developer 1) |
 
 ## 3. UX Interaction Scenarios
 

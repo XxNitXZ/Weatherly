@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toAppError, type AppError } from '../models/AppError';
 import type { Location } from '../models/Location';
 import { loadFavorites, saveFavorites } from '../repositories/favoritesRepository';
@@ -33,8 +33,25 @@ export type FavoritesViewModel = {
   readonly removeFavorite: (location: Location) => void;
   /** Removes the place when it is a favorite, otherwise adds it. */
   readonly toggleFavorite: (location: Location) => void;
-  /** Reads the favorites from storage again, e.g. after another screen changed them. */
+  /**
+   * Reads the favorites from storage again, e.g. when a screen comes back
+   * into view after another screen changed them. The same function on every
+   * render, so a screen can use it in a focus effect.
+   */
   readonly reload: () => void;
+  /**
+   * True when a change would be accepted now: the list was read successfully,
+   * is not being read again, and no write is running. Views disable their
+   * favorite buttons otherwise.
+   */
+  readonly canChange: boolean;
+  /**
+   * Deletes all saved favorites, also a damaged stored value, by saving an
+   * empty list. Only after a failed read (`state.status === 'error'`) and only
+   * when the user has confirmed it on screen; never called automatically
+   * (SPEC D-40).
+   */
+  readonly resetFavorites: () => void;
 };
 
 /** What a write left behind: the list storage now holds, and the error if the write failed. */
@@ -117,8 +134,44 @@ export function isFavoriteIn(state: LoadState<Favorites>, location: Location): b
 }
 
 /**
- * ViewModel for the favorite places (W-08; SPEC D-39). Restores the saved
- * favorites when it is first used, and saves every change before showing it.
+ * True when a change may start: the list was read successfully and is not
+ * being read again, and no write is running (SPEC D-39, D-40). While a list
+ * is read again it may be outdated, so a change made from it could bring
+ * back a favorite another screen has just removed.
+ */
+export function canChangeFavorites(state: LoadState<Favorites>, isSaving: boolean): boolean {
+  return !isSaving && state.status === 'success' && !state.isRefreshing;
+}
+
+/**
+ * True when the saved favorites may be deleted: only after a failed read
+ * (damaged or unreadable storage) and while no write is running (SPEC D-40).
+ */
+export function canResetFavorites(state: LoadState<Favorites>, isSaving: boolean): boolean {
+  return !isSaving && state.status === 'error';
+}
+
+/**
+ * Replaces the saved favorites with an empty list using `save` (the
+ * repository's `saveFavorites`, so the same storage path and format).
+ *
+ * @returns `null` once the write is confirmed, otherwise the AppError. Never rejects.
+ */
+export async function resetStoredFavorites(
+  save: (favorites: Favorites) => Promise<void>,
+): Promise<AppError | null> {
+  try {
+    await save([]);
+    return null;
+  } catch (error) {
+    return toAppError(error);
+  }
+}
+
+/**
+ * ViewModel for the favorite places (W-08; SPEC D-39, D-40). Restores the
+ * saved favorites when it is first used, and saves every change before
+ * showing it.
  *
  * Rules:
  * - **Storage decides.** The list shown is always the one storage last
@@ -126,58 +179,94 @@ export function isFavoriteIn(state: LoadState<Favorites>, location: Location): b
  *   write keeps the earlier list and sets `saveError`.
  * - **One write at a time.** Changes while a write runs are ignored
  *   (`isSaving`), so rapid repeated taps cannot interleave two writes.
+ * - **No change from an outdated list.** While the list is read again
+ *   (`reload`), changes are ignored, so a list another screen has changed
+ *   cannot be written back. `reload` itself is ignored while a write runs.
  * - **Damaged storage is kept.** After a failed read, changes are ignored, so
- *   the stored value is not replaced by an empty or partial list.
+ *   the stored value is not replaced by an empty or partial list. Only
+ *   `resetFavorites`, after the user confirmed it, deletes it.
  * - A write makes any read still running outdated (`createLatestRequestGuard`),
- *   so an older read cannot replace the list just saved. `reload` is ignored
- *   while a write runs.
+ *   so an older read cannot replace the list just saved.
  *
  * Each screen that calls this hook has its own copy of the list, so a screen
- * calls `reload` when another screen may have changed the favorites. No
- * global state (SPEC D-10). Navigation stays in the screens (STYLE.md §3.3).
+ * calls `reload` when it comes back into view (SPEC D-40). The repository
+ * runs reads and writes in order, so a read started after another screen's
+ * write sees that write. No global state (SPEC D-10). Navigation stays in the
+ * screens (STYLE.md §3.3).
  */
 export function useFavoritesViewModel(): FavoritesViewModel {
   const [state, setState] = useState<LoadState<Favorites>>({ status: 'loading' });
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<AppError | null>(null);
   const [loadGuard] = useState(createLatestRequestGuard);
-  // The list storage last confirmed; null until a read succeeds and after a failed read.
+  // The list storage last confirmed; null until a read succeeds, while a
+  // read runs, and after a failed read. Changes start only from a list.
   const savedFavorites = useRef<Favorites | null>(null);
   // A ref as well as state: two taps within one render must both see the running write.
   const isSavingRef = useRef(false);
 
-  async function runLoad(requestId: number): Promise<void> {
-    const next = await loadFavoritesState(loadFavorites);
-    if (!loadGuard.isLatest(requestId)) {
-      return;
-    }
-    savedFavorites.current = next.status === 'success' ? next.data : null;
-    setState(next);
-  }
-
-  function reload(): void {
+  // Stable (only refs, the stable guard and state setters), so screens can
+  // call it from a focus effect without re-running the effect every render.
+  const reload = useCallback((): void => {
     if (isSavingRef.current) {
       return;
     }
     const requestId = loadGuard.start();
+    savedFavorites.current = null;
     setSaveError(null);
     setState(reloadingState);
-    void runLoad(requestId);
-  }
 
-  async function runSave(saved: Favorites, next: Favorites): Promise<void> {
+    void (async () => {
+      const next = await loadFavoritesState(loadFavorites);
+      if (!loadGuard.isLatest(requestId)) {
+        return;
+      }
+      savedFavorites.current = next.status === 'success' ? next.data : null;
+      setState(next);
+    })();
+  }, [loadGuard]);
+
+  function startWrite(): void {
     isSavingRef.current = true;
     setIsSaving(true);
     setSaveError(null);
     loadGuard.cancelAll();
+  }
+
+  function endWrite(): void {
+    isSavingRef.current = false;
+    setIsSaving(false);
+  }
+
+  async function runReset(): Promise<void> {
+    startWrite();
+    const error = await resetStoredFavorites(saveFavorites);
+    if (error === null) {
+      savedFavorites.current = [];
+      setState({ status: 'success', data: [], isRefreshing: false });
+    } else {
+      // The damaged value may still be stored, so the error state stays.
+      setSaveError(error);
+    }
+    endWrite();
+  }
+
+  function resetFavorites(): void {
+    if (!canResetFavorites(state, isSavingRef.current)) {
+      return;
+    }
+    void runReset();
+  }
+
+  async function runSave(saved: Favorites, next: Favorites): Promise<void> {
+    startWrite();
 
     const outcome = await saveFavoritesChange(saved, next, saveFavorites);
 
     savedFavorites.current = outcome.favorites;
     setState({ status: 'success', data: outcome.favorites, isRefreshing: false });
     setSaveError(outcome.error);
-    isSavingRef.current = false;
-    setIsSaving(false);
+    endWrite();
   }
 
   function changeFavorites(change: (favorites: Favorites) => Favorites): void {
@@ -193,8 +282,7 @@ export function useFavoritesViewModel(): FavoritesViewModel {
     reload();
     // The screen is gone: ignore a read that is still running.
     return () => loadGuard.cancelAll();
-    // Runs once per mount; `reload` only uses refs and stable setters.
-  }, [loadGuard]);
+  }, [loadGuard, reload]);
 
   return {
     state,
@@ -205,5 +293,7 @@ export function useFavoritesViewModel(): FavoritesViewModel {
     removeFavorite: (location) => changeFavorites((favorites) => removeFavorite(favorites, location)),
     toggleFavorite: (location) => changeFavorites((favorites) => toggleFavorite(favorites, location)),
     reload,
+    canChange: canChangeFavorites(state, isSaving),
+    resetFavorites,
   };
 }
