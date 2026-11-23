@@ -244,8 +244,20 @@ Code uncommitted on `feat/Epic-04` after `e406795`, on macOS. Nothing navigates 
 |---|---|---|---|
 | `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 398 / 398 | PASS |
 | iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
-| Three cards with values and units; feels-like line in the hero; bottom not hidden behind the home indicator (iOS Simulator) | | | NOT RUN |
-| VoiceOver reading of "m/s", "mm", "cm", "h" and compass letters (iOS Simulator) | | | NOT RUN |
+| Three cards with values and units; feels-like line in the hero; bottom not hidden behind the home indicator (iOS Simulator) | 2026-11-23 | Tyrone Asante reported "It works" | PASS (by report) |
+| VoiceOver reading of "m/s", "mm", "cm", "h" and compass letters (iOS Simulator) | 2026-11-23 | Tyrone Asante reported "It works" | PASS (by report) |
+
+**NIT-237 (missing values and small screens; US-04.03 and Epic 4 wrap-up):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 416 / 416 | PASS |
+| iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
+| Expo Doctor | 2026-11-23 | 20/20 checks passed | PASS |
+| UX-26, largest text size (iOS Simulator, iPhone 18 Pro Max, iOS 27.2) | 2026-11-23 | Tyrone Asante reported: "I set the largest text size and it works" | PASS (by report) |
+| UX-26, smallest screen (iOS Simulator, iPhone 17e, iOS 27.2) | 2026-11-23 | iPhone SE is not offered for iOS 27.2, so the smallest available iPhone was used. Tyrone Asante reported "It works" (open a day, scroll to the bottom) | PASS (by report) |
+| UX-26, landscape (iOS Simulator) | 2026-11-23 | Reported to work "when I used resize mode". The app is still portrait-only (`app.json` `"orientation": "portrait"`, STYLE §14) until W-22 (US-08.02), so the screen did not actually rotate; this is not a landscape result | NOT RUN (blocked by W-22) |
+| UX-26 on the Android Emulator | | | NOT RUN |
 
 ### 1.10 Navigation and Return (US-04.01, NIT-231)
 
@@ -421,6 +433,7 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | formatPrecipitation, formatSnowfall, formatHours, formatUvIndex, formatDaylight, formatCompassDirection (10 tests) | W-07, D-39 | `7.5`, `0.4`, `0` mm; `0`, `2.45` cm; `22`, `0`, `3.6` h; UV `0.15`, `0.55`, `7.3`; `25645.94`, `2700`, `0`, `86400`, `3599.9` s; the 8 centres, the real directions, `22.5`, `22.4`, `337.5`, `360`, `359`, `−90`, `405` | "7.5 mm", "0.4 mm", "0.0 mm"; "0.0 cm", "2.5 cm"; "22 h", "0 h", "4 h"; "0", "1", "7"; "7 h 7 min", "45 min", "0 min", "24 h 0 min", "1 h 0 min"; N … NW; N N N NW NW SW S; NE, N, N, N, N, W, NE | as expected (2026-11-23) | PASS |
 | presentDayDetail › feels like (2 tests) | W-07, D-39 | real day 0 of the new response; feels-like min or max removed | "high -2 °C · low -5 °C", spoken "… Feels like high -2 °C, low -5 °C" (no "·"); `undefined` and no "Feels like" in the label | as expected (2026-11-23) | PASS |
 | presentDayConditions (5 tests) | W-07, D-38, D-39 | real rainy day 0; real dry day 5; no optional values; gusts removed; real dry day 3 | all 10 rows ("7.5 mm", "100 %", "22 h", "15.4 m/s", "N", UV "0", "7 h 7 min" …); "0.0 mm", "2 %", "SW", UV "1"; all 10 "Not available"; only gusts "Not available"; zero shown as "0.0 mm"/"0.0 cm" | as expected (2026-11-23) | PASS |
+| day detail from the API response (18 tests) | W-07, W-19, D-38, D-39 | new real Stockholm response complete; each of the 12 optional daily fields the screen shows removed in turn; `wind_gusts_10m_max[2] = null`; feels-like max or min removed; the older response without the detail fields; real dry day 4 | no "Not available" in any of 12 rows; only the matching row "Not available", all others unchanged; "Not available" on day 2 only (day 1 "13.4 m/s", day 3 "6.2 m/s"); feels-like line left out, high still "3 °C"; the 7 new rows "Not available", total "1.4 mm", sunrise "07:53"; "0.0 mm", "0.0 mm", "0.0 cm", "0 h" | as expected (2026-11-23) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -480,6 +493,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Detail fields (NIT-235) | `formatCompassDirection`: `Math.round` → `Math.floor` (sectors shifted by half a point) | 3 compass tests, real dry day in `presentDayConditions` (4 of 398 failed) | yes (file restored from a backup) | 2026-11-23 | PASS |
 | Detail fields (NIT-235) | `formatSnowfall`: unit "cm" → "mm" | snowfall formatter test, real rainy day, zero-as-value test (3 of 398 failed) | yes (file restored from a backup) | 2026-11-23 | PASS |
 | Detail fields (NIT-235) | `weatherParser`: `snowfallSumCm` read from `rain_sum` | 3 parser detail tests, real rainy day (4 of 398 failed) | yes (file restored from a backup) | 2026-11-23 | PASS |
+| Missing values (NIT-237) | `formatOptional`: `value === undefined` → `!value` (zero treated as missing) | 3 `presentDayConditions` tests, 2 end-to-end tests (all rows present; zero on a dry day) (5 of 416 failed) | yes (file restored, `cmp` equal) | 2026-11-23 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -505,6 +519,8 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-23 | uncommitted, on `feat/Epic-04` after `f7371a3`, with NIT-233 | `npm run check` | 359 | 359 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | uncommitted, on `feat/Epic-04` after `f7371a3`, with NIT-234 | `npm run check` | 365 | 365 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-235 | `npm run check` | 398 | 398 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-236 | `npm run check` | 398 | 398 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-237 | `npm run check` | 416 | 416 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -539,6 +555,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-23 | W-23 | A location is loading | Navigate away before loading finishes | No crash and no stale update on the new screen |
 | UX-24 | W-08, W-30 | Location already a favourite | Try to add it again (e.g. via search) | No duplicate favourite is created |
 | UX-25 | W-09 | No favourites saved | Open the Favourites screen | Empty-state guidance is shown |
+| UX-26 | W-07, W-21, W-22 | Day detail open, on the smallest available iPhone simulator (iPhone 17e on iOS 27.2) or a small Android phone. Landscape part only after W-22 (US-08.02) | Scroll to the bottom; rotate to landscape and back; set the largest text size | All cards scroll into view, nothing is cut off or overlaps, labels and values wrap, the header and back navigation keep working |
 
 ### 3.2 Execution Log
 
@@ -561,7 +578,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-08 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-08 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-09 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-09 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Reported "the simulator scenarios also work" for N-1 – N-7 (TEST_REPORT §1.10). The detail screen shows only the weekday, date and place so far, not the day's weather (US-04.02) | PASS (by report; navigation part only) |
+| UX-09 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Navigation reported to work for N-1 – N-7 (§1.10). The day's data (date, condition, high/low, feels-like, sun, precipitation and wind cards) reported to work after NIT-232 – NIT-236 (§1.9) | PASS (by report) |
 | UX-10 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-10 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-11 | Android Emulator (Windows) | | | | NOT RUN |
@@ -594,6 +611,8 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-24 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-25 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-25 | iOS Simulator (macOS) | | | | NOT RUN |
+| UX-26 | Android Emulator (Windows) | | | | NOT RUN |
+| UX-26 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Smallest screen (iPhone 17e) and largest text size reported to work (TEST_REPORT §1.9). Landscape not run: the app is portrait-only until W-22 (US-08.02) | PARTIAL (by report; landscape NOT RUN) |
 
 ## 4. Summary
 
@@ -601,6 +620,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 25 executed | 1 of 25 executed (UX-09, PASS by report, navigation part only) |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 398 / 398 (run on macOS, 2026-11-23) |
+| UX scenarios executed / PASS | 0 of 26 executed | 2 of 26 executed: UX-09 PASS (by report); UX-26 partial (by report; landscape NOT RUN until W-22) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 416 / 416 (run on macOS, 2026-11-23) |
 | Known open defects | | |

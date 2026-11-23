@@ -4,6 +4,7 @@ import longyearbyenFixture from '../fixtures/openMeteoForecastLongyearbyen.json'
 import mcMurdoFixture from '../fixtures/openMeteoForecastMcMurdo.json';
 import type { DailyForecast, HourlyForecast } from '../../src/models/Weather';
 import { parseWeatherResponse } from '../../src/parsers/weatherParser';
+import { REMOVE, copyWith } from '../helpers/jsonFixtures';
 import { weatherIconName } from '../../src/utils/weatherIcon';
 import {
   formatDayLabel,
@@ -365,5 +366,85 @@ describe('presentDayConditions', () => {
     const conditions = presentDayConditions(details.daily[3]);
     expect(conditions.precipitationTotal).toBe(`0.0${NBSP}mm`);
     expect(conditions.snowfall).toBe(`0.0${NBSP}cm`);
+  });
+});
+
+describe('day detail from the API response (missing values end to end, NIT-237)', () => {
+  // The whole chain the detail screen uses: real JSON → parser → presenters →
+  // row texts. Each case changes exactly one thing in the real response.
+  type Rows = Record<string, string>;
+
+  function rowsFor(json: unknown, dayIndex: number): Rows {
+    const report = parseWeatherResponse(json);
+    const day = report.daily[dayIndex];
+    const sun = presentSunTimes(day, report.utcOffsetSeconds);
+    return { ...presentDayConditions(day), sunrise: sun.sunrise, sunset: sun.sunset };
+  }
+
+  const ROW_FOR_FIELD: ReadonlyArray<readonly [string, string]> = [
+    ['precipitation_sum', 'precipitationTotal'],
+    ['precipitation_probability_max', 'precipitationChance'],
+    ['rain_sum', 'rain'],
+    ['snowfall_sum', 'snowfall'],
+    ['precipitation_hours', 'precipitationHours'],
+    ['wind_speed_10m_max', 'windSpeedMax'],
+    ['wind_gusts_10m_max', 'windGustsMax'],
+    ['wind_direction_10m_dominant', 'windDirection'],
+    ['uv_index_max', 'uvIndexMax'],
+    ['daylight_duration', 'daylight'],
+    ['sunrise', 'sunrise'],
+    ['sunset', 'sunset'],
+  ];
+
+  const complete = rowsFor(detailsFixture, 0);
+
+  it('has a real value in every row when the API sends everything', () => {
+    expect(Object.keys(complete)).toHaveLength(ROW_FOR_FIELD.length);
+    expect(Object.values(complete)).not.toContain('Not available');
+  });
+
+  it.each(ROW_FOR_FIELD)('without %s, only the %s row reads "Not available"', (field, row) => {
+    const rows = rowsFor(copyWith(detailsFixture, ['daily', field], REMOVE), 0);
+
+    expect(rows[row]).toBe('Not available');
+    expect({ ...rows, [row]: complete[row] }).toEqual(complete);
+  });
+
+  it('a null for one day gives "Not available" on that day only', () => {
+    const json = copyWith(detailsFixture, ['daily', 'wind_gusts_10m_max', 2], null);
+
+    expect(rowsFor(json, 2).windGustsMax).toBe('Not available');
+    expect(rowsFor(json, 1).windGustsMax).toBe(`13.4${NBSP}m/s`);
+    expect(rowsFor(json, 3).windGustsMax).toBe(`6.2${NBSP}m/s`);
+  });
+
+  it.each(['apparent_temperature_max', 'apparent_temperature_min'])(
+    'without %s, the hero leaves the feels-like line out',
+    (field) => {
+      const report = parseWeatherResponse(copyWith(detailsFixture, ['daily', field], REMOVE));
+      const detail = presentDayDetail(report.daily[0], report.utcOffsetSeconds);
+
+      expect(detail.feelsLike).toBeUndefined();
+      expect(detail.high).toBe(`3${NBSP}°C`);
+    },
+  );
+
+  it('an older response without the detail fields shows "Not available" in exactly the new rows', () => {
+    const rows = rowsFor(fixture, 0);
+    const newRows = ['rain', 'snowfall', 'precipitationHours', 'windGustsMax', 'windDirection', 'uvIndexMax', 'daylight'];
+
+    newRows.forEach((row) => expect(rows[row]).toBe('Not available'));
+    expect(rows.precipitationTotal).toBe(`1.4${NBSP}mm`);
+    expect(rows.sunrise).toBe('07:53');
+  });
+
+  it('shows zero as a value, not as missing, on a real dry day', () => {
+    // daily[4]: no precipitation at all, 0 h.
+    const rows = rowsFor(detailsFixture, 4);
+
+    expect(rows.precipitationTotal).toBe(`0.0${NBSP}mm`);
+    expect(rows.rain).toBe(`0.0${NBSP}mm`);
+    expect(rows.snowfall).toBe(`0.0${NBSP}cm`);
+    expect(rows.precipitationHours).toBe(`0${NBSP}h`);
   });
 });

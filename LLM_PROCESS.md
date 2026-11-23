@@ -835,7 +835,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-173 (US-04.01): tasks NIT-229 – NIT-231; NIT-174 (US-04.02): tasks NIT-232 – NIT-234; NIT-175 (US-04.03): tasks NIT-235, NIT-236 |
+| **Linear user story / task** | NIT-173 (US-04.01): tasks NIT-229 – NIT-231; NIT-174 (US-04.02): tasks NIT-232 – NIT-234; NIT-175 (US-04.03): tasks NIT-235 – NIT-237 |
 | **Requirement IDs** | W-07, W-26, W-29 |
 | **Branch / PR** | `feat/Epic-04`, uncommitted, no PR |
 | **Task given to AI** | Explain an editor error and the template screen after pulling `dev`; explain `npm run ios` vs `npx expo start -c`; plan US-04.01; set up navigation (NIT-229). |
@@ -904,6 +904,14 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - `DayDetailHero` shows "Feels like …" when both values exist; `DayDetailScreen` shows Precipitation (Total, Chance, Rain, Snow, Duration), Wind (Max speed, Max gusts, Coming from) and Sun (Sunrise, Sunset, Daylight, UV index) cards with `DetailRow`.
 >   - No new unit tests: the screen only places strings from the tested presenters.
 >   - Docs: STYLE §3.1; SPEC W-07 §11.1, change log; TEST_REPORT §1.9.
+>   - The student reported "It works" for the cards and the VoiceOver check, so no spoken-value prop was added to `DetailRow`.
+> - **NIT-237:**
+>   - 18 end-to-end tests: the real response with each of the 12 shown optional fields removed, a `null` on one day, feels-like missing, the older response without detail fields, zero on a dry day.
+>   - Mutation check: zero treated as missing in `formatOptional`; 5 of 416 tests failed; file restored.
+>   - UX-26 (day detail on a small screen, in landscape, at the largest text size) added to TEST_REPORT §3; no layout code changed before the simulator check.
+>   - Wrap-up: `npm run check` 416 / 416, iOS export, Expo Doctor 20/20.
+>   - The NIT-237 brief asked for a landscape check without noticing that the app is portrait-only until W-22 (`app.json`, STYLE §14). The student's "resize mode" result was therefore not recorded as a landscape result; the landscape part of UX-26 waits for US-08.02. The brief also named the iPhone SE, which is not available for iOS 27.2. The smallest available iPhone (17e) was used instead and reported to work.
+>   - Docs: SPEC W-07 §11.1, §12 Q4, change log; TEST_REPORT §1.9, §2.2 – §2.4, §3, §4.
 
 **Changes reviewed or modified by students**
 - Accepted as is: passing the `DailyForecast` in the route params (D-36).
