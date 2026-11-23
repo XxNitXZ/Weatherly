@@ -5,7 +5,7 @@ import type { RootStackScreenProps } from '../../navigation/routes';
 import { skyBaseColor, skyColors, skyGradient } from '../../theme/sky';
 import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { fontSize } from '../../theme/typography';
-import { presentSunTimes } from '../../utils/forecastFormatting';
+import { presentDayConditions, presentSunTimes } from '../../utils/forecastFormatting';
 import { formatLocationDetails } from '../../utils/locationFormatting';
 import { DayDetailHero } from '../components/DayDetailHero';
 import { DetailRow } from '../components/DetailRow';
@@ -26,13 +26,15 @@ import { WeatherCard } from '../components/WeatherCard';
  * covers the top.
  *
  * The hero shows the date, condition and high/low (NIT-233), with the
- * place below it, then the sun card with sunrise and sunset (NIT-234).
- * US-04.03 adds wind and precipitation.
+ * place below it (NIT-233), then the Precipitation, Wind and Sun cards
+ * (NIT-234, NIT-236; SPEC D-38, D-39). Precipitation and wind come first,
+ * because they are what the story is about and why most people open a day.
  */
 export function DayDetailScreen({ route }: RootStackScreenProps<'DayDetail'>) {
   const { location, day, utcOffsetSeconds } = route.params;
   const locationDetails = formatLocationDetails(location);
   const sun = presentSunTimes(day, utcOffsetSeconds);
+  const conditions = presentDayConditions(day);
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom', 'left', 'right']}>
@@ -41,9 +43,24 @@ export function DayDetailScreen({ route }: RootStackScreenProps<'DayDetail'>) {
         <DayDetailHero day={day} utcOffsetSeconds={utcOffsetSeconds} />
         {locationDetails !== undefined && <Text style={styles.details}>{locationDetails}</Text>}
         <View style={styles.cards}>
+          <WeatherCard title="Precipitation">
+            <DetailRow label="Total" value={conditions.precipitationTotal} />
+            <DetailRow label="Chance" value={conditions.precipitationChance} />
+            <DetailRow label="Rain" value={conditions.rain} />
+            <DetailRow label="Snow" value={conditions.snowfall} />
+            <DetailRow label="Duration" value={conditions.precipitationHours} />
+          </WeatherCard>
+          <WeatherCard title="Wind">
+            <DetailRow label="Max speed" value={conditions.windSpeedMax} />
+            <DetailRow label="Max gusts" value={conditions.windGustsMax} />
+            {/* Where the wind blows from: the meteorological convention. */}
+            <DetailRow label="Coming from" value={conditions.windDirection} />
+          </WeatherCard>
           <WeatherCard title="Sun">
             <DetailRow label="Sunrise" value={sun.sunrise} />
             <DetailRow label="Sunset" value={sun.sunset} />
+            <DetailRow label="Daylight" value={conditions.daylight} />
+            <DetailRow label="UV index" value={conditions.uvIndexMax} />
           </WeatherCard>
         </View>
       </ScrollView>

@@ -236,7 +236,16 @@ Code uncommitted on `feat/Epic-04` after `e406795`, on macOS. Nothing navigates 
 | Real response to the extended request | 2026-11-23 | Stockholm (59.33, 18.07), URL from `buildForecastUrl`. All 9 new daily fields present with 7 values; `daily_units`: apparent temperature °C, rain mm, snowfall **cm**, precipitation hours h, gusts m/s, direction °, UV index (none), daylight s. Saved as `tests/fixtures/openMeteoForecastStockholmDetails.json` | PASS |
 | `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 398 / 398 | PASS |
 | iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
-| Home still loads with the larger request (iOS Simulator) | | | NOT RUN |
+| Home still loads with the larger request; detail screen unchanged (iOS Simulator) | 2026-11-23 | Tyrone Asante reported "It works" | PASS (by report) |
+
+**NIT-236 (labels and units on screen):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 398 / 398 | PASS |
+| iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
+| Three cards with values and units; feels-like line in the hero; bottom not hidden behind the home indicator (iOS Simulator) | | | NOT RUN |
+| VoiceOver reading of "m/s", "mm", "cm", "h" and compass letters (iOS Simulator) | | | NOT RUN |
 
 ### 1.10 Navigation and Return (US-04.01, NIT-231)
 

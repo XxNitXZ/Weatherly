@@ -835,7 +835,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-173 (US-04.01): tasks NIT-229 – NIT-231; NIT-174 (US-04.02): tasks NIT-232 – NIT-234; NIT-175 (US-04.03): task NIT-235 |
+| **Linear user story / task** | NIT-173 (US-04.01): tasks NIT-229 – NIT-231; NIT-174 (US-04.02): tasks NIT-232 – NIT-234; NIT-175 (US-04.03): tasks NIT-235, NIT-236 |
 | **Requirement IDs** | W-07, W-26, W-29 |
 | **Branch / PR** | `feat/Epic-04`, uncommitted, no PR |
 | **Task given to AI** | Explain an editor error and the template screen after pulling `dev`; explain `npm run ios` vs `npx expo start -c`; plan US-04.01; set up navigation (NIT-229). |
@@ -900,6 +900,10 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - New formatters in `weatherFormatting.ts`; `presentDayConditions` and the optional `feelsLike` of `presentDayDetail` in `forecastFormatting.ts`. The "·" separator is kept out of the spoken label.
 >   - 33 new tests; 3 mutation checks (compass sectors, snow unit, parser field), all caught.
 >   - Docs: SPEC D-39, W-07, §11.1, §12 Q3, change log; STYLE §3.1, §12; TEST_REPORT §1.9, §2.2 – §2.4, §4. Linear: dated field-decision section on NIT-175.
+> - **NIT-236:**
+>   - `DayDetailHero` shows "Feels like …" when both values exist; `DayDetailScreen` shows Precipitation (Total, Chance, Rain, Snow, Duration), Wind (Max speed, Max gusts, Coming from) and Sun (Sunrise, Sunset, Daylight, UV index) cards with `DetailRow`.
+>   - No new unit tests: the screen only places strings from the tested presenters.
+>   - Docs: STYLE §3.1; SPEC W-07 §11.1, change log; TEST_REPORT §1.9.
 
 **Changes reviewed or modified by students**
 - Accepted as is: passing the `DailyForecast` in the route params (D-36).
