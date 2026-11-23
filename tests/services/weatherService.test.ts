@@ -1,4 +1,4 @@
-import fixture from '../fixtures/openMeteoForecast.json';
+import fixture from '../fixtures/openMeteoForecastStockholmDetails.json';
 import {
   CURRENT_FIELDS,
   DAILY_FIELDS,
@@ -59,7 +59,8 @@ describe('buildForecastUrl', () => {
   });
 
   // Guards against the request and the parser drifting apart: the fixture is
-  // the real response that weatherParser is tested against.
+  // the latest real response to this exact request (saved 2026-11-23 with the
+  // detail fields of SPEC D-39), which weatherParser is tested against.
   it('requests exactly the fields present in the parser test fixture', () => {
     const fieldsIn = (block: object): ReadonlyArray<string> =>
       Object.keys(block).filter((key) => key !== 'time' && key !== 'interval');

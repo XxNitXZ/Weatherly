@@ -1,4 +1,5 @@
 import fixture from '../fixtures/openMeteoForecast.json';
+import detailsFixture from '../fixtures/openMeteoForecastStockholmDetails.json';
 import longyearbyenFixture from '../fixtures/openMeteoForecastLongyearbyen.json';
 import mcMurdoFixture from '../fixtures/openMeteoForecastMcMurdo.json';
 import type { DailyForecast, HourlyForecast } from '../../src/models/Weather';
@@ -7,6 +8,7 @@ import { weatherIconName } from '../../src/utils/weatherIcon';
 import {
   formatDayLabel,
   presentDailyForecast,
+  presentDayConditions,
   presentDayDetail,
   presentHourlyForecast,
   presentSunTimes,
@@ -280,5 +282,88 @@ describe('presentSunTimes', () => {
     // Stockholm's 07:53 / 15:12 is 06:53 / 14:12 UTC.
     expect(presentSunTimes(report.daily[0], -5 * 3600)).toEqual({ sunrise: '01:53', sunset: '09:12' });
     expect(presentSunTimes(report.daily[0], 5.5 * 3600)).toEqual({ sunrise: '12:23', sunset: '19:42' });
+  });
+});
+
+describe('presentDayDetail – feels like (SPEC D-39)', () => {
+  const details = parseWeatherResponse(detailsFixture);
+
+  it('adds the real feels-like high and low to the text and the spoken sentence', () => {
+    // daily[0]: Monday 23 November, code 53, 2.7 / 1.3 °C, feels like -2.3 / -4.6 °C.
+    const detail = presentDayDetail(details.daily[0], details.utcOffsetSeconds);
+
+    expect(detail.feelsLike).toBe(`high -2${NBSP}°C · low -5${NBSP}°C`);
+    expect(detail.accessibilityLabel).toBe(
+      `Monday 23 November: Moderate drizzle, high 3${NBSP}°C, low 1${NBSP}°C. Feels like high -2${NBSP}°C, low -5${NBSP}°C`,
+    );
+  });
+
+  it('leaves feels-like out when either value is missing', () => {
+    const { apparentTemperatureMinCelsius: _min, ...noMin } = details.daily[0];
+    const { apparentTemperatureMaxCelsius: _max, ...noMax } = details.daily[0];
+
+    [noMin, noMax].forEach((day) => {
+      const detail = presentDayDetail(day, details.utcOffsetSeconds);
+      expect(detail.feelsLike).toBeUndefined();
+      expect(detail.accessibilityLabel).not.toContain('Feels like');
+    });
+  });
+});
+
+describe('presentDayConditions', () => {
+  const details = parseWeatherResponse(detailsFixture);
+
+  it('presents a real rainy day', () => {
+    expect(presentDayConditions(details.daily[0])).toEqual({
+      precipitationTotal: `7.5${NBSP}mm`,
+      precipitationChance: `100${NBSP}%`,
+      rain: `7.5${NBSP}mm`,
+      snowfall: `0.0${NBSP}cm`,
+      precipitationHours: `22${NBSP}h`,
+      windSpeedMax: `8.5${NBSP}m/s`,
+      windGustsMax: `15.4${NBSP}m/s`,
+      windDirection: 'N',
+      uvIndexMax: '0',
+      daylight: `7${NBSP}h 7${NBSP}min`,
+    });
+  });
+
+  it('presents a real dry day', () => {
+    // daily[5]: no precipitation, wind from 203° (SW).
+    expect(presentDayConditions(details.daily[5])).toMatchObject({
+      precipitationTotal: `0.0${NBSP}mm`,
+      precipitationChance: `2${NBSP}%`,
+      precipitationHours: `0${NBSP}h`,
+      windGustsMax: `5.3${NBSP}m/s`,
+      windDirection: 'SW',
+      uvIndexMax: '1',
+    });
+  });
+
+  it('keeps every row and shows "Not available" when the API sent none of the values', () => {
+    const bare: DailyForecast = {
+      dateEpochMs: details.daily[0].dateEpochMs,
+      weatherCode: 3,
+      temperatureMaxCelsius: 1,
+      temperatureMinCelsius: -1,
+    };
+    const rows = Object.values(presentDayConditions(bare));
+
+    expect(rows).toHaveLength(10);
+    expect(rows.every((value) => value === 'Not available')).toBe(true);
+  });
+
+  it('shows "Not available" only in the row whose value is missing', () => {
+    const { windGustsMaxMs: _gusts, ...noGusts } = details.daily[0];
+    const conditions = presentDayConditions(noGusts);
+
+    expect(conditions.windGustsMax).toBe('Not available');
+    expect(conditions.windSpeedMax).toBe(`8.5${NBSP}m/s`);
+  });
+
+  it('shows zero as a value, not as "Not available"', () => {
+    const conditions = presentDayConditions(details.daily[3]);
+    expect(conditions.precipitationTotal).toBe(`0.0${NBSP}mm`);
+    expect(conditions.snowfall).toBe(`0.0${NBSP}cm`);
   });
 });

@@ -41,6 +41,50 @@ export function formatWindSpeed(metresPerSecond: number): string {
   return `${metresPerSecond.toFixed(1)}${NBSP}m/s`;
 }
 
+/** Rain or total precipitation to one decimal, like wind: 7.5 → "7.5 mm", 0 → "0.0 mm". */
+export function formatPrecipitation(millimetres: number): string {
+  return `${millimetres.toFixed(1)}${NBSP}mm`;
+}
+
+/** Snowfall, which Open-Meteo sends in centimetres: 0.4 → "0.4 cm". */
+export function formatSnowfall(centimetres: number): string {
+  return `${centimetres.toFixed(1)}${NBSP}cm`;
+}
+
+/** Whole hours: 22 → "22 h". */
+export function formatHours(hours: number): string {
+  return `${Math.round(hours)}${NBSP}h`;
+}
+
+/** The UV index has no unit; whole numbers as in public forecasts: 0.55 → "1". */
+export function formatUvIndex(index: number): string {
+  return String(Math.round(index));
+}
+
+/**
+ * Daylight to the nearest minute: 25645.94 s → "7 h 7 min", 2700 → "45 min",
+ * 0 (polar night) → "0 min", 86400 (midnight sun) → "24 h 0 min".
+ */
+export function formatDaylight(seconds: number): string {
+  const totalMinutes = Math.round(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours === 0 ? `${minutes}${NBSP}min` : `${hours}${NBSP}h ${minutes}${NBSP}min`;
+}
+
+const COMPASS_POINTS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const;
+
+/**
+ * The direction the wind comes from, as one of 8 compass points (45° each,
+ * centred on the point): 225 → "SW", 359 → "N". A value exactly between two
+ * points goes to the next one clockwise (22.5 → "NE"). Values outside
+ * 0–360 are wrapped first (-90 → "W").
+ */
+export function formatCompassDirection(degrees: number): string {
+  const normalised = ((degrees % 360) + 360) % 360;
+  return COMPASS_POINTS[Math.round(normalised / 45) % COMPASS_POINTS.length];
+}
+
 /**
  * The time of day at the location (24-hour "HH:MM"), not on the phone. The
  * offset is the location's current UTC offset from the weather report, so it

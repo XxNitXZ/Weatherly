@@ -95,6 +95,16 @@ function parseDaily(daily: JsonObject): ReadonlyArray<DailyForecast> {
   const maxWindSpeeds = readOptionalNumberArray(daily, 'daily', 'wind_speed_10m_max', length);
   const sunrises = readOptionalNumberArray(daily, 'daily', 'sunrise', length);
   const sunsets = readOptionalNumberArray(daily, 'daily', 'sunset', length);
+  const optional = (key: string) => readOptionalNumberArray(daily, 'daily', key, length);
+  const apparentMaxTemperatures = optional('apparent_temperature_max');
+  const apparentMinTemperatures = optional('apparent_temperature_min');
+  const rainSums = optional('rain_sum');
+  const snowfallSums = optional('snowfall_sum');
+  const precipitationHours = optional('precipitation_hours');
+  const maxWindGusts = optional('wind_gusts_10m_max');
+  const windDirections = optional('wind_direction_10m_dominant');
+  const maxUvIndices = optional('uv_index_max');
+  const daylightDurations = optional('daylight_duration');
 
   return dates.map((date, index) => ({
     dateEpochMs: secondsToEpochMs(date),
@@ -106,6 +116,15 @@ function parseDaily(daily: JsonObject): ReadonlyArray<DailyForecast> {
     windSpeedMaxMs: maxWindSpeeds[index],
     sunriseEpochMs: optionalSecondsToEpochMs(sunrises[index]),
     sunsetEpochMs: optionalSecondsToEpochMs(sunsets[index]),
+    apparentTemperatureMaxCelsius: apparentMaxTemperatures[index],
+    apparentTemperatureMinCelsius: apparentMinTemperatures[index],
+    rainSumMm: rainSums[index],
+    snowfallSumCm: snowfallSums[index],
+    precipitationHours: precipitationHours[index],
+    windGustsMaxMs: maxWindGusts[index],
+    windDirectionDominantDegrees: windDirections[index],
+    uvIndexMax: maxUvIndices[index],
+    daylightDurationSeconds: daylightDurations[index],
   }));
 }
 

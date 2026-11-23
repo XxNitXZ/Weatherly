@@ -1,6 +1,18 @@
 import type { DailyForecast, HourlyForecast } from '../models/Weather';
 import { describeWeatherCode } from './weatherCode';
-import { formatLocalTime, formatTemperature, formatTemperatureShort } from './weatherFormatting';
+import {
+  formatCompassDirection,
+  formatDaylight,
+  formatHours,
+  formatLocalTime,
+  formatPercent,
+  formatPrecipitation,
+  formatSnowfall,
+  formatTemperature,
+  formatTemperatureShort,
+  formatUvIndex,
+  formatWindSpeed,
+} from './weatherFormatting';
 import { isDaytimeAt, weatherIconName, type WeatherIconName } from './weatherIcon';
 
 /**
@@ -186,6 +198,11 @@ export type DayDetailPresentation = {
   /** With the full unit, e.g. "2 °C" (SPEC D-33: details keep full units). */
   readonly high: string;
   readonly low: string;
+  /**
+   * E.g. "high -2 °C · low -5 °C"; `undefined` when either value is missing,
+   * so the hero leaves the line out, like the home screen's hero.
+   */
+  readonly feelsLike?: string;
   /** One sentence for screen readers, e.g. "Saturday 21 November: Overcast, high 2 °C, low -3 °C". */
   readonly accessibilityLabel: string;
 };
@@ -200,6 +217,11 @@ export function presentDayDetail(day: DailyForecast, utcOffsetSeconds: number): 
   const condition = describeWeatherCode(day.weatherCode);
   const high = formatTemperature(day.temperatureMaxCelsius);
   const low = formatTemperature(day.temperatureMinCelsius);
+  const { apparentTemperatureMaxCelsius: feelsMax, apparentTemperatureMinCelsius: feelsMin } = day;
+  const hasFeelsLike = feelsMax !== undefined && feelsMin !== undefined;
+  const feelsHigh = hasFeelsLike ? formatTemperature(feelsMax) : '';
+  const feelsLow = hasFeelsLike ? formatTemperature(feelsMin) : '';
+  const summary = `${label.weekdayLong} ${label.dateLong}: ${condition}, high ${high}, low ${low}`;
 
   return {
     weekday: label.weekdayLong,
@@ -208,7 +230,9 @@ export function presentDayDetail(day: DailyForecast, utcOffsetSeconds: number): 
     condition,
     high,
     low,
-    accessibilityLabel: `${label.weekdayLong} ${label.dateLong}: ${condition}, high ${high}, low ${low}`,
+    feelsLike: hasFeelsLike ? `high ${feelsHigh} · low ${feelsLow}` : undefined,
+    // "·" is left out of the spoken text, where it can be read as "dot".
+    accessibilityLabel: hasFeelsLike ? `${summary}. Feels like high ${feelsHigh}, low ${feelsLow}` : summary,
   };
 }
 
@@ -263,5 +287,42 @@ export function presentSunTimes(day: DailyForecast, utcOffsetSeconds: number): S
 }
 
 function formatOptionalLocalTime(epochMs: number | undefined, utcOffsetSeconds: number): string {
-  return epochMs === undefined ? NOT_AVAILABLE_TEXT : formatLocalTime(epochMs, utcOffsetSeconds);
+  return formatOptional(epochMs, (value) => formatLocalTime(value, utcOffsetSeconds));
+}
+
+/**
+ * The values of the precipitation, wind and sun-extra rows of the day detail
+ * screen (W-07, SPEC D-39). Every value is optional in the API; a missing
+ * one keeps its row and reads "Not available" (SPEC D-38).
+ */
+export type DayConditionsPresentation = {
+  readonly precipitationTotal: string;
+  readonly precipitationChance: string;
+  readonly rain: string;
+  readonly snowfall: string;
+  readonly precipitationHours: string;
+  readonly windSpeedMax: string;
+  readonly windGustsMax: string;
+  readonly windDirection: string;
+  readonly uvIndexMax: string;
+  readonly daylight: string;
+};
+
+export function presentDayConditions(day: DailyForecast): DayConditionsPresentation {
+  return {
+    precipitationTotal: formatOptional(day.precipitationSumMm, formatPrecipitation),
+    precipitationChance: formatOptional(day.precipitationProbabilityMaxPercent, formatPercent),
+    rain: formatOptional(day.rainSumMm, formatPrecipitation),
+    snowfall: formatOptional(day.snowfallSumCm, formatSnowfall),
+    precipitationHours: formatOptional(day.precipitationHours, formatHours),
+    windSpeedMax: formatOptional(day.windSpeedMaxMs, formatWindSpeed),
+    windGustsMax: formatOptional(day.windGustsMaxMs, formatWindSpeed),
+    windDirection: formatOptional(day.windDirectionDominantDegrees, formatCompassDirection),
+    uvIndexMax: formatOptional(day.uvIndexMax, formatUvIndex),
+    daylight: formatOptional(day.daylightDurationSeconds, formatDaylight),
+  };
+}
+
+function formatOptional(value: number | undefined, format: (value: number) => string): string {
+  return value === undefined ? NOT_AVAILABLE_TEXT : format(value);
 }

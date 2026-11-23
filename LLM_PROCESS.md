@@ -835,7 +835,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-173 (US-04.01): tasks NIT-229 – NIT-231; NIT-174 (US-04.02): tasks NIT-232 – NIT-234 |
+| **Linear user story / task** | NIT-173 (US-04.01): tasks NIT-229 – NIT-231; NIT-174 (US-04.02): tasks NIT-232 – NIT-234; NIT-175 (US-04.03): task NIT-235 |
 | **Requirement IDs** | W-07, W-26, W-29 |
 | **Branch / PR** | `feat/Epic-04`, uncommitted, no PR |
 | **Task given to AI** | Explain an editor error and the template screen after pulling `dev`; explain `npm run ios` vs `npx expo start -c`; plan US-04.01; set up navigation (NIT-229). |
@@ -892,6 +892,14 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - 6 tests; 2 mutation checks (polar-night check disabled: 1 of 6 failed; offset ignored: 4 of 6 failed); file restored, checksum equal.
 >   - `npx tsx` was run once through `npx` (downloaded to the npx cache, not added to the project) to print the request URLs from `buildForecastUrl`.
 >   - Docs: SPEC D-38, OQ-07 resolved, W-07, §11.1, §12 Q3, change log; STYLE §3.1; TEST_REPORT §1.9, §2.1 – §2.4, §4.
+> - **US-04.03 planning:**
+>   - The AI first recommended adding no new API fields. The student asked it to check the decisions against the lab PDF (screenshots of p. 3); the requirement "any additional data your chosen API provides (wind, precipitation, etc.)" led the AI to reverse that recommendation and propose 9 extra daily fields.
+>   - The student chose: no temperature card (the hero shows it), all proposed fields, no hourly forecast on the detail screen. Recorded as D-39.
+> - **NIT-235:**
+>   - `DAILY_FIELDS`, `DailyForecast` and `weatherParser` extended with 9 optional fields; a new real Stockholm response saved as `tests/fixtures/openMeteoForecastStockholmDetails.json` (units checked in `daily_units`; snow is in cm). The request-field test now uses this fixture.
+>   - New formatters in `weatherFormatting.ts`; `presentDayConditions` and the optional `feelsLike` of `presentDayDetail` in `forecastFormatting.ts`. The "·" separator is kept out of the spoken label.
+>   - 33 new tests; 3 mutation checks (compass sectors, snow unit, parser field), all caught.
+>   - Docs: SPEC D-39, W-07, §11.1, §12 Q3, change log; STYLE §3.1, §12; TEST_REPORT §1.9, §2.2 – §2.4, §4. Linear: dated field-decision section on NIT-175.
 
 **Changes reviewed or modified by students**
 - Accepted as is: passing the `DailyForecast` in the route params (D-36).

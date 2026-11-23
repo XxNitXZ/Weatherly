@@ -1,10 +1,17 @@
 import fixture from '../fixtures/openMeteoForecast.json';
 import type { CurrentWeather } from '../../src/models/Weather';
 import { parseWeatherResponse } from '../../src/parsers/weatherParser';
+import detailsFixture from '../fixtures/openMeteoForecastStockholmDetails.json';
 import {
+  formatCompassDirection,
+  formatDaylight,
+  formatHours,
   formatLocalTime,
   formatPercent,
+  formatPrecipitation,
+  formatSnowfall,
   formatTemperature,
+  formatUvIndex,
   formatWindSpeed,
   presentCurrentWeather,
 } from '../../src/utils/weatherFormatting';
@@ -109,5 +116,79 @@ describe('presentCurrentWeather', () => {
     };
 
     expect(presentCurrentWeather(current, 0).condition).toBe('Unknown conditions');
+  });
+});
+
+// Detail-screen formatters (W-07, SPEC D-39). Real values come from the
+// Stockholm response saved on 2026-11-23.
+describe('formatPrecipitation and formatSnowfall', () => {
+  it('shows real rain to one decimal, also for a dry day', () => {
+    expect(formatPrecipitation(7.5)).toBe(`7.5${NBSP}mm`);
+    expect(formatPrecipitation(0.4)).toBe(`0.4${NBSP}mm`);
+    expect(formatPrecipitation(0)).toBe(`0.0${NBSP}mm`);
+  });
+
+  it('shows snowfall in centimetres, as Open-Meteo sends it', () => {
+    expect(formatSnowfall(0)).toBe(`0.0${NBSP}cm`);
+    expect(formatSnowfall(2.45)).toBe(`2.5${NBSP}cm`);
+  });
+});
+
+describe('formatHours and formatUvIndex', () => {
+  it('rounds to whole numbers', () => {
+    expect(formatHours(22)).toBe(`22${NBSP}h`);
+    expect(formatHours(0)).toBe(`0${NBSP}h`);
+    expect(formatHours(3.6)).toBe(`4${NBSP}h`);
+    expect(formatUvIndex(0.15)).toBe('0');
+    expect(formatUvIndex(0.55)).toBe('1');
+    expect(formatUvIndex(7.3)).toBe('7');
+  });
+});
+
+describe('formatDaylight', () => {
+  it('shows the real Stockholm daylight to the nearest minute', () => {
+    // 25645.94 s = 427.4 min = 7 h 7 min.
+    expect(formatDaylight(25645.94)).toBe(`7${NBSP}h 7${NBSP}min`);
+  });
+
+  it('leaves out the hours under one hour', () => {
+    expect(formatDaylight(2700)).toBe(`45${NBSP}min`);
+  });
+
+  it('shows polar night and midnight sun as 0 min and 24 h', () => {
+    expect(formatDaylight(0)).toBe(`0${NBSP}min`);
+    expect(formatDaylight(86400)).toBe(`24${NBSP}h 0${NBSP}min`);
+  });
+
+  it('carries a rounded-up 60th minute into the hour', () => {
+    expect(formatDaylight(3599.9)).toBe(`1${NBSP}h 0${NBSP}min`);
+  });
+});
+
+describe('formatCompassDirection', () => {
+  it('names the 8 compass points at their centres', () => {
+    expect([0, 45, 90, 135, 180, 225, 270, 315].map(formatCompassDirection)).toEqual([
+      'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW',
+    ]);
+  });
+
+  it('gives the real Stockholm directions', () => {
+    // 3, 3, 350, 334, 310, 203, 198 degrees.
+    expect(detailsFixture.daily.wind_direction_10m_dominant.map(formatCompassDirection)).toEqual([
+      'N', 'N', 'N', 'NW', 'NW', 'SW', 'S',
+    ]);
+  });
+
+  it('puts a value exactly between two points on the next one clockwise', () => {
+    expect(formatCompassDirection(22.5)).toBe('NE');
+    expect(formatCompassDirection(22.4)).toBe('N');
+    expect(formatCompassDirection(337.5)).toBe('N');
+  });
+
+  it('treats 360 as north and wraps values outside 0–360', () => {
+    expect(formatCompassDirection(360)).toBe('N');
+    expect(formatCompassDirection(359)).toBe('N');
+    expect(formatCompassDirection(-90)).toBe('W');
+    expect(formatCompassDirection(405)).toBe('NE');
   });
 });

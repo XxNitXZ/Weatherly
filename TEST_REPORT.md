@@ -226,8 +226,17 @@ Code uncommitted on `feat/Epic-04` after `e406795`, on macOS. Nothing navigates 
 | `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 365 / 365 | PASS |
 | iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
 | Expo Doctor | 2026-11-23 | 20/20 checks passed | PASS |
-| Stockholm times plausible; Longyearbyen "Polar night"; McMurdo (−77.85, 166.67) "Midnight sun"; rows wrap with large text; back and swipe-back still work (iOS Simulator) | | | NOT RUN |
+| Stockholm times plausible; Longyearbyen "Polar night"; McMurdo (−77.85, 166.67) "Midnight sun"; rows wrap with large text; back and swipe-back still work (iOS Simulator) | 2026-11-23 | Tyrone Asante reported "It works" | PASS (by report) |
 | Same on the Android Emulator | | | NOT RUN |
+
+**NIT-235 (detail fields mapped, US-04.03):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Real response to the extended request | 2026-11-23 | Stockholm (59.33, 18.07), URL from `buildForecastUrl`. All 9 new daily fields present with 7 values; `daily_units`: apparent temperature °C, rain mm, snowfall **cm**, precipitation hours h, gusts m/s, direction °, UV index (none), daylight s. Saved as `tests/fixtures/openMeteoForecastStockholmDetails.json` | PASS |
+| `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 398 / 398 | PASS |
+| iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
+| Home still loads with the larger request (iOS Simulator) | | | NOT RUN |
 
 ### 1.10 Navigation and Return (US-04.01, NIT-231)
 
@@ -319,7 +328,7 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | weatherService › buildForecastUrl › keeps negative and zero coordinates | W-13 | -33.87, 0 | `latitude=-33.87`, `longitude=0` | as expected (2026-11-20) | PASS |
 | weatherService › buildForecastUrl › sets the fixed options the parser relies on | W-13 | Stockholm | `timezone=auto`, `forecast_days=7`, `wind_speed_unit=ms`, `timeformat=unixtime` | as expected (2026-11-20) | PASS |
 | weatherService › buildForecastUrl › requests the current, hourly and daily fields as comma-separated lists | W-13 | Stockholm | each block equals its field list joined by commas | as expected (2026-11-20) | PASS |
-| weatherService › buildForecastUrl › requests exactly the fields present in the parser test fixture | W-13, W-14 | field lists vs. fixture keys | identical sets for current, hourly and daily | as expected (2026-11-20) | PASS |
+| weatherService › buildForecastUrl › requests exactly the fields present in the parser test fixture | W-13, W-14 | field lists vs. fixture keys (since NIT-235: `openMeteoForecastStockholmDetails.json`, the response to the extended request) | identical sets for current, hourly and daily | as expected (2026-11-20) | PASS |
 | httpClient › getJson › returns the parsed JSON for a 200 response | W-13 | fake 200, `{"temperature": 1.2}` | resolves to the object; `fetch` got an abort `signal` | as expected (2026-11-20) | PASS |
 | httpClient › getJson › throws a network error when fetch fails (no connection) | W-18 | `fetch` rejects with `TypeError` | `AppError('network')` | as expected (2026-11-20) | PASS |
 | httpClient › getJson › throws a timeout error when no response arrives in time | W-18, W-23 | no answer; fake timers advanced 1000 ms | `AppError('timeout')` | as expected (2026-11-20) | PASS |
@@ -399,6 +408,10 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | DayDetail route params › location without region and country | W-03, W-07 | coordinate-search place | unchanged after the round trip; no `region` or `country` key appears | as expected (2026-11-23) | PASS |
 | presentDayDetail (6 tests) | W-07 | real day 1 (Sat 21 Nov, code 53, 2.1/1.1 °C); real day 6 (Thu 26 Nov, code 3, −3.6/−6.8 °C); all 7 real days; code 0; code 42; min above max | "Saturday", "21 November", "Moderate drizzle", "2 °C"/"1 °C", full spoken sentence; "-4 °C"/"-7 °C"; same date as `formatDayLabel`; day icon `weather-sunny`, not the night icon; "Unknown conditions" in text and label; shown as sent | as expected (2026-11-23) | PASS |
 | presentSunTimes (6 tests) | W-07, D-38 | real Stockholm days 0 and 1; all 7 real Longyearbyen days; all 7 real McMurdo days; 23½ h of daylight from 00:15; sunset, sunrise or both missing; UTC−5 and UTC+5:30 | "07:53"/"15:12", "07:55"/"15:11"; "Polar night" in both rows; "Midnight sun" in both rows; "00:15"/"23:45"; "Not available" in the missing row only; "01:53"/"09:12", "12:23"/"19:42" | as expected (2026-11-23) | PASS |
+| weatherParser › detail fields (16 tests) | W-07, W-14, W-19, D-39 | new real Stockholm response; each of the 9 fields removed; `wind_gusts_10m_max[0] = null`; `snowfall_sum` cut to 5 values; `uv_index_max[2] = "high"`; the older response without the fields | day 0: −2.3/−4.6 °C, 7.5 mm, 0 cm, 22 h, 15.4 m/s, 3°, UV 0.15, 25645.94 s; every day in order; missing → `undefined`, other values kept; null → `undefined` for that day only; `AppError('parse')` naming the field (twice); older response → `undefined` | as expected (2026-11-23) | PASS |
+| formatPrecipitation, formatSnowfall, formatHours, formatUvIndex, formatDaylight, formatCompassDirection (10 tests) | W-07, D-39 | `7.5`, `0.4`, `0` mm; `0`, `2.45` cm; `22`, `0`, `3.6` h; UV `0.15`, `0.55`, `7.3`; `25645.94`, `2700`, `0`, `86400`, `3599.9` s; the 8 centres, the real directions, `22.5`, `22.4`, `337.5`, `360`, `359`, `−90`, `405` | "7.5 mm", "0.4 mm", "0.0 mm"; "0.0 cm", "2.5 cm"; "22 h", "0 h", "4 h"; "0", "1", "7"; "7 h 7 min", "45 min", "0 min", "24 h 0 min", "1 h 0 min"; N … NW; N N N NW NW SW S; NE, N, N, N, N, W, NE | as expected (2026-11-23) | PASS |
+| presentDayDetail › feels like (2 tests) | W-07, D-39 | real day 0 of the new response; feels-like min or max removed | "high -2 °C · low -5 °C", spoken "… Feels like high -2 °C, low -5 °C" (no "·"); `undefined` and no "Feels like" in the label | as expected (2026-11-23) | PASS |
+| presentDayConditions (5 tests) | W-07, D-38, D-39 | real rainy day 0; real dry day 5; no optional values; gusts removed; real dry day 3 | all 10 rows ("7.5 mm", "100 %", "22 h", "15.4 m/s", "N", UV "0", "7 h 7 min" …); "0.0 mm", "2 %", "SW", UV "1"; all 10 "Not available"; only gusts "Not available"; zero shown as "0.0 mm"/"0.0 cm" | as expected (2026-11-23) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -455,6 +468,9 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Day detail texts (NIT-233) | `presentDayDetail`: high and low swapped (`temperatureMinCelsius` ↔ `temperatureMaxCelsius`) | real day 1, real day below zero, min above max (3 of 6 failed) | yes (file restored from a backup; `git diff` empty) | 2026-11-23 | PASS |
 | Sun times (NIT-234) | `presentSunTimes`: polar-night check disabled (`if (false)`) | `…"Polar night" for every real Longyearbyen day` (1 of 6 failed) | yes (file restored from a backup, checksum equal) | 2026-11-23 | PASS |
 | Sun times (NIT-234) | `presentSunTimes`: UTC offset ignored (`formatLocalTime(epochMs, 0)`) | Stockholm times, long real day, "Not available", other offsets (4 of 6 failed) | yes (file restored from a backup, checksum equal) | 2026-11-23 | PASS |
+| Detail fields (NIT-235) | `formatCompassDirection`: `Math.round` → `Math.floor` (sectors shifted by half a point) | 3 compass tests, real dry day in `presentDayConditions` (4 of 398 failed) | yes (file restored from a backup) | 2026-11-23 | PASS |
+| Detail fields (NIT-235) | `formatSnowfall`: unit "cm" → "mm" | snowfall formatter test, real rainy day, zero-as-value test (3 of 398 failed) | yes (file restored from a backup) | 2026-11-23 | PASS |
+| Detail fields (NIT-235) | `weatherParser`: `snowfallSumCm` read from `rain_sum` | 3 parser detail tests, real rainy day (4 of 398 failed) | yes (file restored from a backup) | 2026-11-23 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -479,6 +495,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-231 | `npm run check` | 353 | 353 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | uncommitted, on `feat/Epic-04` after `f7371a3`, with NIT-233 | `npm run check` | 359 | 359 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | uncommitted, on `feat/Epic-04` after `f7371a3`, with NIT-234 | `npm run check` | 365 | 365 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-235 | `npm run check` | 398 | 398 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -576,5 +593,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 25 executed | 1 of 25 executed (UX-09, PASS by report, navigation part only) |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 365 / 365 (run on macOS, 2026-11-23) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 398 / 398 (run on macOS, 2026-11-23) |
 | Known open defects | | |

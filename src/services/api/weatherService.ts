@@ -36,6 +36,15 @@ export const DAILY_FIELDS = [
   'wind_speed_10m_max',
   'sunrise',
   'sunset',
+  'apparent_temperature_max',
+  'apparent_temperature_min',
+  'rain_sum',
+  'snowfall_sum',
+  'precipitation_hours',
+  'wind_gusts_10m_max',
+  'wind_direction_10m_dominant',
+  'uv_index_max',
+  'daylight_duration',
 ] as const;
 
 /** Seven days, starting today (W-05). */

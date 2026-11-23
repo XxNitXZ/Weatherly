@@ -45,11 +45,23 @@ export type DailyForecast = {
    * API on 2026-11-20, TEST_REPORT §1.2):
    * - polar night: sunrise and sunset both equal local midnight
    * - midnight sun: sunrise is local midnight, sunset is the next midnight
-   * How to display these days is decided in the day detail story (SPEC OQ-07).
+   * They are shown as "Polar night" / "Midnight sun" (SPEC D-38).
    * Optional only in case the API leaves the value out.
    */
   readonly sunriseEpochMs?: number;
   readonly sunsetEpochMs?: number;
+  // Shown only on the day detail screen (W-07, SPEC D-39).
+  readonly apparentTemperatureMaxCelsius?: number;
+  readonly apparentTemperatureMinCelsius?: number;
+  readonly rainSumMm?: number;
+  /** Open-Meteo sends snowfall in centimetres, not millimetres. */
+  readonly snowfallSumCm?: number;
+  readonly precipitationHours?: number;
+  readonly windGustsMaxMs?: number;
+  /** Where the wind mostly comes from, 0–360° (0 = north). */
+  readonly windDirectionDominantDegrees?: number;
+  readonly uvIndexMax?: number;
+  readonly daylightDurationSeconds?: number;
 };
 
 /**

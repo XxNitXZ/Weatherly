@@ -1,5 +1,6 @@
 import { parseWeatherResponse } from '../../src/parsers/weatherParser';
 import fixture from '../fixtures/openMeteoForecast.json';
+import detailsFixture from '../fixtures/openMeteoForecastStockholmDetails.json';
 import { REMOVE, copyWith, expectParseError } from '../helpers/jsonFixtures';
 
 /**
@@ -157,5 +158,76 @@ describe('parseWeatherResponse', () => {
       expect(report.current.windSpeedMs).toBeUndefined();
       expect(report.current.temperatureCelsius).toBe(1.2);
     });
+  });
+});
+
+describe('parseWeatherResponse – detail fields (W-07, SPEC D-39)', () => {
+  // A real response to the extended request, saved on 2026-11-23 for Stockholm
+  // (59.33, 18.07). Its `daily_units` confirm °C, mm, cm, h, m/s, ° and s.
+  const DETAIL_KEYS = [
+    'apparent_temperature_max',
+    'apparent_temperature_min',
+    'rain_sum',
+    'snowfall_sum',
+    'precipitation_hours',
+    'wind_gusts_10m_max',
+    'wind_direction_10m_dominant',
+    'uv_index_max',
+    'daylight_duration',
+  ] as const;
+
+  it('reads the detail fields of the real response into the first day', () => {
+    const report = parseWeatherResponse(detailsFixture);
+
+    expect(report.daily).toHaveLength(7);
+    expect(report.daily[0]).toMatchObject({
+      apparentTemperatureMaxCelsius: -2.3,
+      apparentTemperatureMinCelsius: -4.6,
+      rainSumMm: 7.5,
+      snowfallSumCm: 0,
+      precipitationHours: 22,
+      windGustsMaxMs: 15.4,
+      windDirectionDominantDegrees: 3,
+      uvIndexMax: 0.15,
+      daylightDurationSeconds: 25645.94,
+    });
+  });
+
+  it('reads every day of every detail field in the order sent', () => {
+    const report = parseWeatherResponse(detailsFixture);
+
+    expect(report.daily.map((day) => day.windDirectionDominantDegrees)).toEqual(
+      detailsFixture.daily.wind_direction_10m_dominant,
+    );
+    expect(report.daily.map((day) => day.snowfallSumCm)).toEqual(detailsFixture.daily.snowfall_sum);
+    expect(report.daily.map((day) => day.rainSumMm)).toEqual(detailsFixture.daily.rain_sum);
+  });
+
+  it('leaves the detail fields undefined for the older response without them', () => {
+    const day = parseWeatherResponse(fixture).daily[0];
+    expect(day.rainSumMm).toBeUndefined();
+    expect(day.daylightDurationSeconds).toBeUndefined();
+  });
+
+  it.each(DETAIL_KEYS)('turns a missing %s array into undefined, keeping the other values', (key) => {
+    const report = parseWeatherResponse(copyWith(detailsFixture, ['daily', key], REMOVE));
+    expect(report.daily).toHaveLength(7);
+    expect(report.daily[0].temperatureMaxCelsius).toBe(2.7);
+  });
+
+  it('turns a null detail value into undefined for that day only', () => {
+    const report = parseWeatherResponse(copyWith(detailsFixture, ['daily', 'wind_gusts_10m_max', 0], null));
+    expect(report.daily[0].windGustsMaxMs).toBeUndefined();
+    expect(report.daily[1].windGustsMaxMs).toBe(13.4);
+  });
+
+  it('throws a parse error when a detail array has the wrong length', () => {
+    const json = copyWith(detailsFixture, ['daily', 'snowfall_sum'], detailsFixture.daily.snowfall_sum.slice(0, 5));
+    expectWeatherParseError(json, 'daily.snowfall_sum');
+  });
+
+  it('throws a parse error when a detail value is a string', () => {
+    const json = copyWith(detailsFixture, ['daily', 'uv_index_max', 2], 'high');
+    expectWeatherParseError(json, 'daily.uv_index_max');
   });
 });
