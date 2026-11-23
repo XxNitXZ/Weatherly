@@ -201,6 +201,23 @@ Code uncommitted on `feat/Epic-04` after `e406795`, on macOS. Nothing navigates 
 | Expo Doctor | 2026-11-23 | 20/20 checks passed | PASS |
 | Tapping a day opens the right day and place; back button and swipe-back return to Home (iOS Simulator) | 2026-11-23 | Tyrone Asante reported "It works" after the two steps given (open a day; go back with the button and with a swipe) | PASS (by report; detailed checks in NIT-231) |
 
+**NIT-232 (detail screen layout):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 353 / 353 | PASS |
+| iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
+| Day sky, matching blue header with white title and back arrow, white text; back and swipe-back as before (iOS Simulator) | 2026-11-23 | Tyrone Asante reported "It works" | PASS (by report) |
+
+**NIT-233 (date, temperature and condition):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 359 / 359 | PASS |
+| iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
+| Hero shows weekday, date, icon, condition and high/low matching the tapped row; VoiceOver reads it as one sentence; nothing cut off with large text (iOS Simulator) | | | NOT RUN |
+| Same on the Android Emulator | | | NOT RUN |
+
 ### 1.10 Navigation and Return (US-04.01, NIT-231)
 
 Scenarios for UX-09, run on the iOS Simulator by Tyrone Asante on 2026-11-23. Results were reported in one message: "the simulator scenarios also work". No screenshots or logs were shared.
@@ -246,7 +263,7 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Repeated weather load detection | (extra) | `isRepeatedWeatherLoad` in `src/viewmodels/useWeatherViewModel.ts` (US-03.02) | W-04, W-23 | |
 | Forecast request URL | (extra) | `src/services/api/weatherService.ts` | W-13 | |
 | Hourly/daily grouping | Data transformation | `selectForecastDays`, `selectRemainingHoursToday`, `findTodayBounds` in `src/utils/forecastSelection.ts` (US-03.03, US-03.04) | W-05, W-06 | proposed |
-| Forecast day/hour display texts | Data transformation | `formatDayLabel`, `presentDailyForecast`, `presentHourlyForecast` in `src/utils/forecastFormatting.ts` (US-03.03, US-03.04) | W-05, W-06 | |
+| Forecast day/hour display texts | Data transformation | `formatDayLabel`, `presentDailyForecast`, `presentHourlyForecast`, `presentDayDetail` in `src/utils/forecastFormatting.ts` (US-03.03, US-03.04, NIT-233) | W-05, W-06, W-07 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
 | Refresh / staleness policy | (extra) | `src/utils/refreshPolicy.ts` | W-11, W-16 | |
@@ -369,6 +386,7 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | DayDetail route params › survive a JSON round trip (3 tests) | W-07 | params built from the real Stockholm forecast, days 0, 3 and 6 | equal after `JSON.stringify` → `JSON.parse` (D-36: plain, serialisable values) | as expected (2026-11-23) | PASS |
 | DayDetail route params › carry the tapped day | W-07 | params for day 3 | `day.dateEpochMs` is day 3's, not day 0's | as expected (2026-11-23) | PASS |
 | DayDetail route params › location without region and country | W-03, W-07 | coordinate-search place | unchanged after the round trip; no `region` or `country` key appears | as expected (2026-11-23) | PASS |
+| presentDayDetail (6 tests) | W-07 | real day 1 (Sat 21 Nov, code 53, 2.1/1.1 °C); real day 6 (Thu 26 Nov, code 3, −3.6/−6.8 °C); all 7 real days; code 0; code 42; min above max | "Saturday", "21 November", "Moderate drizzle", "2 °C"/"1 °C", full spoken sentence; "-4 °C"/"-7 °C"; same date as `formatDayLabel`; day icon `weather-sunny`, not the night icon; "Unknown conditions" in text and label; shown as sent | as expected (2026-11-23) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -422,6 +440,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Home presentation (redesign) | missing `isDay` gives a night sky | `skyVariantFor › isDay undefined → day sky` (1 of 18 failed) | yes | 2026-11-22 | PASS |
 | Hourly/daily grouping (hours) | `Number.isFinite` check removed | **none failed (survived)**. The check was redundant: `NaN` fails every comparison and ±Infinity lies outside today. The check was then removed from the code as dead code; the test for non-finite times still passes. | yes | 2026-11-22 | FAIL (mutant survived) |
 | Navigation params (NIT-231) | `weatherParser` returns a `Date` instead of epoch ms for `dateEpochMs` (cast past the type checker) | all 5 tests in `tests/navigation/routes.test.ts` failed | yes (file restored from a backup; `git diff` empty) | 2026-11-23 | PASS |
+| Day detail texts (NIT-233) | `presentDayDetail`: high and low swapped (`temperatureMinCelsius` ↔ `temperatureMaxCelsius`) | real day 1, real day below zero, min above max (3 of 6 failed) | yes (file restored from a backup; `git diff` empty) | 2026-11-23 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -444,6 +463,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-23 | uncommitted, on `feat/Epic-04` after `e406795`, with NIT-229 | `npm run check` | 348 | 348 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | uncommitted, on `feat/Epic-04` after `8150846`, with NIT-230 | `npm run check` | 348 | 348 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-231 | `npm run check` | 353 | 353 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-23 | uncommitted, on `feat/Epic-04` after `f7371a3`, with NIT-233 | `npm run check` | 359 | 359 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -541,5 +561,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 25 executed | 1 of 25 executed (UX-09, PASS by report, navigation part only) |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 353 / 353 (run on macOS, 2026-11-23) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 359 / 359 (run on macOS, 2026-11-23) |
 | Known open defects | | |

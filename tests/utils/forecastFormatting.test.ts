@@ -1,9 +1,11 @@
 import fixture from '../fixtures/openMeteoForecast.json';
 import type { DailyForecast, HourlyForecast } from '../../src/models/Weather';
 import { parseWeatherResponse } from '../../src/parsers/weatherParser';
+import { weatherIconName } from '../../src/utils/weatherIcon';
 import {
   formatDayLabel,
   presentDailyForecast,
+  presentDayDetail,
   presentHourlyForecast,
 } from '../../src/utils/forecastFormatting';
 
@@ -161,5 +163,61 @@ describe('presentHourlyForecast', () => {
       condition: 'Unknown conditions',
       accessibilityLabel: `00:00: 0${NBSP}°C, Unknown conditions`,
     });
+  });
+});
+
+describe('presentDayDetail', () => {
+  it('presents a tapped day of the real forecast with full units', () => {
+    // daily[1]: Saturday 21 November, code 53, max 2.1 °C, min 1.1 °C.
+    expect(presentDayDetail(report.daily[1], STOCKHOLM_OFFSET)).toEqual({
+      weekday: 'Saturday',
+      date: '21 November',
+      icon: weatherIconName(53, true),
+      condition: 'Moderate drizzle',
+      high: `2${NBSP}°C`,
+      low: `1${NBSP}°C`,
+      accessibilityLabel: `Saturday 21 November: Moderate drizzle, high 2${NBSP}°C, low 1${NBSP}°C`,
+    });
+  });
+
+  it('keeps the minus sign of a real day below zero', () => {
+    // daily[6]: Thursday 26 November, code 3, max -3.6 °C, min -6.8 °C.
+    const detail = presentDayDetail(report.daily[6], STOCKHOLM_OFFSET);
+
+    expect(detail.weekday).toBe('Thursday');
+    expect(detail.condition).toBe('Overcast');
+    expect(detail.high).toBe(`-4${NBSP}°C`);
+    expect(detail.low).toBe(`-7${NBSP}°C`);
+    expect(detail.accessibilityLabel).toBe(`Thursday 26 November: Overcast, high -4${NBSP}°C, low -7${NBSP}°C`);
+  });
+
+  it('uses the same date as the seven-day row it was opened from', () => {
+    report.daily.forEach((entry) => {
+      const label = formatDayLabel(entry.dateEpochMs, STOCKHOLM_OFFSET);
+      const detail = presentDayDetail(entry, STOCKHOLM_OFFSET);
+      expect(`${detail.weekday} ${detail.date}`).toBe(`${label.weekdayLong} ${label.dateLong}`);
+    });
+  });
+
+  it('always uses the day icon, also for a clear sky', () => {
+    const clear: DailyForecast = { ...report.daily[0], weatherCode: 0 };
+    expect(presentDayDetail(clear, STOCKHOLM_OFFSET).icon).toBe(weatherIconName(0, true));
+    expect(presentDayDetail(clear, STOCKHOLM_OFFSET).icon).not.toBe(weatherIconName(0, false));
+  });
+
+  it('shows the fallback description for an unknown weather code', () => {
+    const unknown: DailyForecast = { ...report.daily[0], weatherCode: 42 };
+    const detail = presentDayDetail(unknown, STOCKHOLM_OFFSET);
+
+    expect(detail.condition).toBe('Unknown conditions');
+    expect(detail.accessibilityLabel).toContain('Unknown conditions');
+  });
+
+  it('shows minimum and maximum as sent, even when they are in the wrong order', () => {
+    const swapped: DailyForecast = { ...report.daily[0], temperatureMaxCelsius: -1, temperatureMinCelsius: 3 };
+    const detail = presentDayDetail(swapped, STOCKHOLM_OFFSET);
+
+    expect(detail.high).toBe(`-1${NBSP}°C`);
+    expect(detail.low).toBe(`3${NBSP}°C`);
   });
 });
