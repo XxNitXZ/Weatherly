@@ -1,15 +1,19 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Location } from '../../models/Location';
+import type { RootStackScreenProps } from '../../navigation/routes';
 import { skyBaseColor, skyGradient, skyVariantFor } from '../../theme/sky';
 import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { selectTodayForecast } from '../../utils/forecastSelection';
 import { useCoordinateSearchViewModel } from '../../viewmodels/useCoordinateSearchViewModel';
+import { useFavoritesViewModel } from '../../viewmodels/useFavoritesViewModel';
 import { useSearchViewModel } from '../../viewmodels/useSearchViewModel';
 import { useWeatherViewModel } from '../../viewmodels/useWeatherViewModel';
 import { DailyForecastList } from '../components/DailyForecastList';
+import { FavoritesSaveNotice } from '../components/FavoritesStatus';
 import { HomeHeader } from '../components/HomeHeader';
 import { HourlyForecastList } from '../components/HourlyForecastList';
 import { WeatherHero } from '../components/WeatherHero';
@@ -20,7 +24,8 @@ import { LocationSearchSheet } from './LocationSearchSheet';
 /**
  * Home screen (US-03.01 – US-03.04, SPEC D-22, D-33): weather first.
  *
- * - **Header:** the selected place and a compact search button.
+ * - **Header:** the selected place, its favorite star, and compact buttons
+ *   for the favorites list and search.
  * - **Body:** the current weather as a large hero, then "Rest of today" and
  *   the seven-day forecast, on a day or night sky. Before a place is chosen,
  *   a welcome panel invites a search.
@@ -31,11 +36,21 @@ import { LocationSearchSheet } from './LocationSearchSheet';
  * All weather sections come from one report; no section makes a request.
  * The body is a vertical `ScrollView` with a horizontal hourly list and the
  * seven days as plain rows, so no vertical list is nested.
+ *
+ * Favorites (US-05.01, US-05.03; SPEC D-40):
+ * - The star shows and toggles whether the selected place is saved, through
+ *   `useFavoritesViewModel`; it is disabled while favorites are saved or read.
+ * - Home reads the favorites again whenever it comes back into view, because
+ *   the favorites screen has its own ViewModel and may have removed some.
+ * - A place chosen on the favorites screen comes back as the
+ *   `selectedLocation` route param and goes through `handleSelectLocation`,
+ *   the same weather flow as a search result.
  */
-export function HomeScreen() {
+export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) {
   const searchViewModel = useSearchViewModel();
   const coordinateViewModel = useCoordinateSearchViewModel();
   const weatherViewModel = useWeatherViewModel();
+  const favoritesViewModel = useFavoritesViewModel();
   const [isSearchOpen, setSearchOpen] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
 
@@ -56,12 +71,51 @@ export function HomeScreen() {
     }
   }
 
+  // Coming back into view: the favorites screen may have changed the saved
+  // favorites, so the star must follow storage, not this screen's old copy.
+  const { reload: reloadFavorites } = favoritesViewModel;
+  useFocusEffect(
+    useCallback(() => {
+      reloadFavorites();
+    }, [reloadFavorites]),
+  );
+
+  // A place handed back by another screen (a chosen favorite): load it like a
+  // search result, then clear the param so the same place can be chosen again
+  // later. Choosing the place already shown sends no request (D-30).
+  const placeFromRoute = route.params?.selectedLocation;
+  useEffect(() => {
+    if (placeFromRoute !== undefined) {
+      handleSelectLocation(placeFromRoute);
+      navigation.setParams({ selectedLocation: undefined });
+    }
+    // Runs only when a new place arrives; handleSelectLocation uses no stale values.
+  }, [placeFromRoute, navigation]);
+
   return (
     <View style={[styles.root, sky === 'night' ? styles.skyNight : styles.skyDay]}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.column}>
-          <HomeHeader location={location} onPressSearch={() => setSearchOpen(true)} />
+          <HomeHeader
+            location={location}
+            favorite={
+              location === null
+                ? undefined
+                : {
+                    isFavorite: favoritesViewModel.isFavorite(location),
+                    isDisabled: !favoritesViewModel.canChange,
+                    onToggle: () => favoritesViewModel.toggleFavorite(location),
+                  }
+            }
+            onPressFavorites={() => navigation.navigate('Favorites')}
+            onPressSearch={() => setSearchOpen(true)}
+          />
+          {favoritesViewModel.saveError !== null && (
+            <View style={styles.notice}>
+              <FavoritesSaveNotice error={favoritesViewModel.saveError} tone="sky" />
+            </View>
+          )}
         </View>
         <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
           {location === null ? (
@@ -121,6 +175,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
+  },
+  notice: {
+    paddingHorizontal: spacing.m,
+    paddingBottom: spacing.s,
   },
   content: {
     width: '100%',

@@ -4,10 +4,13 @@ import type { Location } from '../../src/models/Location';
 import { loadFavorites, saveFavorites } from '../../src/repositories/favoritesRepository';
 import { addFavorite, removeFavorite, toggleFavorite } from '../../src/utils/favorites';
 import {
+  canChangeFavorites,
+  canResetFavorites,
   isFavoriteIn,
   loadFavoritesState,
   planFavoritesChange,
   reloadingState,
+  resetStoredFavorites,
   saveFavoritesChange,
 } from '../../src/viewmodels/useFavoritesViewModel';
 import type { LoadState } from '../../src/viewmodels/loadState';
@@ -277,5 +280,131 @@ describe('the rules with the real repository', () => {
     // The hook keeps no saved list after a failed read, so no change is planned.
     expect(planFavoritesChange(null, false, (list) => addFavorite(list, LUND))).toBeNull();
     await expect(AsyncStorage.getItem('weatherly:favorites')).resolves.toBe('{"version":7}');
+  });
+});
+
+describe('canChangeFavorites', () => {
+  it('allows a change once the list was read and no write runs', () => {
+    expect(canChangeFavorites(success([LUND]), false)).toBe(true);
+    expect(canChangeFavorites(success([]), false)).toBe(true);
+  });
+
+  it('blocks changes while a write runs', () => {
+    expect(canChangeFavorites(success([LUND]), true)).toBe(false);
+  });
+
+  it('blocks changes while the list is read again, because it may be outdated', () => {
+    expect(canChangeFavorites({ status: 'success', data: [LUND], isRefreshing: true }, false)).toBe(false);
+  });
+
+  it('blocks changes before the first read and after a failed read', () => {
+    expect(canChangeFavorites({ status: 'loading' }, false)).toBe(false);
+    expect(canChangeFavorites({ status: 'error', error: new AppError('parse', 'damaged') }, false)).toBe(false);
+  });
+});
+
+describe('canResetFavorites', () => {
+  it('allows deleting only after a failed read and while no write runs', () => {
+    const failed: LoadState<Favorites> = { status: 'error', error: new AppError('parse', 'damaged') };
+
+    expect(canResetFavorites(failed, false)).toBe(true);
+    expect(canResetFavorites(failed, true)).toBe(false);
+  });
+
+  it('never allows deleting a list that was read successfully, or while reading', () => {
+    expect(canResetFavorites(success([LUND]), false)).toBe(false);
+    expect(canResetFavorites(success([]), false)).toBe(false);
+    expect(canResetFavorites({ status: 'loading' }, false)).toBe(false);
+  });
+});
+
+describe('resetStoredFavorites', () => {
+  it('replaces damaged storage with an empty versioned list, so favourites work again', async () => {
+    await AsyncStorage.setItem('weatherly:favorites', '{"version":7}');
+    await expect(loadFavoritesState(loadFavorites)).resolves.toMatchObject({ status: 'error' });
+
+    await expect(resetStoredFavorites(saveFavorites)).resolves.toBeNull();
+
+    await expect(AsyncStorage.getItem('weatherly:favorites')).resolves.toBe('{"version":1,"favorites":[]}');
+    await expect(loadFavoritesState(loadFavorites)).resolves.toEqual(success([]));
+  });
+
+  it('returns the error and leaves the damaged text when the write fails', async () => {
+    await AsyncStorage.setItem('weatherly:favorites', '{"version":7}');
+    jest.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error('disk full'));
+
+    const error = await resetStoredFavorites(saveFavorites);
+
+    expect(error?.kind).toBe('storage');
+    await expect(AsyncStorage.getItem('weatherly:favorites')).resolves.toBe('{"version":7}');
+  });
+
+  it('maps a failure that is not an AppError to kind unknown, and never rejects', async () => {
+    const error = await resetStoredFavorites(async () => {
+      throw new Error('bug');
+    });
+
+    expect(error?.kind).toBe('unknown');
+  });
+});
+
+describe('two screens sharing the persisted favourites', () => {
+  /** One screen's ViewModel copy: read, then plan and save one change, as the hook does. */
+  async function readList(): Promise<Favorites> {
+    const state = await loadFavoritesState(loadFavorites);
+    if (state.status !== 'success') {
+      throw new Error(`expected a list, got ${state.status}`);
+    }
+    return state.data;
+  }
+
+  async function change(saved: Favorites, apply: (list: Favorites) => Favorites): Promise<Favorites> {
+    const next = planFavoritesChange(saved, false, apply);
+    return next === null ? saved : (await saveFavoritesChange(saved, next, saveFavorites)).favorites;
+  }
+
+  it('shows a removal made on the favourites screen when Home reads again on focus', async () => {
+    await saveFavorites([LUND, KIRUNA]);
+    const homeCopy = await readList();
+    expect(isFavoriteIn(success(homeCopy), LUND)).toBe(true);
+
+    // The favourites screen opens with its own copy and removes Lund.
+    const favoritesCopy = await change(await readList(), (list) => removeFavorite(list, LUND));
+    expect(favoritesCopy).toEqual([KIRUNA]);
+
+    // Back on Home: its old copy is outdated until the focus reload.
+    expect(isFavoriteIn(success(homeCopy), LUND)).toBe(true);
+    const reloaded = await readList();
+    expect(isFavoriteIn(success(reloaded), LUND)).toBe(false);
+  });
+
+  it('shows a favourite added on Home on the favourites screen, newest first', async () => {
+    await saveFavorites([KIRUNA]);
+
+    await change(await readList(), (list) => toggleFavorite(list, LUND));
+
+    await expect(readList()).resolves.toEqual([LUND, KIRUNA]);
+  });
+
+  it('does not create a duplicate when the same place is added from both screens', async () => {
+    const first = await change(await readList(), (list) => addFavorite(list, LUND));
+    const second = await change(await readList(), (list) => addFavorite(list, TYPED_LUND));
+
+    expect(first).toEqual([LUND]);
+    expect(second).toEqual([LUND]);
+    await expect(readList()).resolves.toEqual([LUND]);
+  });
+
+  it('keeps both screens consistent with storage when a removal fails', async () => {
+    await saveFavorites([LUND, KIRUNA]);
+    jest.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error('disk full'));
+
+    const saved = await readList();
+    const next = planFavoritesChange(saved, false, (list) => removeFavorite(list, LUND));
+    const outcome = await saveFavoritesChange(saved, next ?? saved, saveFavorites);
+
+    expect(outcome.error?.kind).toBe('storage');
+    expect(outcome.favorites).toEqual([LUND, KIRUNA]);
+    await expect(readList()).resolves.toEqual([LUND, KIRUNA]);
   });
 });

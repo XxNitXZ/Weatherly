@@ -966,6 +966,80 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-014 – NIT-239 favourite star and US-05.03 favourites screen (NIT-178)
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-23 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows; no emulator, simulator or physical device used |
+| **Linear user story / task** | NIT-176 (US-05.01): NIT-239; NIT-178 (US-05.03): NIT-244 – NIT-246 |
+| **Requirement IDs** | W-08, W-09 |
+| **Branch / PR** | `feat/NIT-178-favorites-screen` (from `dev` at `9d90de1`), uncommitted, no PR |
+| **Task given to AI** | Complete Epic 5: the favourite star on the home header, a favourites screen with list, empty, loading and error states, navigation to it and back to Home with the chosen place, favourites synchronised between the screens, handling of damaged storage, tests and docs. Reuse the phase 1 code; do not overwrite Developer 2's Epic 4 work. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | Structured prompt "We are continuing the Weatherly project… CURRENT TASKS: NIT-239… NIT-178…", which fixed the synchronisation strategy (one ViewModel per screen, reload on focus, storage as source of truth) and allowed an optional, confirmed reset of damaged storage. |
+
+**Changes made by AI**
+> - **Git check:**
+>   - The branch equalled `dev` (`9d90de1`, PR #3 merged), with NIT-229 included.
+>   - Developer 2's NIT-230 commit `1bdc00b` (on `origin/feat/Epic-04`, not merged) changes the `HomeScreen` signature to `{ navigation }`. It was read with `git show` but not merged. The new signature `{ navigation, route }` uses the same style, so the merge conflict should be small.
+> - **ViewModel and repository** (phase 1 code, extended):
+>   - `useFavoritesViewModel`: `reload` made stable with `useCallback`; changes blocked while the list is read again; new `canChange` and `resetFavorites`; pure `canChangeFavorites`, `canResetFavorites`, `resetStoredFavorites`.
+>   - `favoritesRepository`: loads and saves run in call order.
+> - **Navigation:**
+>   - `routes.ts`: `Home: { selectedLocation?: Location } | undefined` and `Favorites: undefined`.
+>   - `RootNavigator.tsx`: the `Favorites` screen on the existing stack.
+> - **Views:**
+>   - `HomeHeader`: star (only with a place) and a favourites button; pure `presentFavoriteToggle`.
+>   - `HomeScreen`: favourites ViewModel; `useFocusEffect` reload; `selectedLocation` param → `handleSelectLocation`, then cleared; save-error notice.
+>   - New: `FavoritesScreen` (`FlatList`, `popTo('Home', …)`, `Alert` before reset), `FavoriteListItem`, `FavoritesStatus`.
+> - **Tests (57 new):**
+>   - new files: `tests/views/homeHeader.test.ts`, `tests/views/favoriteListItem.test.ts`, `tests/views/favoritesStatus.test.ts`, `tests/navigation/favoriteRoutes.test.ts`;
+>   - new blocks at the end of `tests/viewmodels/useFavoritesViewModel.test.ts` and `tests/repositories/favoritesRepository.test.ts`.
+> - **Checks:** 6 mutation checks; Android and iOS bundle export.
+> - **Docs:**
+>   - SPEC: W-08/W-09 detail, §11, §11.1, Q10, D-40, §14.
+>   - STYLE: §3.1, §3.3, §4.
+>   - CONTEXT: §18.
+>   - TEST_REPORT: §1.11 with a manual checklist F-1 – F-14 (all NOT RUN), §2.1 – §2.4.
+> - **Not changed:** `useWeatherViewModel`, the weather/location services, parsers and repositories, `DayDetailScreen`, `App.tsx` and the existing tests' code. Linear was not updated.
+
+**Changes reviewed or modified by students**
+- Accepted as is:
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- **Race found while designing:** with one ViewModel per screen, a tap on the star during Home's focus reload could save Home's old copy and bring back a place removed on the favourites screen. Changes are now blocked while reading (`canChange`), and the repository keeps reads and writes in order.
+- **Type error:** the first `FavoritesScreen` passed `null` as `ListHeaderComponent`, which the type does not allow; `tsc` caught it.
+- **Wrong test counts:** the first TEST_REPORT draft said `favoriteRoutes` had 5 tests and the new ViewModel blocks 14; recounting gave 6 and 13.
+- **Invented "before" run:** it also listed a "before the changes" `npm run check`. That run had not happened; the first run came after the source changes. It was corrected to what was actually run.
+- **Untested wiring:** the hooks, the focus effect and the param effect in `HomeScreen` are not unit-tested (no React renderer, SPEC Q21). Only their pure rules are; the rest needs the manual checks in TEST_REPORT §1.11.
+- **Numbering clash:** Developer 2's unmerged commit also adds a TEST_REPORT "§1.10", which clashes with the favourites §1.10 already on `dev`; renumber when merging.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (also part of `npm run check`, 2026-11-23) |
+| Unit tests (names) | `npm run check`: 31 suites, 537/537 PASS (480 earlier + 57 new) |
+| Mutation checks | 6 faults introduced and reverted, all detected (TEST_REPORT §2.3) |
+| `npx expo-doctor` | 20/20 checks passed |
+| Bundle build | `npx expo export --platform android --platform ios` without errors (output outside the repository) |
+| Android Emulator (what was checked) | not run |
+| iOS Simulator (what was checked) | not run |
+| Physical device (Expo Go) | not run |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

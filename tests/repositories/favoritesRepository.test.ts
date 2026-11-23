@@ -202,3 +202,52 @@ describe('network', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('order of reads and writes (SPEC D-40)', () => {
+  it('lets a read started during a write wait for it, so the read sees the new list', async () => {
+    await saveFavorites([LUND]);
+    let confirmWrite: () => void = () => undefined;
+    const realSetItem = jest.requireActual<typeof AsyncStorage>(
+      '@react-native-async-storage/async-storage/jest/async-storage-mock',
+    ).setItem;
+    jest.mocked(AsyncStorage.setItem).mockImplementationOnce(
+      (key, value) =>
+        new Promise<void>((resolve) => {
+          confirmWrite = () => {
+            void realSetItem(key, value).then(() => resolve());
+          };
+        }),
+    );
+
+    // The favourites screen removes Lund; Home comes back into view and reads.
+    const writing = saveFavorites([LUND_ENGLAND]);
+    const reading = loadFavorites();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(AsyncStorage.getItem).not.toHaveBeenCalled();
+
+    confirmWrite();
+    await writing;
+    await expect(reading).resolves.toEqual([LUND_ENGLAND]);
+  });
+
+  it('runs the next operation after a failed one', async () => {
+    jest.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error('disk full'));
+
+    const failing = saveFavorites([LUND]);
+    const next = saveFavorites([LUND_ENGLAND]);
+
+    await expectAppError(failing, 'storage');
+    await next;
+    await expect(loadFavorites()).resolves.toEqual([LUND_ENGLAND]);
+  });
+
+  it('runs operations in the order they were started', async () => {
+    const first = saveFavorites([LUND]);
+    const second = saveFavorites([LUND_ENGLAND, LUND]);
+    const read = loadFavorites();
+
+    await Promise.all([first, second]);
+    await expect(read).resolves.toEqual([LUND_ENGLAND, LUND]);
+  });
+});

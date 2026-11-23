@@ -8,12 +8,16 @@ import type { DailyForecast } from '../models/Weather';
  * Params are small, serialisable plain values. `DayDetail` gets the day the
  * user tapped, so the detail screen sends no request (SPEC D-36).
  *
- * `Favorites` and `Settings` are added in Epic 5 and Epic 6, together with
- * their screens.
+ * `Settings` is added in Epic 6, together with its screen.
  */
 export type RootStackParamList = {
-  /** The weather-first home screen; it owns search and the selected place. */
-  Home: undefined;
+  /**
+   * The weather-first home screen; it owns search and the selected place.
+   * `selectedLocation` is set when another screen hands a place back, e.g. a
+   * favorite chosen on `Favorites` (SPEC D-40): Home then loads its weather
+   * through the same flow as a search result, and clears the param.
+   */
+  Home: { readonly selectedLocation?: Location } | undefined;
   DayDetail: {
     /** The place the forecast is for; its name is the screen title. */
     readonly location: Location;
@@ -22,6 +26,8 @@ export type RootStackParamList = {
     /** The report's fixed UTC offset, to show the day's dates and times in local time (SPEC D-31). */
     readonly utcOffsetSeconds: number;
   };
+  /** The saved favorite places (W-09). It reads them itself, so it needs no params. */
+  Favorites: undefined;
 };
 
 /** Typed `navigation` and `route` props for one screen of the root stack. */

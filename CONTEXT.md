@@ -225,6 +225,13 @@ Update this section when the state changes.
 
 **Windows machine (Developer 1), 2026-11-22:** dependencies installed and `npm run check` passes; no Android SDK or emulator installed yet (`ANDROID_HOME` not set).
 
-**In progress on `feat/NIT-156-favorites`** (from `dev` at `8150846`, uncommitted, 2026-11-23): favourites logic and persistence for US-05.01 (NIT-176) and US-05.02 (NIT-177): identity rule, storage format, `keyValueStorage`, `favoritesRepository`, `useFavoritesViewModel` and their tests (SPEC D-37 – D-39). No screen uses them yet: the star button (NIT-239) and the favourites screen (US-05.03) wait for the Epic 4 navigation work. On 2026-11-23 `ANDROID_HOME` was still not set on the Windows machine.
+**Epic 5 phase 1** (favourites logic and persistence, US-05.01 without the star and US-05.02; SPEC D-37 – D-39) is on `dev` through PR #3 (`9d90de1`).
+
+**In progress on `feat/NIT-178-favorites-screen`** (from `dev` at `9d90de1`, uncommitted, 2026-11-23):
+- the star and a favourites button in the home header (NIT-239);
+- `FavoritesScreen`, the `Favorites` route and the return of a chosen place to Home (US-05.03);
+- reading the favourites again on focus, and storage reads and writes in order (SPEC D-40).
+
+Automated checks pass; nothing has been run on a device yet. Developer 2's NIT-230 commit (`1bdc00b` on `feat/Epic-04`) is not merged into `dev`; both change the `HomeScreen` signature, so expect a small conflict there. On 2026-11-23 `ANDROID_HOME` was still not set on the Windows machine.
 
 Which modules exist is tracked in STYLE §3.1; requirement status in SPEC §11.
