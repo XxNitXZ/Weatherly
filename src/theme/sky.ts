@@ -32,6 +32,11 @@ export const skyColors = {
   cardBorder: 'rgba(255, 255, 255, 0.16)',
   /** Today's row in the seven-day forecast. */
   todayRow: 'rgba(255, 255, 255, 0.12)',
+  /**
+   * A forecast row while it is pressed. 15 % keeps `onSkyMuted` text at
+   * 4.5:1 or more on every gradient stop inside a card (18 % gave 4.2:1).
+   */
+  rowPressed: 'rgba(255, 255, 255, 0.15)',
   /** Thin lines between rows inside a card. */
   divider: 'rgba(255, 255, 255, 0.14)',
 } as const;

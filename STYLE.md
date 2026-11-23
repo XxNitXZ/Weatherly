@@ -67,7 +67,7 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/viewmodels/useWeatherViewModel.ts` | `{ location: Location \| null, state: LoadState<FetchedWeatherReport>, forecast: ForecastSelection \| null, load(location) }`. Location and weather in one state value; same location as loading/shown → no request; after an error, `load` again retries. Only the newest load may update the state. `forecast` comes from the same report via `forecastForState(state)`, as of `fetchedAtEpochMs` (SPEC D-32). `isRepeatedWeatherLoad` and `forecastForState` are pure and tested. No cache yet (Epic 7). | **Exists** (NIT-170; `forecast` NIT-171, NIT-172) |
 | `src/utils/forecastSelection.ts` | `selectForecast(report, nowEpochMs): ForecastSelection` (`days`, `todayDateEpochMs?`, `todayHours`), built from `selectForecastDays`, `selectRemainingHoursToday`, `findTodayIndex` and `findTodayBounds`. "Today" uses the API's day boundaries (SPEC D-31). Filters only; never creates or reorders entries. | **Exists** (NIT-171, NIT-172) |
 | `src/utils/forecastFormatting.ts` | `formatDayLabel(dateEpochMs, utcOffsetSeconds)` (read at local noon), `presentDailyForecast(day, utcOffsetSeconds, isToday)`, `presentHourlyForecast(hour, utcOffsetSeconds)`; for the redesigned rows, `presentForecastDayRow` (adds icon, `highShort`, `lowShort`) and `presentForecastHourItem(hour, offset, daily, nowEpochMs)` (adds "Now", icon, `temperatureShort`). English names, no `Intl`. | **Exists** (NIT-171, NIT-172, redesign) |
-| `src/views/components/DailyForecastList.tsx`, `DailyForecastRow.tsx` | Seven-day `WeatherCard`: plain mapped rows (not a `FlatList`, §6) with dividers, empty message; a compact row shows "Today"/weekday and date, icon, low, high; today highlighted. | **Exists** (NIT-171, redesign) |
+| `src/views/components/DailyForecastList.tsx`, `DailyForecastRow.tsx` | Seven-day `WeatherCard`: plain mapped rows (not a `FlatList`, §6) with dividers, empty message; a compact row shows "Today"/weekday and date, icon, low, high and a chevron; today highlighted. Each row is a `Pressable` button (≥ 44 pt, hint "Opens the details for this day", pressed highlight `skyColors.rowPressed`); the list reports the tapped day through `onSelectDay(day)` and never navigates. | **Exists** (NIT-171, redesign, NIT-230) |
 | `src/views/components/HourlyForecastList.tsx`, `HourlyForecastItem.tsx` | "Rest of today" `WeatherCard`: horizontal `FlatList` of hours ("Now"/time, icon, temperature), or a message when no hour is left. | **Exists** (NIT-172, redesign) |
 | `src/viewmodels/latestRequest.ts` | `createLatestRequestGuard(): { start(): number, isLatest(id): boolean, cancelAll() }`, the request-ordering rule as a plain, tested object. Used by `useWeatherViewModel`. | **Exists** (NIT-170) |
 | `src/utils/weatherCode.ts` | `describeWeatherCode(code): string` from the Open-Meteo WMO table; `UNKNOWN_WEATHER_DESCRIPTION` for unlisted codes (SPEC D-29). | **Exists** (NIT-170) |
@@ -95,8 +95,9 @@ Steps 1–6 and 8 exist (US-03.01 – US-03.04), without the cache:
 - `useWeatherViewModel` holds the chosen `Location`, calls `weatherRepository.getReport` and maps the result to `success` or `error`.
 - From the same report, `forecastForState` chooses today's remaining hours and the seven days.
 - `HomeScreen` shows the current conditions, the rest of today and the seven-day forecast.
+- Step 9 exists (NIT-230): tapping a day opens `DayDetailScreen` with that day in the params. Its full content comes in US-04.02 and US-04.03.
 
-Planned: the cache and `refreshFailed` in step 7 (Epic 7), and step 9 (Epic 4). In the planned parts, only the types in **bold** exist today.
+Planned: the cache and `refreshFailed` in step 7 (Epic 7). In the planned parts, only the types in **bold** exist today.
 
 Search and forecast share one screen, `HomeScreen` (SPEC D-22). It uses two ViewModels: `useSearchViewModel` for search and `useWeatherViewModel` for the forecast.
 

@@ -11,15 +11,18 @@ export type DailyForecastListProps = {
   /** `dateEpochMs` of today's entry, if today is in the data. */
   readonly todayDateEpochMs?: number;
   readonly utcOffsetSeconds: number;
+  /** Called with the tapped day; the screen opens its details. */
+  readonly onSelectDay: (day: DailyForecast) => void;
 };
 
 /**
  * The seven-day forecast card (W-05, W-21). The rows are mapped in a plain
  * `View`, not a `FlatList`: there are at most seven, and the screen already
  * scrolls vertically, which must not contain another vertical list
- * (STYLE.md §6).
+ * (STYLE.md §6). The list does not navigate; it reports the tapped day to
+ * the screen (STYLE.md §3.3).
  */
-export function DailyForecastList({ days, todayDateEpochMs, utcOffsetSeconds }: DailyForecastListProps) {
+export function DailyForecastList({ days, todayDateEpochMs, utcOffsetSeconds, onSelectDay }: DailyForecastListProps) {
   return (
     <WeatherCard title="7-day forecast">
       {days.length === 0 ? (
@@ -31,6 +34,7 @@ export function DailyForecastList({ days, todayDateEpochMs, utcOffsetSeconds }: 
               day={day}
               utcOffsetSeconds={utcOffsetSeconds}
               isToday={day.dateEpochMs === todayDateEpochMs}
+              onPress={() => onSelectDay(day)}
             />
           </View>
         ))

@@ -190,6 +190,35 @@ Code uncommitted on `feat/Epic-04` after `e406795`, on macOS. Nothing navigates 
 | Home screen unchanged on the iOS Simulator after `npx expo start -c` | 2026-11-23 | Tyrone Asante reported: "The home screen works as before on the simulator" | PASS |
 | Home screen unchanged on the Android Emulator | | | NOT RUN |
 
+**NIT-230 (day rows open the detail screen):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Contrast of the pressed row (computed, WCAG 2.1) | 2026-11-23 | 15 % white over the card on every sky stop: `onSkyMuted` text ≥ 4.53:1, white higher. 18 % was rejected at 4.24:1 | PASS |
+| `chevron-right` glyph exists | 2026-11-23 | Present in the installed MaterialCommunityIcons glyph map | PASS |
+| `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 348 / 348 | PASS |
+| iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
+| Expo Doctor | 2026-11-23 | 20/20 checks passed | PASS |
+| Tapping a day opens the right day and place; back button and swipe-back return to Home (iOS Simulator) | 2026-11-23 | Tyrone Asante reported "It works" after the two steps given (open a day; go back with the button and with a swipe) | PASS (by report; detailed checks in NIT-231) |
+
+### 1.10 Navigation and Return (US-04.01, NIT-231)
+
+Scenarios for UX-09, run on the iOS Simulator by Tyrone Asante on 2026-11-23. Results were reported in one message: "the simulator scenarios also work". No screenshots or logs were shared.
+
+| # | Action | Expected result | Status |
+|---|---|---|---|
+| N-1 | Tap a day that is not today | The detail screen shows that row's weekday and date, and the place name in the header | PASS (by report) |
+| N-2 | Back button | Home again with the same place, weather and scroll position | PASS (by report) |
+| N-3 | Open a day, swipe back from the left edge | Same as N-2 | PASS (by report) |
+| N-4 | Double-tap a day quickly | Only one detail screen opens; one back returns to Home | PASS (by report) |
+| N-5 | Go back, search another place, open a day | The detail screen shows the new place | PASS (by report) |
+| N-6 | Accessibility Inspector on a day row | Label (day, condition, high, low), "Button" trait and hint are read | PASS (by report) |
+| N-7 | Open and close a day while watching Metro's log | No new weather request | See note |
+
+**Note on N-7:** the temporary `console.log` in `weatherRepository.getReport` described in the brief was not added before the report, so Metro could not show requests. The code supports the expected result: `DayDetailScreen` imports no repository or service, and `HomeScreen` stays mounted (D-35). Confirming it on screen needs the temporary log.
+
+Android Emulator: all NOT RUN.
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -337,6 +366,9 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | presentForecastDayRow (2 tests), presentForecastHourItem (3 tests) | W-05, W-06, D-33 | real day 0 and day 5; real hour 11 at fetch time, hour 12, clear hours at 12:00 and 21:00 | icon and compact temperatures added, full units in the label; "Now" with "Now, 11:00: …"; "12:00"; `weather-sunny` / `weather-night` | as expected (2026-11-22) | PASS |
 | skyVariantFor (3 tests) | D-33 | `true`, `false`, `undefined` | day, night, day | as expected (2026-11-22) | PASS |
 | presentHourlyForecast (3 tests) | W-06 | real hour 11; UTC−5; no optional values with code 42 | "11:00", "1 °C", "Light drizzle"; "22:00", "-2 °C"; "00:00", "Unknown conditions" | as expected (2026-11-22) | PASS |
+| DayDetail route params › survive a JSON round trip (3 tests) | W-07 | params built from the real Stockholm forecast, days 0, 3 and 6 | equal after `JSON.stringify` → `JSON.parse` (D-36: plain, serialisable values) | as expected (2026-11-23) | PASS |
+| DayDetail route params › carry the tapped day | W-07 | params for day 3 | `day.dateEpochMs` is day 3's, not day 0's | as expected (2026-11-23) | PASS |
+| DayDetail route params › location without region and country | W-03, W-07 | coordinate-search place | unchanged after the round trip; no `region` or `country` key appears | as expected (2026-11-23) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -389,6 +421,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Home presentation (redesign) | hero high shows the low | `…shows the real current weather with today's high and low` (1 of 18 failed) | yes | 2026-11-22 | PASS |
 | Home presentation (redesign) | missing `isDay` gives a night sky | `skyVariantFor › isDay undefined → day sky` (1 of 18 failed) | yes | 2026-11-22 | PASS |
 | Hourly/daily grouping (hours) | `Number.isFinite` check removed | **none failed (survived)**. The check was redundant: `NaN` fails every comparison and ±Infinity lies outside today. The check was then removed from the code as dead code; the test for non-finite times still passes. | yes | 2026-11-22 | FAIL (mutant survived) |
+| Navigation params (NIT-231) | `weatherParser` returns a `Date` instead of epoch ms for `dateEpochMs` (cast past the type checker) | all 5 tests in `tests/navigation/routes.test.ts` failed | yes (file restored from a backup; `git diff` empty) | 2026-11-23 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -409,6 +442,8 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-22 | same branch, after installing `@expo/vector-icons` only (Windows) | `npx jest` | 270 run | 270 | 1 suite failed to load (`expo-asset` not found) | Claude Code (session with Developer 1) |
 | 2026-11-22 | same branch, redesign complete (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/Epic-04` after `e406795`, with NIT-229 | `npm run check` | 348 | 348 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-23 | uncommitted, on `feat/Epic-04` after `8150846`, with NIT-230 | `npm run check` | 348 | 348 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-231 | `npm run check` | 353 | 353 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
@@ -465,7 +500,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-08 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-08 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-09 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-09 | iOS Simulator (macOS) | | | | NOT RUN |
+| UX-09 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Reported "the simulator scenarios also work" for N-1 – N-6 (TEST_REPORT §1.10; N-7 not observable without a temporary log). The detail screen shows only the weekday, date and place so far, not the day's weather (US-04.02) | PASS (by report; navigation part only) |
 | UX-10 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-10 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-11 | Android Emulator (Windows) | | | | NOT RUN |
@@ -505,6 +540,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 25 executed | 0 of 25 executed |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 117 / 117 (run on macOS, 2026-11-20) |
+| UX scenarios executed / PASS | 0 of 25 executed | 1 of 25 executed (UX-09, PASS by report, navigation part only) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 353 / 353 (run on macOS, 2026-11-23) |
 | Known open defects | | |

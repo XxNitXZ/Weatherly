@@ -3,6 +3,8 @@ import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Location } from '../../models/Location';
+import type { DailyForecast } from '../../models/Weather';
+import type { RootStackScreenProps } from '../../navigation/routes';
 import { skyBaseColor, skyGradient, skyVariantFor } from '../../theme/sky';
 import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { selectTodayForecast } from '../../utils/forecastSelection';
@@ -27,12 +29,16 @@ import { LocationSearchSheet } from './LocationSearchSheet';
  * - **Search:** opens `LocationSearchSheet` with both search modes. Choosing
  *   a place closes the sheet and calls `weatherViewModel.load(location)`,
  *   the same flow as before.
+ * - **A day:** tapping a day opens `DayDetail` with the place, that day and
+ *   the report's UTC offset (SPEC D-36). The screen navigates, not a
+ *   ViewModel (STYLE.md §3.3). Home stays mounted underneath, so its state
+ *   is still there after going back.
  *
  * All weather sections come from one report; no section makes a request.
  * The body is a vertical `ScrollView` with a horizontal hourly list and the
  * seven days as plain rows, so no vertical list is nested.
  */
-export function HomeScreen() {
+export function HomeScreen({ navigation }: RootStackScreenProps<'Home'>) {
   const searchViewModel = useSearchViewModel();
   const coordinateViewModel = useCoordinateSearchViewModel();
   const weatherViewModel = useWeatherViewModel();
@@ -48,6 +54,13 @@ export function HomeScreen() {
     setSearchOpen(false);
     weatherViewModel.load(selected);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }
+
+  function handleSelectDay(day: DailyForecast): void {
+    // The day list is only shown with a place and a report, so both exist here.
+    if (location !== null && report !== undefined) {
+      navigation.navigate('DayDetail', { location, day, utcOffsetSeconds: report.utcOffsetSeconds });
+    }
   }
 
   function handleRetry(): void {
@@ -83,6 +96,7 @@ export function HomeScreen() {
                 days={forecast.days}
                 todayDateEpochMs={forecast.todayDateEpochMs}
                 utcOffsetSeconds={report.utcOffsetSeconds}
+                onSelectDay={handleSelectDay}
               />
             </>
           ) : (

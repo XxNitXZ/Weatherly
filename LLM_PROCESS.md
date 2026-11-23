@@ -827,7 +827,7 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
-### LLM-012 – US-04.01 Screen navigation (NIT-229)
+### LLM-012 – US-04.01 Screen navigation (NIT-229 – NIT-231)
 
 | Field | Entry |
 |---|---|
@@ -835,7 +835,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-173 (US-04.01), task NIT-229 |
+| **Linear user story / task** | NIT-173 (US-04.01), tasks NIT-229, NIT-230 and NIT-231 |
 | **Requirement IDs** | W-07, W-26 |
 | **Branch / PR** | `feat/Epic-04`, uncommitted, no PR |
 | **Task given to AI** | Explain an editor error and the template screen after pulling `dev`; explain `npm run ios` vs `npx expo start -c`; plan US-04.01; set up navigation (NIT-229). |
@@ -861,6 +861,17 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - `Favorites` and `Settings` routes were left for Epic 5 and 6, because STYLE §4 forbids placeholder screens.
 >   - The `DayDetail` params hold the `Location` itself rather than its fields flattened, as the plan first said. It is a plain serialisable object, so no conversion helpers are needed.
 >   - Docs: SPEC §4, §13, change log; STYLE §3.1, §3.3, §4; TEST_REPORT §1.9 and §2.4.
+> - **NIT-230:**
+>   - `DailyForecastRow` is a `Pressable` button: label, hint "Opens the details for this day", ≥ 44 pt, a chevron (hidden from screen readers) and a pressed highlight.
+>   - New token `skyColors.rowPressed` (15 % white). The value was chosen by computing contrast: 18 % gave 4.24:1 for muted text, below AA.
+>   - `DailyForecastList` gets `onSelectDay(day)`; `HomeScreen.handleSelectDay` calls `navigation.navigate('DayDetail', { location, day, utcOffsetSeconds })`.
+>   - No new unit tests: the params are typed model values, so the planned param-building helpers were not needed.
+>   - Docs: SPEC §11 (W-07 IN PROGRESS), §11.1, §12 Q22, change log; STYLE §3.1, §3.2; TEST_REPORT §1.9, §2.4.
+> - **NIT-231:**
+>   - `tests/navigation/routes.test.ts` (5 tests): `DayDetail` params built from the real forecast survive a JSON round trip; the tapped day is carried; a coordinate place keeps no region or country.
+>   - Mutation check: the parser temporarily returned a `Date` for `dateEpochMs`; all 5 tests failed; the file was restored from a backup and `git diff` was empty.
+>   - Scenarios N-1 – N-7 written into TEST_REPORT §1.10; results recorded as reported by the student.
+>   - N-7 ("no new request on return") could not be observed: the temporary log from the brief was not added before the student reported.
 
 **Changes reviewed or modified by students**
 - Accepted as is: passing the `DailyForecast` in the route params (D-36).
@@ -879,12 +890,12 @@ Record actual outcomes only. Write `not run` where applicable.
 |---|---|
 | Read and understood line by line | |
 | `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-23) |
-| Unit tests (names) | `npm run check`: 348/348 PASS; no new tests (NIT-229 adds types, a navigator and a minimal screen) |
-| Mutation checks | not run |
+| Unit tests (names) | `npm run check`: 348/348 PASS after NIT-229 and NIT-230; 353/353 after NIT-231 (new: `DayDetail route params`, 5 tests) |
+| Mutation checks | 1 of 1 detected (TEST_REPORT §2.3) |
 | `npx expo-doctor` | 20/20 checks passed |
 | Bundle build | `npx expo export --platform ios` without errors |
 | Android Emulator (what was checked) | not run |
-| iOS Simulator (what was checked) | Home screen works as before after `npx expo start -c` (reported by the student, 2026-11-23) |
+| iOS Simulator (what was checked) | Home screen works as before after `npx expo start -c`; tapping a day opens the detail screen, and the back button and swipe-back return to Home; N-1 – N-6 of TEST_REPORT §1.10 (all reported by the student, 2026-11-23); N-7 not observed |
 | Physical device (Expo Go) | not run |
 
 **Lessons learned**
