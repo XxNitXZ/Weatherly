@@ -211,3 +211,57 @@ export function presentDayDetail(day: DailyForecast, utcOffsetSeconds: number): 
     accessibilityLabel: `${label.weekdayLong} ${label.dateLong}: ${condition}, high ${high}, low ${low}`,
   };
 }
+
+/** Shown for a missing optional value; the row stays (SPEC D-38). */
+export const NOT_AVAILABLE_TEXT = 'Not available';
+/** Shown for sunrise and sunset when the sun does not rise (SPEC D-38, OQ-07). */
+export const POLAR_NIGHT_TEXT = 'Polar night';
+/** Shown for sunrise and sunset when the sun does not set (SPEC D-38, OQ-07). */
+export const MIDNIGHT_SUN_TEXT = 'Midnight sun';
+
+/**
+ * The shortest calendar day is 23 hours (the day clocks go forward), so a
+ * day of midnight sun lasts at least this long from sunrise to sunset.
+ */
+const MIN_MIDNIGHT_SUN_MS = 23 * 60 * 60 * 1000;
+
+/** The sun card of the day detail screen (W-07, NIT-234). */
+export type SunTimesPresentation = {
+  /** E.g. "07:53", or a polar text, or "Not available". */
+  readonly sunrise: string;
+  readonly sunset: string;
+};
+
+/**
+ * Sunrise and sunset in the location's local time (W-07).
+ *
+ * Open-Meteo sends no `null` for days without a normal sunrise or sunset
+ * (TEST_REPORT §1.2, saved fixtures for Longyearbyen and McMurdo):
+ * - polar night: sunrise and sunset are the same moment (the day's start);
+ * - midnight sun: sunrise is the day's start and sunset the next day's start.
+ *
+ * Checking that sunrise is exactly the day's start keeps a real day of 23½
+ * hours of daylight near the polar circle from being shown as midnight sun.
+ * A missing value keeps its row and reads "Not available" (SPEC D-38).
+ */
+export function presentSunTimes(day: DailyForecast, utcOffsetSeconds: number): SunTimesPresentation {
+  const { sunriseEpochMs, sunsetEpochMs } = day;
+
+  if (sunriseEpochMs !== undefined && sunsetEpochMs !== undefined) {
+    if (sunriseEpochMs === sunsetEpochMs) {
+      return { sunrise: POLAR_NIGHT_TEXT, sunset: POLAR_NIGHT_TEXT };
+    }
+    if (sunriseEpochMs === day.dateEpochMs && sunsetEpochMs - sunriseEpochMs >= MIN_MIDNIGHT_SUN_MS) {
+      return { sunrise: MIDNIGHT_SUN_TEXT, sunset: MIDNIGHT_SUN_TEXT };
+    }
+  }
+
+  return {
+    sunrise: formatOptionalLocalTime(sunriseEpochMs, utcOffsetSeconds),
+    sunset: formatOptionalLocalTime(sunsetEpochMs, utcOffsetSeconds),
+  };
+}
+
+function formatOptionalLocalTime(epochMs: number | undefined, utcOffsetSeconds: number): string {
+  return epochMs === undefined ? NOT_AVAILABLE_TEXT : formatLocalTime(epochMs, utcOffsetSeconds);
+}

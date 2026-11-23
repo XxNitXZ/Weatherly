@@ -1,4 +1,6 @@
 import fixture from '../fixtures/openMeteoForecast.json';
+import longyearbyenFixture from '../fixtures/openMeteoForecastLongyearbyen.json';
+import mcMurdoFixture from '../fixtures/openMeteoForecastMcMurdo.json';
 import type { DailyForecast, HourlyForecast } from '../../src/models/Weather';
 import { parseWeatherResponse } from '../../src/parsers/weatherParser';
 import { weatherIconName } from '../../src/utils/weatherIcon';
@@ -7,6 +9,7 @@ import {
   presentDailyForecast,
   presentDayDetail,
   presentHourlyForecast,
+  presentSunTimes,
 } from '../../src/utils/forecastFormatting';
 
 /**
@@ -219,5 +222,63 @@ describe('presentDayDetail', () => {
 
     expect(detail.high).toBe(`-1${NBSP}°C`);
     expect(detail.low).toBe(`3${NBSP}°C`);
+  });
+});
+
+describe('presentSunTimes', () => {
+  // Real forecasts fetched on 2026-11-23 with the app's own request:
+  // Longyearbyen (78.22, 15.65) is in polar night, McMurdo (-77.85, 166.67)
+  // has midnight sun. Open-Meteo marks both without `null`.
+  const longyearbyen = parseWeatherResponse(longyearbyenFixture);
+  const mcMurdo = parseWeatherResponse(mcMurdoFixture);
+
+  it('shows the real Stockholm sunrise and sunset in local time', () => {
+    expect(presentSunTimes(report.daily[0], STOCKHOLM_OFFSET)).toEqual({ sunrise: '07:53', sunset: '15:12' });
+    expect(presentSunTimes(report.daily[1], STOCKHOLM_OFFSET)).toEqual({ sunrise: '07:55', sunset: '15:11' });
+  });
+
+  it('shows "Polar night" for every real Longyearbyen day (sunrise = sunset)', () => {
+    longyearbyen.daily.forEach((entry) => {
+      expect(presentSunTimes(entry, longyearbyen.utcOffsetSeconds)).toEqual({
+        sunrise: 'Polar night',
+        sunset: 'Polar night',
+      });
+    });
+  });
+
+  it('shows "Midnight sun" for every real McMurdo day (sunrise at the day start, sunset 24 h later)', () => {
+    mcMurdo.daily.forEach((entry) => {
+      expect(presentSunTimes(entry, mcMurdo.utcOffsetSeconds)).toEqual({
+        sunrise: 'Midnight sun',
+        sunset: 'Midnight sun',
+      });
+    });
+  });
+
+  it('does not take a long real day for midnight sun when sunrise is after the day start', () => {
+    // 23½ hours of daylight, starting 15 minutes after midnight.
+    const start = report.daily[0].dateEpochMs;
+    const longDay: DailyForecast = {
+      ...report.daily[0],
+      sunriseEpochMs: start + 15 * 60 * 1000,
+      sunsetEpochMs: start + 23.75 * HOUR_MS,
+    };
+    expect(presentSunTimes(longDay, STOCKHOLM_OFFSET)).toEqual({ sunrise: '00:15', sunset: '23:45' });
+  });
+
+  it('keeps the row and shows "Not available" for a missing value', () => {
+    const { sunsetEpochMs: _sunset, ...noSunset } = report.daily[0];
+    const { sunriseEpochMs: _sunrise, ...noSunrise } = report.daily[0];
+    const { sunriseEpochMs: _r, sunsetEpochMs: _s, ...neither } = report.daily[0];
+
+    expect(presentSunTimes(noSunset, STOCKHOLM_OFFSET)).toEqual({ sunrise: '07:53', sunset: 'Not available' });
+    expect(presentSunTimes(noSunrise, STOCKHOLM_OFFSET)).toEqual({ sunrise: 'Not available', sunset: '15:12' });
+    expect(presentSunTimes(neither, STOCKHOLM_OFFSET)).toEqual({ sunrise: 'Not available', sunset: 'Not available' });
+  });
+
+  it('uses the given UTC offset, also west of Greenwich and with half hours', () => {
+    // Stockholm's 07:53 / 15:12 is 06:53 / 14:12 UTC.
+    expect(presentSunTimes(report.daily[0], -5 * 3600)).toEqual({ sunrise: '01:53', sunset: '09:12' });
+    expect(presentSunTimes(report.daily[0], 5.5 * 3600)).toEqual({ sunrise: '12:23', sunset: '19:42' });
   });
 });

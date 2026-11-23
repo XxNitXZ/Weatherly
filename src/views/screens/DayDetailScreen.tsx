@@ -1,12 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackScreenProps } from '../../navigation/routes';
 import { skyBaseColor, skyColors, skyGradient } from '../../theme/sky';
 import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { fontSize } from '../../theme/typography';
+import { presentSunTimes } from '../../utils/forecastFormatting';
 import { formatLocationDetails } from '../../utils/locationFormatting';
 import { DayDetailHero } from '../components/DayDetailHero';
+import { DetailRow } from '../components/DetailRow';
+import { WeatherCard } from '../components/WeatherCard';
 
 /**
  * Detail screen for one forecast day (W-07).
@@ -23,12 +26,13 @@ import { DayDetailHero } from '../components/DayDetailHero';
  * covers the top.
  *
  * The hero shows the date, condition and high/low (NIT-233), with the
- * place below it. US-04.02 adds the sun card (NIT-234); US-04.03 adds wind
- * and precipitation.
+ * place below it, then the sun card with sunrise and sunset (NIT-234).
+ * US-04.03 adds wind and precipitation.
  */
 export function DayDetailScreen({ route }: RootStackScreenProps<'DayDetail'>) {
   const { location, day, utcOffsetSeconds } = route.params;
   const locationDetails = formatLocationDetails(location);
+  const sun = presentSunTimes(day, utcOffsetSeconds);
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom', 'left', 'right']}>
@@ -36,6 +40,12 @@ export function DayDetailScreen({ route }: RootStackScreenProps<'DayDetail'>) {
       <ScrollView contentContainerStyle={styles.content}>
         <DayDetailHero day={day} utcOffsetSeconds={utcOffsetSeconds} />
         {locationDetails !== undefined && <Text style={styles.details}>{locationDetails}</Text>}
+        <View style={styles.cards}>
+          <WeatherCard title="Sun">
+            <DetailRow label="Sunrise" value={sun.sunrise} />
+            <DetailRow label="Sunset" value={sun.sunset} />
+          </WeatherCard>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -60,5 +70,9 @@ const styles = StyleSheet.create({
     color: skyColors.onSkyMuted,
     fontSize: fontSize.body,
     textAlign: 'center',
+  },
+  cards: {
+    gap: spacing.m,
+    marginTop: spacing.l,
   },
 });

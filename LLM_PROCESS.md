@@ -835,7 +835,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-173 (US-04.01): tasks NIT-229 – NIT-231; NIT-174 (US-04.02): tasks NIT-232, NIT-233 |
+| **Linear user story / task** | NIT-173 (US-04.01): tasks NIT-229 – NIT-231; NIT-174 (US-04.02): tasks NIT-232 – NIT-234 |
 | **Requirement IDs** | W-07, W-26, W-29 |
 | **Branch / PR** | `feat/Epic-04`, uncommitted, no PR |
 | **Task given to AI** | Explain an editor error and the template screen after pulling `dev`; explain `npm run ios` vs `npx expo start -c`; plan US-04.01; set up navigation (NIT-229). |
@@ -885,6 +885,13 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - 6 tests for `presentDayDetail` in `tests/utils/forecastFormatting.test.ts`, using real days of the saved Stockholm forecast: full texts, a day below zero, the same date as the seven-day row, the day icon, an unknown code, min above max.
 >   - Mutation check: high and low swapped in the presenter; 3 of 6 tests failed; file restored from a backup, `git diff` empty.
 >   - Docs: STYLE §3.1, §4; SPEC W-07 progress, change log; TEST_REPORT §1.9, §2.1 – §2.4, §4.
+> - **NIT-234:**
+>   - Real forecasts for Longyearbyen (polar night) and McMurdo (midnight sun) fetched with the app's request and saved as fixtures; both confirmed the planned rule before it was written.
+>   - `presentSunTimes` in `forecastFormatting.ts` with `NOT_AVAILABLE_TEXT`, `POLAR_NIGHT_TEXT`, `MIDNIGHT_SUN_TEXT`; a "Sun" `WeatherCard` with two `DetailRow`s on `DayDetailScreen`.
+>   - Deviation from the brief: `presentSunTimes` returns no card-level screen-reader sentence, because each `DetailRow` is already read as "Sunrise: 07:53".
+>   - 6 tests; 2 mutation checks (polar-night check disabled: 1 of 6 failed; offset ignored: 4 of 6 failed); file restored, checksum equal.
+>   - `npx tsx` was run once through `npx` (downloaded to the npx cache, not added to the project) to print the request URLs from `buildForecastUrl`.
+>   - Docs: SPEC D-38, OQ-07 resolved, W-07, §11.1, §12 Q3, change log; STYLE §3.1; TEST_REPORT §1.9, §2.1 – §2.4, §4.
 
 **Changes reviewed or modified by students**
 - Accepted as is: passing the `DailyForecast` in the route params (D-36).
