@@ -190,6 +190,21 @@ Code uncommitted on `feat/Epic-04` after `e406795`, on macOS. Nothing navigates 
 | Home screen unchanged on the iOS Simulator after `npx expo start -c` | 2026-11-23 | Tyrone Asante reported: "The home screen works as before on the simulator" | PASS |
 | Home screen unchanged on the Android Emulator | | | NOT RUN |
 
+### 1.10 Favourites Logic and Persistence: Automated Checks (US-05.01, US-05.02)
+
+Code uncommitted on `feat/NIT-156-favorites` after `8150846`, on Windows. No screen uses the new modules yet: the star button (NIT-239) and the favourites screen (US-05.03) come after the Epic 4 navigation work, so nothing new can be seen on a device. A bundle export was not run, because the new modules are not imported by the app yet.
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Install | 2026-11-23 | `npx expo install @react-native-async-storage/async-storage` → `2.2.0` in `dependencies` ("Installing 1 SDK 58.0.0 compatible native module"); `app.json` unchanged | PASS |
+| `npm run check` before the changes | 2026-11-23 | `tsc --noEmit` without errors; Jest 22 suites, 348 / 348 | PASS |
+| `npm run check` after the changes | 2026-11-23 | `tsc --noEmit` without errors; Jest 27 suites, 480 / 480 (the 348 earlier tests unchanged and passing, 132 new) | PASS |
+| Earlier tests alone | 2026-11-23 | `npx jest` without the five new files: 22 suites, 348 / 348 | PASS |
+| Expo Doctor | 2026-11-23 | `npx expo-doctor`: 20/20 checks passed | PASS |
+| Mutation checks | 2026-11-23 | 9 deliberate faults, each detected by at least one failing test, all reverted (§2.3) | PASS |
+| Restart persistence (UX-12) on the Android Emulator | | Needs the favourites UI; no Android SDK on the Windows machine yet | NOT RUN |
+| Restart persistence (UX-12) on the iOS Simulator | | Needs the favourites UI | NOT RUN |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -218,6 +233,10 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Forecast request URL | (extra) | `src/services/api/weatherService.ts` | W-13 | |
 | Hourly/daily grouping | Data transformation | `selectForecastDays`, `selectRemainingHoursToday`, `findTodayBounds` in `src/utils/forecastSelection.ts` (US-03.03, US-03.04) | W-05, W-06 | proposed |
 | Forecast day/hour display texts | Data transformation | `formatDayLabel`, `presentDailyForecast`, `presentHourlyForecast` in `src/utils/forecastFormatting.ts` (US-03.03, US-03.04) | W-05, W-06 | |
+| Favourite identity and list rules (tolerance, newest first, duplicates) | Data transformation | `src/utils/favorites.ts` (US-05.01) | W-08 | |
+| Stored favourites JSON → `Location[]` | JSON parsing | `parseStoredFavorites`, `toStoredFavorites` in `src/parsers/favoritesParser.ts` (US-05.02) | W-08, W-19 | proposed |
+| Storage failures → `AppError` kind | Error-state logic (data layer) | `src/storage/keyValueStorage.ts`, `src/repositories/favoritesRepository.ts` (US-05.02) | W-08 | |
+| Favourites load/save result → `LoadState`, write gating | Error-state logic (ViewModel) | `loadFavoritesState`, `reloadingState`, `planFavoritesChange`, `saveFavoritesChange`, `isFavoriteIn` in `src/viewmodels/useFavoritesViewModel.ts` (US-05.01, US-05.02) | W-08 | proposed |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
 | Refresh / staleness policy | (extra) | `src/utils/refreshPolicy.ts` | W-11, W-16 | |
@@ -337,6 +356,14 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | presentForecastDayRow (2 tests), presentForecastHourItem (3 tests) | W-05, W-06, D-33 | real day 0 and day 5; real hour 11 at fetch time, hour 12, clear hours at 12:00 and 21:00 | icon and compact temperatures added, full units in the label; "Now" with "Now, 11:00: …"; "12:00"; `weather-sunny` / `weather-night` | as expected (2026-11-22) | PASS |
 | skyVariantFor (3 tests) | D-33 | `true`, `false`, `undefined` | day, night, day | as expected (2026-11-22) | PASS |
 | presentHourlyForecast (3 tests) | W-06 | real hour 11; UTC−5; no optional values with code 42 | "11:00", "1 °C", "Light drizzle"; "22:00", "-2 °C"; "00:00", "Unknown conditions" | as expected (2026-11-22) | PASS |
+| favorites › isSameFavoritePlace (10 tests) | W-08 | real Lund SE and Lund GB from the geocoding fixture; typed coordinates; differences of exactly 0.0001 in both directions on both axes; 0.000101; latitude-only and longitude-only differences; −180/180 | same place, also under another name and within 0.0001 (inclusive); same-named places elsewhere differ; just outside differs; each axis checked; −180/180 differ (documented) | as expected (2026-11-23) | PASS |
+| favorites › containsFavorite, addFavorite, removeFavorite, toggleFavorite (16 tests) | W-08 | empty and frozen lists; duplicates under the same and another name; Lund SE/GB | newest first; same object and exact coordinates kept; no duplicate, first entry kept, original array returned; same-named place elsewhere added/kept; input never changed; toggle twice restores the list | as expected (2026-11-23) | PASS |
+| favorites › normalizeFavorites (4 tests) + fixture check | W-08 | lists with and without duplicates | first-saved entry of a duplicate kept in its own position, order kept, original returned when nothing changes, input not changed | as expected (2026-11-23) | PASS |
+| favoritesParser › parseStoredFavorites (42 tests) | W-08, W-19 | valid versioned value; empty list; optional fields missing; bounds ±90/±180; extra field; null/array/string/number root; missing or non-array `favorites`; non-object entry; missing, 0, 2, 1.5 and "1" versions; missing/empty/blank/numeric name; missing coordinates/latitude/longitude; null or non-string region/country; string/null/boolean/array coordinates; NaN, ±Infinity; ±90.0001, ±180.0001; duplicates | `Location[]` in stored order; otherwise `AppError('parse')` naming the field (version message names the unsupported version); duplicates left to the repository | as expected (2026-11-23) | PASS |
+| favoritesParser › toStoredFavorites (5 tests) | W-08 | Lund and a typed place; a place with an extra field | version 1; exactly the documented JSON; no `region`/`country`/`null` for a typed place; only `Location` fields; JSON round trip unchanged | as expected (2026-11-23) | PASS |
+| keyValueStorage (8 tests) | W-08 | AsyncStorage Jest mock: nothing stored; stored JSON; broken JSON text; rejected `getItem`/`setItem`; delayed `setItem` | `undefined`; the value; `parse`; `storage` (earlier value kept); `writeJson` resolves only after the write is confirmed | as expected (2026-11-23) | PASS |
+| favoritesRepository (18 tests) | W-08 | first launch; valid stored list; stored duplicates; malformed JSON, version 2, array root, missing field, latitude 91; read failure; save of two places, of `[]`, of duplicates; write failure; save → load (restart); damaged value then an explicit save; fake `fetch` | `[]`; newest-first list; first-saved duplicate kept; `parse` with the stored text untouched; `storage`; versioned JSON under `weatherly:favorites`; earlier favourites kept after a failed write; exact coordinates restored; recovery only by an explicit save; no network call | as expected (2026-11-23) | PASS |
+| useFavoritesViewModel › pure state rules (28 tests) | W-08 | load results (list, `[]`, `storage`, `parse`, other errors); reload from each state; changes with a saved list, while saving and without a saved list; duplicate adds; failing and delayed saves; the rules on the real repository: add/toggle/remove, five identical adds, a failed write then a retry, damaged storage | success / error with the same kind / `unknown`, never rejects; list kept visible while reloading; no write while saving, after a failed read or for a no-op; new list only after a confirmed write, else the last saved list and the error; storage always equals the state; one write for five adds; damaged text untouched | as expected (2026-11-23) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -388,6 +415,15 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Home presentation (redesign) | current hour not labelled "Now" | `…labels the hour in progress "Now"` (1 of 18 failed) | yes | 2026-11-22 | PASS |
 | Home presentation (redesign) | hero high shows the low | `…shows the real current weather with today's high and low` (1 of 18 failed) | yes | 2026-11-22 | PASS |
 | Home presentation (redesign) | missing `isDay` gives a night sky | `skyVariantFor › isDay undefined → day sky` (1 of 18 failed) | yes | 2026-11-22 | PASS |
+| Favourite identity | rounding allowance removed (plain `<= 0.0001`) | `…true at exactly the tolerance, in both directions and on both axes` (1 of 31 failed) | yes | 2026-11-23 | PASS |
+| Favourite identity | longitude no longer compared | 3 of 31 failed (longitude outside the tolerance, each axis checked, −180/180) | yes | 2026-11-23 | PASS |
+| Favourite list rules | new favourite appended instead of first | 3 of 31 failed (newest first, same-named place elsewhere, toggle adds as newest) | yes | 2026-11-23 | PASS |
+| Favourite list rules | `normalizeFavorites` keeps the newest duplicate | 2 of 31 failed (first-saved entry kept, order kept) | yes | 2026-11-23 | PASS |
+| Stored favourites parsing | version check disabled | 4 of 47 failed (versions 2, 0, 1.5 and the message test) | yes | 2026-11-23 | PASS |
+| Stored favourites parsing | coordinate range check disabled | the 4 out-of-range tests (4 of 47 failed) | yes | 2026-11-23 | PASS |
+| Stored favourites parsing | `null` region/country accepted as missing | the 2 `null` tests (2 of 47 failed) | yes | 2026-11-23 | PASS |
+| Favourites write gating | changes allowed while a write runs | `…writes nothing while another write is running (rapid repeated taps)` (1 of 28 failed) | yes | 2026-11-23 | PASS |
+| Favourites save outcome | failed write reported with the new list | 3 of 28 failed (failed write, non-AppError failure, consistency after a failed write) | yes | 2026-11-23 | PASS |
 | Hourly/daily grouping (hours) | `Number.isFinite` check removed | **none failed (survived)**. The check was redundant: `NaN` fails every comparison and ±Infinity lies outside today. The check was then removed from the code as dead code; the test for non-finite times still passes. | yes | 2026-11-22 | FAIL (mutant survived) |
 | | | | | | NOT RUN |
 
@@ -409,6 +445,8 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-22 | same branch, after installing `@expo/vector-icons` only (Windows) | `npx jest` | 270 run | 270 | 1 suite failed to load (`expo-asset` not found) | Claude Code (session with Developer 1) |
 | 2026-11-22 | same branch, redesign complete (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/Epic-04` after `e406795`, with NIT-229 | `npm run check` | 348 | 348 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 
 ## 3. UX Interaction Scenarios
 

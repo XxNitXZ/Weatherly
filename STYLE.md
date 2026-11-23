@@ -54,8 +54,12 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/parsers/weatherParser.ts` | `parseWeatherResponse(json: unknown): WeatherReport`. Throws `AppError('parse', …)` with the field path. Optional `null`/missing values become `undefined`. | **Exists** (NIT-215) |
 | `src/repositories/locationRepository.ts` | `searchLocations(query): Promise<ReadonlyArray<Location>>`: `fetchLocations` → `parseGeocodingResponse`. No caching or other behaviour (SPEC D-17). Errors pass through unchanged. | **Exists** (NIT-206) |
 | `src/repositories/weatherRepository.ts` | `getReport(coordinates): Promise<FetchedWeatherReport>`: `fetchForecast` → `parseWeatherResponse` → `{ report, fetchedAtEpochMs }` (SPEC D-18). Errors pass through unchanged. Planned: cache, refresh policy, and reporting a fallback to a cached entry after a failed refresh (§11). | **Exists** without cache (NIT-212); cache planned (NIT-182, NIT-183) |
-| `src/repositories/favoritesRepository.ts`, `settingsRepository.ts` | Read and write favourites and settings through `keyValueStorage`. | Planned (NIT-177, NIT-179 – NIT-181) |
-| `src/storage/keyValueStorage.ts` | Get (`unknown`) and set JSON values; the only importer of AsyncStorage (D-08). | Planned (NIT-182) |
+| `src/repositories/favoritesRepository.ts` | `FAVORITES_STORAGE_KEY = 'weatherly:favorites'`. `loadFavorites(): Promise<ReadonlyArray<Location>>`: `readJson` → `parseStoredFavorites` → `normalizeFavorites`; nothing stored → `[]`. `saveFavorites(favorites): Promise<void>`: `normalizeFavorites` → `toStoredFavorites` → `writeJson`; resolves only after the write is confirmed. Errors pass through unchanged (`storage`, `parse`); damaged data is never overwritten here (SPEC D-38). No network. | **Exists** (NIT-177, NIT-242) |
+| `src/repositories/settingsRepository.ts` | Read and write settings through `keyValueStorage`. | Planned (NIT-179 – NIT-181) |
+| `src/storage/keyValueStorage.ts` | `readJson(key): Promise<unknown>` (`undefined` when nothing is stored) and `writeJson(key, value): Promise<void>`; the only importer of AsyncStorage (D-08). Throws `AppError('storage')` when AsyncStorage fails and `AppError('parse')` when the stored text is not JSON. Knows nothing about what is stored. | **Exists** (NIT-177; planned earlier for NIT-182) |
+| `src/parsers/favoritesParser.ts` | The stored favourites format (SPEC D-38): `FAVORITES_SCHEMA_VERSION = 1`, `parseStoredFavorites(json: unknown): ReadonlyArray<Location>` (strict; `AppError('parse')` with the path) and `toStoredFavorites(favorites): StoredFavorites` (only the fields of `Location`). Built on `jsonReaders`; bounds from `coordinateValidation`. | **Exists** (NIT-177, NIT-241) |
+| `src/utils/favorites.ts` | Favourite identity and list rules (SPEC D-37): `FAVORITE_COORDINATE_TOLERANCE = 0.0001`, `isSameFavoritePlace(a, b)`, `containsFavorite(list, location)`, `addFavorite`, `removeFavorite`, `toggleFavorite` (newest first; return the original array when nothing changes), `normalizeFavorites(list)` (removes duplicates, keeps the entry saved first). Never mutate their input. | **Exists** (NIT-176, NIT-238, NIT-240) |
+| `src/viewmodels/useFavoritesViewModel.ts` | `{ state: LoadState<ReadonlyArray<Location>>, isSaving, saveError: AppError \| null, isFavorite(location), addFavorite(location), removeFavorite(location), toggleFavorite(location), reload() }` (SPEC D-39). Reads the favourites on first use; shows a change only after the write is confirmed; one write at a time; no changes after a failed read. Pure, tested rules: `loadFavoritesState`, `reloadingState`, `planFavoritesChange`, `saveFavoritesChange`, `isFavoriteIn`. Not yet used by a screen. | **Exists** (NIT-176, NIT-238; NIT-177, NIT-242) |
 | `src/viewmodels/useSearchViewModel.ts` | `{ state: LoadState<ReadonlyArray<Location>>, search(query) }`. Empty query → `error` with `AppError('validation')`, no request. Only the latest search may update the state (search counter; also ignores results after unmount). Repeating the query that is loading or shown sends no request; after an error it can be searched again (SPEC D-28). `prepareSearchQuery(raw): string \| null` and `isRepeatedSearch(query, activeQuery): boolean` are the pure, tested rules. | **Exists** (NIT-207; repeat guard NIT-218) |
 | `src/viewmodels/useCoordinateSearchViewModel.ts` | `{ latitudeError?, longitudeError?, submit(latitudeText, longitudeText): Location \| null }`. Invalid input → field errors and `null`, no request. Valid → a `Location` named by its coordinates (e.g. `59.33, 18.07`). | **Exists** (NIT-209) |
 | `src/utils/coordinateValidation.ts` | `validateCoordinates(latitudeText, longitudeText)` → `{ isValid: true, coordinates }` or `{ isValid: false, latitudeError?, longitudeError? }` with `'empty' \| 'notANumber' \| 'outOfRange'`. Strict decimal format, `.` or `,` (SPEC D-25); bounds [-90, 90] and [-180, 180], inclusive. | **Exists** (NIT-209) |
@@ -136,12 +140,12 @@ Weatherly/
 ├── src/
 │   ├── models/             # AppError.ts [exists], Location.ts [exists], Weather.ts [exists]; AppSettings.ts
 │   ├── services/api/       # httpClient.ts, weatherService.ts, geocodingService.ts [all exist]
-│   ├── parsers/            # weatherParser.ts, geocodingParser.ts, jsonReaders.ts [all exist]
-│   ├── repositories/       # weatherRepository.ts, locationRepository.ts [exist]; favoritesRepository.ts, settingsRepository.ts
-│   ├── storage/            # .gitkeep; keyValueStorage.ts
+│   ├── parsers/            # weatherParser.ts, geocodingParser.ts, favoritesParser.ts, jsonReaders.ts [all exist]
+│   ├── repositories/       # weatherRepository.ts, locationRepository.ts, favoritesRepository.ts [exist]; settingsRepository.ts
+│   ├── storage/            # keyValueStorage.ts [exists]
 │   ├── navigation/         # RootNavigator.tsx, routes.ts (typed route params) [exist]
 │   ├── viewmodels/         # loadState.ts, latestRequest.ts, useSearchViewModel.ts, useCoordinateSearchViewModel.ts,
-│   │                       #   useWeatherViewModel.ts [exist]; ...
+│   │                       #   useWeatherViewModel.ts, useFavoritesViewModel.ts [exist]; ...
 │   ├── views/
 │   │   ├── screens/        # HomeScreen.tsx, LocationSearchSheet.tsx, DayDetailScreen.tsx [exist]; FavoritesScreen.tsx, ...
 │   │   └── components/     # Search: CitySearchForm, CoordinateSearchForm, SearchModeSwitch, SearchStatus, LocationResultItem
@@ -149,17 +153,18 @@ Weatherly/
 │   │                       #   HourlyForecastList, HourlyForecastItem, DailyForecastList, DailyForecastRow [all .tsx, exist]
 │   ├── theme/              # colors.ts, spacing.ts, typography.ts, sky.ts [exist; US-08.01 extends them]
 │   └── utils/              # coordinateValidation.ts, locationFormatting.ts, weatherCode.ts, weatherIcon.ts, weatherFormatting.ts,
-│                           #   forecastSelection.ts, forecastFormatting.ts [exist]; refreshPolicy.ts, units.ts
+│                           #   forecastSelection.ts, forecastFormatting.ts, favorites.ts [exist]; refreshPolicy.ts, units.ts
 ├── tests/                  # All unit tests, mirroring src/ (SPEC D-23)
 │   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json, openMeteoForecastDstStockholm.json
 │   ├── helpers/            # fakeFetch.ts (fake fetch), jsonFixtures.ts (copy-with-one-change, parse-error assertion)
 │   ├── models/             # AppError.test.ts
-│   ├── parsers/            # weatherParser.test.ts, geocodingParser.test.ts
-│   ├── repositories/       # weatherRepository.test.ts, locationRepository.test.ts
+│   ├── parsers/            # weatherParser.test.ts, geocodingParser.test.ts, favoritesParser.test.ts
+│   ├── repositories/       # weatherRepository.test.ts, locationRepository.test.ts, favoritesRepository.test.ts
 │   ├── services/           # weatherService.test.ts, httpClient.test.ts, geocodingService.test.ts
+│   ├── storage/            # keyValueStorage.test.ts (AsyncStorage's own Jest mock)
 │   ├── utils/              # coordinateValidation, locationFormatting, weatherCode, weatherIcon, weatherFormatting,
-│   │                       #   forecastSelection, forecastFormatting, homePresentation tests
-│   ├── viewmodels/         # useSearchViewModel, useWeatherViewModel (pure helpers only), latestRequest tests
+│   │                       #   forecastSelection, forecastFormatting, homePresentation, favorites tests
+│   ├── viewmodels/         # useSearchViewModel, useWeatherViewModel, useFavoritesViewModel (pure helpers only), latestRequest tests
 │   └── views/              # coordinateErrorMessage.test.ts, searchStatus.test.ts, weatherStatus.test.ts
 ├── CLAUDE.md, AGENTS.md    # Agent instructions (AGENTS.md points to CLAUDE.md)
 └── *.md                    # All other project documentation, at the root (SPEC D-14)
@@ -272,6 +277,8 @@ Tests live in the root `tests/` folder, separate from the app code, in the same 
   4. If the fetch fails and a cached entry exists, return the entry together with the `AppError` that occurred, so the ViewModel can show `refreshFailed` (§7). If no entry exists, rethrow.
 - **Timestamps (SPEC D-18):** stored and passed as epoch milliseconds (`number`) in fields named `…EpochMs`, e.g. `fetchedAtEpochMs`. A `Date` does not survive JSON serialisation, and a number is easy to compare and to test. Convert to a `Date` only for display formatting.
 - Persist models as JSON through `keyValueStorage`, the only module that imports `@react-native-async-storage/async-storage` (D-08). Read values are `unknown` and are validated before use, because storage can contain outdated shapes.
+- **Stored formats** carry a `version` and are read and written by one parser module, like API JSON (e.g. `favoritesParser`, SPEC D-38). An unknown version or invalid value is an `AppError('parse')`; the repository never repairs it or overwrites it on its own.
+- In tests, AsyncStorage is replaced by the Jest mock that ships with the package: `jest.mock('@react-native-async-storage/async-storage', () => jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'))`.
 - Storage keys are defined once, as constants in the repository that owns them.
 
 ## 12. UI Styling Principles

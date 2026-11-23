@@ -20,7 +20,7 @@ Weatherly is the team project for **Lab B:2 – Building a Native Weather App** 
 | Language | TypeScript (strict mode) |
 | Weather data | [Open-Meteo](https://open-meteo.com) REST API |
 | Place search | SMHI place-search API |
-| Planned libraries | React Navigation · AsyncStorage · Jest + `jest-expo` *(chosen, not yet installed)* |
+| Libraries | React Navigation (native stack) · AsyncStorage (favourites) · Jest + `jest-expo` |
 | Platforms | Android (Emulator on Windows) · iOS (Simulator on macOS) |
 | Project management | Linear · GitHub |
 | AI-assisted development | Claude Code in VS Code (both developers), following one rule set in `CLAUDE.md` |
