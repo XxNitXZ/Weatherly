@@ -884,7 +884,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | `npx expo-doctor` | 20/20 checks passed |
 | Bundle build | `npx expo export --platform ios` without errors |
 | Android Emulator (what was checked) | not run |
-| iOS Simulator (what was checked) | not run |
+| iOS Simulator (what was checked) | Home screen works as before after `npx expo start -c` (reported by the student, 2026-11-23) |
 | Physical device (Expo Go) | not run |
 
 **Lessons learned**

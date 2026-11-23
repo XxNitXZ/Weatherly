@@ -187,7 +187,7 @@ Code uncommitted on `feat/Epic-04` after `e406795`, on macOS. Nothing navigates 
 | `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 348 / 348 | PASS |
 | iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
 | Expo Doctor | 2026-11-23 | 20/20 checks passed | PASS |
-| Home screen unchanged on the iOS Simulator after `npx expo start -c` | | | NOT RUN |
+| Home screen unchanged on the iOS Simulator after `npx expo start -c` | 2026-11-23 | Tyrone Asante reported: "The home screen works as before on the simulator" | PASS |
 | Home screen unchanged on the Android Emulator | | | NOT RUN |
 
 ## 2. Automated Unit Tests
