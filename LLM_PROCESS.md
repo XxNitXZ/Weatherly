@@ -892,6 +892,80 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-013 – Epic 5 analysis; US-05.01 and US-05.02 favourites logic and persistence (NIT-176, NIT-177)
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-23 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows; no emulator or simulator used |
+| **Linear user story / task** | NIT-176 (US-05.01): NIT-238, NIT-240 (NIT-239 logic only); NIT-177 (US-05.02): NIT-241 – NIT-243 |
+| **Requirement IDs** | W-08 |
+| **Branch / PR** | `feat/NIT-156-favorites` (from `dev` at `8150846`), uncommitted, no PR |
+| **Task given to AI** | First a read-only analysis of Epic 5 against the Epic 4 navigation on `dev`. Then implement the favourites business logic, persistence, ViewModel actions and tests, without the star button on the home screen and without touching the Epic 4 navigation files. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | Two structured prompts: "This is an ANALYSIS-ONLY session…" and "IMPLEMENT THE BACKEND LOGIC OF TWO USER STORIES… DO NOT implement NIT-239's actual HomeScreen star button during this phase." The second prompt fixed the tolerance (0.0001°), the storage key and schema, the repository and ViewModel interfaces, and the file-ownership rules. |
+
+**Changes made by AI**
+> - **Analysis (read-only):**
+>   - Reported the Git state: the branch equalled `dev` and `origin/dev` at `8150846`, which includes NIT-229.
+>   - Found that `HomeScreen` takes no navigation props and that nothing navigates yet (NIT-230 open).
+>   - Recommended a coordinate-based identity rule separate from `isSameLocation`, a versioned storage format, and a `Home` route param for returning a chosen favourite.
+>   - Listed the files at risk of Git conflicts.
+> - **Installed:** `npx expo install @react-native-async-storage/async-storage` → 2.2.0.
+> - **New source files:**
+>   - `src/utils/favorites.ts` (identity rule with `FAVORITE_COORDINATE_TOLERANCE`, add/remove/toggle/normalize);
+>   - `src/storage/keyValueStorage.ts` (`readJson`, `writeJson`; `src/storage/.gitkeep` deleted);
+>   - `src/parsers/favoritesParser.ts` (`FAVORITES_SCHEMA_VERSION`, `parseStoredFavorites`, `toStoredFavorites`);
+>   - `src/repositories/favoritesRepository.ts` (`loadFavorites`, `saveFavorites`);
+>   - `src/viewmodels/useFavoritesViewModel.ts` (hook plus pure rules).
+> - **New tests (132):** `tests/utils/favorites.test.ts`, `tests/parsers/favoritesParser.test.ts`, `tests/storage/keyValueStorage.test.ts`, `tests/repositories/favoritesRepository.test.ts`, `tests/viewmodels/useFavoritesViewModel.test.ts`.
+> - **Design choices the AI proposed:**
+>   - **Rounding allowance:** found with `node` that a plain `<= 0.0001` put some exact 0.0001 differences inside and others outside, so it added an allowance of 1e-9°.
+>   - **Strict reading of `null`:** stored `null` region/country is rejected, unlike `readOptionalString` for API data.
+>   - **`saveError` outside `LoadState`:** a failed save does not make the shown list outdated, so `refreshFailed` would mislead.
+>   - **Write gating:** changes are ignored while a write runs and after a failed read.
+> - **Docs:**
+>   - SPEC: §4, W-08 detail, §11 (W-08 → IN PROGRESS), §11.1, Q10 (partial), D-37 – D-39, §14.
+>   - STYLE: §3.1, §4, §11.
+>   - CONTEXT: §4, §12, §18.
+>   - TEST_REPORT: §1.10, §2.1 – §2.4.
+>   - README: technologies row.
+> - **Not changed:** `HomeScreen.tsx`, `HomeHeader.tsx`, `RootNavigator.tsx`, `routes.ts`, `DayDetailScreen.tsx`, `App.tsx`, the weather and location services, parsers and repositories, and every existing test. Linear was not updated.
+
+**Changes reviewed or modified by students**
+- Accepted as is:
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The first draft of `favoritesRepository.test.ts` contained two meaningless conditional expressions (`TYPED_LUND.name === '' ? … : …`). The AI replaced them with plain values before running the tests.
+- The first version of TEST_REPORT §2.2 gave `parseStoredFavorites` 41 tests; a recount showed 42. The failing-test names in §2.3 were checked by running the mutations a second time with the names listed.
+- The hook itself (React state, effects, refs) is not covered by unit tests, because the project has no React test renderer (SPEC Q21). Only its exported pure rules are tested.
+- Decision numbers D-37 – D-39 and this entry's number were taken as the next free numbers on `dev` at `8150846`. Concurrent Epic 4 work may use the same numbers; renumber when merging if needed.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-23) |
+| Unit tests (names) | `npm run check`: 27 suites, 480/480 PASS (348 earlier + 132 new; the earlier 22 suites also run alone: 348/348) |
+| Mutation checks | 9 faults introduced and reverted, all detected (TEST_REPORT §2.3) |
+| `npx expo-doctor` | 20/20 checks passed |
+| Bundle build | not run (the new modules are not imported by the app yet) |
+| Android Emulator (what was checked) | not run (no Android SDK on the Windows machine) |
+| iOS Simulator (what was checked) | not run |
+| Physical device (Expo Go) | not run |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

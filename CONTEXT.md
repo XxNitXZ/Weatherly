@@ -49,7 +49,7 @@ As targeted by the team (see [SPEC.md §3 and §8](SPEC.md#8-quality-requirement
 | Weather API | Open-Meteo | Decided (SPEC D-05) |
 | Geocoding API | Open-Meteo Geocoding API | Decided (SPEC D-24, supersedes D-06) |
 | Navigation | React Navigation, minimal packages | Decided (SPEC D-07); **not installed** |
-| Persistence | `@react-native-async-storage/async-storage` | Decided (SPEC D-08); **not installed** |
+| Persistence | `@react-native-async-storage/async-storage` | Decided (SPEC D-08); installed in US-05.02 (NIT-177), 2.2.0 |
 | Unit testing | Jest + `jest-expo` | Decided (SPEC D-09); installed as dev dependencies in US-02.01 (NIT-216). Run with `npm test`. |
 | Cross-platform testing | Android Emulator (Windows), iOS Simulator (macOS) | Decided (SPEC D-12) |
 | Safe areas | `react-native-safe-area-context` | Decided (SPEC D-26); installed in US-03.01 (NIT-169) |
@@ -137,7 +137,7 @@ There's no branch protection yet; it will be configured later. Never force-push 
 
 ## 12. Local Persistence Strategy
 
-Planned, using `@react-native-async-storage/async-storage` (SPEC D-08) behind the `keyValueStorage` wrapper. Not installed yet.
+Uses `@react-native-async-storage/async-storage` (SPEC D-08) behind the `keyValueStorage` wrapper (`src/storage/keyValueStorage.ts`, US-05.02). Favourites are stored under `weatherly:favorites` in a versioned format (SPEC D-38); the cache and settings are still planned.
 
 | Data | Owner | Purpose |
 |---|---|---|
@@ -224,5 +224,7 @@ Update this section when the state changes.
 - All four Epic 3 stories and the redesign are on this one branch at the team's request, so the pull request will cover all of them.
 
 **Windows machine (Developer 1), 2026-11-22:** dependencies installed and `npm run check` passes; no Android SDK or emulator installed yet (`ANDROID_HOME` not set).
+
+**In progress on `feat/NIT-156-favorites`** (from `dev` at `8150846`, uncommitted, 2026-11-23): favourites logic and persistence for US-05.01 (NIT-176) and US-05.02 (NIT-177): identity rule, storage format, `keyValueStorage`, `favoritesRepository`, `useFavoritesViewModel` and their tests (SPEC D-37 – D-39). No screen uses them yet: the star button (NIT-239) and the favourites screen (US-05.03) wait for the Epic 4 navigation work. On 2026-11-23 `ANDROID_HOME` was still not set on the Windows machine.
 
 Which modules exist is tracked in STYLE §3.1; requirement status in SPEC §11.
