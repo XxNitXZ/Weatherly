@@ -61,6 +61,9 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/utils/coordinateValidation.ts` | `validateCoordinates(latitudeText, longitudeText)` → `{ isValid: true, coordinates }` or `{ isValid: false, latitudeError?, longitudeError? }` with `'empty' \| 'notANumber' \| 'outOfRange'`. Strict decimal format, `.` or `,` (SPEC D-25); bounds [-90, 90] and [-180, 180], inclusive. | **Exists** (NIT-209) |
 | `src/views/components/CoordinateSearchForm.tsx` | Presentational form: latitude/longitude fields with inline error messages and a "Show weather" button. Props: `latitudeError?`, `longitudeError?`, `onSubmit(latitudeText, longitudeText)`. `coordinateErrorMessage(field, error)` owns the wording. iOS uses the `numbers-and-punctuation` keyboard (minus sign). Used by `LocationSearchSheet`. | **Exists** (NIT-208) |
 | `src/views/screens/HomeScreen.tsx` | Weather-first home screen (SPEC D-22, D-33): `HomeHeader`, then `WelcomePanel`, `WeatherStatus` or `WeatherHero` + forecast cards, on the day/night sky. Owns the three ViewModels and passes the search ones to `LocationSearchSheet`; choosing a place closes the sheet and calls `load(location)` (D-30). Holds only whether the sheet is open. Body is a vertical `ScrollView` (§6). | **Exists** (NIT-217 – NIT-219, NIT-170 – NIT-172, redesign) |
+| `src/navigation/routes.ts` | `RootStackParamList`: `Home: undefined`; `DayDetail: { location: Location, day: DailyForecast, utcOffsetSeconds: number }` (SPEC D-36). `RootStackScreenProps<RouteName>` types a screen's `navigation` and `route`. Types only. | **Exists** (NIT-229) |
+| `src/navigation/RootNavigator.tsx` | One native stack (SPEC D-35): `Home` (native header hidden) and `DayDetail` (native header, title = place name, back button and swipe-back). | **Exists** (NIT-229) |
+| `src/views/screens/DayDetailScreen.tsx` | Detail screen for one day (W-07), built only from its route params; sends no request (D-36). Minimal in NIT-229: weekday, date and place details. US-04.02 and US-04.03 add the weather. | **Exists**, minimal (NIT-229) |
 | `src/viewmodels/useWeatherViewModel.ts` | `{ location: Location \| null, state: LoadState<FetchedWeatherReport>, forecast: ForecastSelection \| null, load(location) }`. Location and weather in one state value; same location as loading/shown → no request; after an error, `load` again retries. Only the newest load may update the state. `forecast` comes from the same report via `forecastForState(state)`, as of `fetchedAtEpochMs` (SPEC D-32). `isRepeatedWeatherLoad` and `forecastForState` are pure and tested. No cache yet (Epic 7). | **Exists** (NIT-170; `forecast` NIT-171, NIT-172) |
 | `src/utils/forecastSelection.ts` | `selectForecast(report, nowEpochMs): ForecastSelection` (`days`, `todayDateEpochMs?`, `todayHours`), built from `selectForecastDays`, `selectRemainingHoursToday`, `findTodayIndex` and `findTodayBounds`. "Today" uses the API's day boundaries (SPEC D-31). Filters only; never creates or reorders entries. | **Exists** (NIT-171, NIT-172) |
 | `src/utils/forecastFormatting.ts` | `formatDayLabel(dateEpochMs, utcOffsetSeconds)` (read at local noon), `presentDailyForecast(day, utcOffsetSeconds, isToday)`, `presentHourlyForecast(hour, utcOffsetSeconds)`; for the redesigned rows, `presentForecastDayRow` (adds icon, `highShort`, `lowShort`) and `presentForecastHourItem(hour, offset, daily, nowEpochMs)` (adds "Now", icon, `temperatureShort`). English names, no `Intl`. | **Exists** (NIT-171, NIT-172, redesign) |
@@ -109,14 +112,16 @@ Search and forecast share one screen, `HomeScreen` (SPEC D-22). It uses two View
    - Otherwise it calls `weatherService`, parses the response with `weatherParser`, stores the report with `fetchedAtEpochMs`, and returns it.
    - If that refresh fails and a cached entry exists, it returns the entry and reports the **`AppError`** that occurred. With no cached entry, it throws the error.
 8. **useWeatherViewModel** maps the result to `success`, `refreshFailed` (cached data plus an error) or `error` (**`LoadState<T>`**, §7). HomeScreen renders the current conditions, today's hourly forecast and the seven-day summary and, for `refreshFailed`, a "last updated" notice.
-9. **User selects a day:** HomeScreen, not the ViewModel, navigates to `DayDetailScreen` with the location's fields and the day's date (§3.3). Its ViewModel loads that day from `weatherRepository`.
+9. **User selects a day:** HomeScreen, not the ViewModel, navigates to `DayDetailScreen` with the location's fields, that day's `DailyForecast` and the report's `utcOffsetSeconds` (§3.3, SPEC D-36). The detail screen shows the day from its params and sends no request, so it opens instantly, also offline, and always shows the day that was tapped.
 
 ### 3.3 Navigation Ownership
 
 - Screens own navigation. They call `navigation.navigate` in response to a user event or a ViewModel result.
 - ViewModels never import React Navigation and never receive the `navigation` object. They expose state and intents only, so they stay testable without a navigator.
-- Route params carry only small serialisable values, such as the fields of a `Location`, never functions or whole reports (§6). The receiving screen's ViewModel loads the data itself.
-- Route param types are defined once in `src/navigation/routes.ts` (planned, NIT-173). React Navigation is not installed yet; until then `App.tsx` renders `HomeScreen` directly inside `SafeAreaProvider`.
+- Route params carry only small serialisable values: IDs or plain model values, such as the fields of a `Location` or one `DailyForecast`. Never functions, class instances (e.g. `AppError`) or whole reports (§6).
+- When the sending screen already holds the data the next screen needs, it passes that data instead of having the next screen load it again (SPEC D-36). `DayDetailScreen` gets the selected day from its params and sends no request.
+- Route param types are defined once in `src/navigation/routes.ts` (`RootStackParamList`). Screens type their props with `RootStackScreenProps<'RouteName'>`, so `navigation` and `route.params` are checked by the compiler.
+- `App.tsx` renders `SafeAreaProvider` → `NavigationContainer` → `RootNavigator` (one native stack, SPEC D-35).
 
 ## 4. Folder Structure
 
@@ -126,7 +131,7 @@ All `src/` folders below exist (NIT-163). Files marked `[exists]` are in the rep
 
 ```
 Weatherly/
-├── App.tsx                 # [exists] App root: providers + navigation container only (today: SafeAreaProvider + HomeScreen)
+├── App.tsx                 # [exists] App root: providers + navigation container only (SafeAreaProvider + NavigationContainer + RootNavigator)
 ├── index.ts                # [exists] Expo entry point (do not add logic)
 ├── src/
 │   ├── models/             # AppError.ts [exists], Location.ts [exists], Weather.ts [exists]; AppSettings.ts
@@ -134,11 +139,11 @@ Weatherly/
 │   ├── parsers/            # weatherParser.ts, geocodingParser.ts, jsonReaders.ts [all exist]
 │   ├── repositories/       # weatherRepository.ts, locationRepository.ts [exist]; favoritesRepository.ts, settingsRepository.ts
 │   ├── storage/            # .gitkeep; keyValueStorage.ts
-│   ├── navigation/         # .gitkeep; RootNavigator.tsx, routes.ts (typed route params)
+│   ├── navigation/         # RootNavigator.tsx, routes.ts (typed route params) [exist]
 │   ├── viewmodels/         # loadState.ts, latestRequest.ts, useSearchViewModel.ts, useCoordinateSearchViewModel.ts,
 │   │                       #   useWeatherViewModel.ts [exist]; ...
 │   ├── views/
-│   │   ├── screens/        # HomeScreen.tsx, LocationSearchSheet.tsx [exist]; DayDetailScreen.tsx, FavoritesScreen.tsx, ...
+│   │   ├── screens/        # HomeScreen.tsx, LocationSearchSheet.tsx, DayDetailScreen.tsx [exist]; FavoritesScreen.tsx, ...
 │   │   └── components/     # Search: CitySearchForm, CoordinateSearchForm, SearchModeSwitch, SearchStatus, LocationResultItem
 │   │                       # Weather: HomeHeader, WelcomePanel, WeatherHero, WeatherStatus, WeatherCard, WeatherIcon,
 │   │                       #   HourlyForecastList, HourlyForecastItem, DailyForecastList, DailyForecastRow [all .tsx, exist]
@@ -193,7 +198,7 @@ Tests live in the root `tests/` folder, separate from the app code, in the same 
   - Add only `@react-navigation/native`, the navigator package actually used (e.g. `@react-navigation/native-stack`) and their required peer dependencies.
   - Install with `npx expo install` in the navigation user story.
   - Route parameter types are defined once in `src/navigation/routes.ts`.
-  - Pass only small serialisable params (e.g. a location ID or coordinates), never whole data objects or functions.
+  - Pass only small serialisable params (e.g. a location's fields or one `DailyForecast`), never whole reports, class instances or functions (§3.3, SPEC D-36).
   - ViewModels never receive the `navigation` object. A screen reacts to a ViewModel result (e.g. "location selected") by calling `navigation.navigate` itself.
 - Use `FlatList` for any list that can grow (forecast rows, search results, favourites).
 - **A screen scrolls as one.** Never nest a vertical `FlatList` inside a vertical `ScrollView`. Put the content above a list in `ListHeaderComponent` (as `LocationSearchSheet` does), or map short, fixed-length lists inside the `ScrollView` (as `HomeScreen` does with the seven days). Horizontal lists inside a vertical scroll are fine.

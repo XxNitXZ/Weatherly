@@ -827,6 +827,71 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-012 – US-04.01 Screen navigation (NIT-229)
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-23 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Tyrone Asante (Developer 2) |
+| **Platform** | macOS, iOS Simulator |
+| **Linear user story / task** | NIT-173 (US-04.01), task NIT-229 |
+| **Requirement IDs** | W-07, W-26 |
+| **Branch / PR** | `feat/Epic-04`, uncommitted, no PR |
+| **Task given to AI** | Explain an editor error and the template screen after pulling `dev`; explain `npm run ios` vs `npx expo start -c`; plan US-04.01; set up navigation (NIT-229). |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "Yes, look up Epic 4 and plan the first story"; "Okay, we go with passing DailyForecast, update the docs accordingly, update relevant Linear-spots as well."; "Okay, go ahead as breifed." |
+
+**Changes made by AI**
+> - **Diagnosis after pulling `dev`:**
+>   - `npx tsc --noEmit` and an iOS export passed, so the code was fine.
+>   - The "--jsx is not set" error came from VS Code's TypeScript server, still running from before the pull. The template screen came from Metro, which was started before the pull. Fixes: restart the TS server, and `npx expo start -c`.
+> - **Planning:**
+>   - The AI first recommended the documented rule (STYLE §3.3): the detail screen reloads its day.
+>   - When asked to compare, it changed its recommendation to passing the tapped `DailyForecast`. Reasons: no second request before the Epic 7 cache, works offline, always the tapped day, less code.
+>   - The student chose to pass the `DailyForecast`.
+> - **Docs for the decision:**
+>   - `SPEC.md`: D-35 (one native stack, no tabs; OQ-05 resolved), D-36 (route params carry the day).
+>   - `STYLE.md`: §3.2 step 9, §3.3, §6.
+>   - Linear: dated decision sections added to NIT-229, NIT-230, NIT-174 and NIT-232.
+> - **NIT-229:**
+>   - `npx expo install @react-navigation/native @react-navigation/native-stack react-native-screens`.
+>   - New: `src/navigation/routes.ts` (`RootStackParamList`, `RootStackScreenProps`); `src/navigation/RootNavigator.tsx`; a minimal `src/views/screens/DayDetailScreen.tsx` (weekday, date, place details from the params).
+>   - `App.tsx` renders the navigator. `src/navigation/.gitkeep` was deleted.
+>   - `Favorites` and `Settings` routes were left for Epic 5 and 6, because STYLE §4 forbids placeholder screens.
+>   - The `DayDetail` params hold the `Location` itself rather than its fields flattened, as the plan first said. It is a plain serialisable object, so no conversion helpers are needed.
+>   - Docs: SPEC §4, §13, change log; STYLE §3.1, §3.3, §4; TEST_REPORT §1.9 and §2.4.
+
+**Changes reviewed or modified by students**
+- Accepted as is: passing the `DailyForecast` in the route params (D-36).
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The first recommendation for the route params (reload the day) would have failed offline until the cache exists. It was revised only after the student asked which option was better.
+- `git rm` staged the `.gitkeep` deletion, although the student does all Git work. It was unstaged with `git restore --staged`; the file stays deleted in the working tree.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-23) |
+| Unit tests (names) | `npm run check`: 348/348 PASS; no new tests (NIT-229 adds types, a navigator and a minimal screen) |
+| Mutation checks | not run |
+| `npx expo-doctor` | 20/20 checks passed |
+| Bundle build | `npx expo export --platform ios` without errors |
+| Android Emulator (what was checked) | not run |
+| iOS Simulator (what was checked) | not run |
+| Physical device (Expo Go) | not run |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

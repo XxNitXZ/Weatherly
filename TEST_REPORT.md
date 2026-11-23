@@ -177,6 +177,19 @@ Code uncommitted on `feat/NIT-169-home-search` after `6f057f5`, on Windows witho
 | R-8 | Small screen (e.g. iPhone SE size) and large text: hero, header and day rows fit without overlap |
 | R-9 | Screen reader reads the hero, hourly and day summaries; icons are skipped |
 
+### 1.9 Navigation Setup: Build Checks (US-04.01, NIT-229)
+
+Code uncommitted on `feat/Epic-04` after `e406795`, on macOS. Nothing navigates to `DayDetail` yet (NIT-230), so only the home screen can be checked on a screen.
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Install | 2026-11-23 | `npx expo install @react-navigation/native @react-navigation/native-stack react-native-screens` → `^7.5.2`, `^7.21.1`, `~4.30.1`, all in `dependencies`. The stack's peers (`react-native-safe-area-context`, `react-native-screens`) are installed. | PASS |
+| `npm run check` | 2026-11-23 | `tsc --noEmit` without errors; Jest 348 / 348 | PASS |
+| iOS bundle | 2026-11-23 | `npx expo export --platform ios` exported without errors | PASS |
+| Expo Doctor | 2026-11-23 | 20/20 checks passed | PASS |
+| Home screen unchanged on the iOS Simulator after `npx expo start -c` | | | NOT RUN |
+| Home screen unchanged on the Android Emulator | | | NOT RUN |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -395,6 +408,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-22 | uncommitted, same branch, with US-03.04 (Windows) | `npm run check` | 288 | 288 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-22 | same branch, after installing `@expo/vector-icons` only (Windows) | `npx jest` | 270 run | 270 | 1 suite failed to load (`expo-asset` not found) | Claude Code (session with Developer 1) |
 | 2026-11-22 | same branch, redesign complete (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-23 | uncommitted, on `feat/Epic-04` after `e406795`, with NIT-229 | `npm run check` | 348 | 348 | 0 | Claude Code (session with Tyrone Asante) |
 
 ## 3. UX Interaction Scenarios
 
