@@ -872,7 +872,7 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - Mutation check: the parser temporarily returned a `Date` for `dateEpochMs`; all 5 tests failed; the file was restored from a backup and `git diff` was empty.
 >   - Scenarios N-1 – N-7 written into TEST_REPORT §1.10; results recorded as reported by the student.
 >   - N-7 ("no new request on return"): the temporary log from the brief was not added; the student reported that N-7 is already known to work.
-> - **Process:** on request, one feature branch per Epic (SPEC D-37); `GIT_WORKFLOW.md` §1, §4, §5, §9 and `CONTEXT.md` §8, §11 updated; CONTEXT §18 rewritten (it still described Epic 3 as uncommitted).
+> - **Process:** on request, one feature branch per Epic (SPEC D-41); `GIT_WORKFLOW.md` §1, §4, §5, §9 and `CONTEXT.md` §8, §11 updated; CONTEXT §18 rewritten (it still described Epic 3 as uncommitted).
 > - **US-04.02 planning:** the student chose "Not available" for missing optional values (over hiding the row) and moved sunrise, sunset and OQ-07 from US-04.03 into US-04.02; NIT-174 and NIT-175 updated in Linear.
 > - **NIT-232:**
 >   - `DayDetail` header in the sky's top colour (`skyHeaderColor`, new token) with white tint and no divider.
@@ -891,15 +891,15 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - Deviation from the brief: `presentSunTimes` returns no card-level screen-reader sentence, because each `DetailRow` is already read as "Sunrise: 07:53".
 >   - 6 tests; 2 mutation checks (polar-night check disabled: 1 of 6 failed; offset ignored: 4 of 6 failed); file restored, checksum equal.
 >   - `npx tsx` was run once through `npx` (downloaded to the npx cache, not added to the project) to print the request URLs from `buildForecastUrl`.
->   - Docs: SPEC D-38, OQ-07 resolved, W-07, §11.1, §12 Q3, change log; STYLE §3.1; TEST_REPORT §1.9, §2.1 – §2.4, §4.
+>   - Docs: SPEC D-42, OQ-07 resolved, W-07, §11.1, §12 Q3, change log; STYLE §3.1; TEST_REPORT §1.9, §2.1 – §2.4, §4.
 > - **US-04.03 planning:**
 >   - The AI first recommended adding no new API fields. The student asked it to check the decisions against the lab PDF (screenshots of p. 3); the requirement "any additional data your chosen API provides (wind, precipitation, etc.)" led the AI to reverse that recommendation and propose 9 extra daily fields.
->   - The student chose: no temperature card (the hero shows it), all proposed fields, no hourly forecast on the detail screen. Recorded as D-39.
+>   - The student chose: no temperature card (the hero shows it), all proposed fields, no hourly forecast on the detail screen. Recorded as D-43.
 > - **NIT-235:**
 >   - `DAILY_FIELDS`, `DailyForecast` and `weatherParser` extended with 9 optional fields; a new real Stockholm response saved as `tests/fixtures/openMeteoForecastStockholmDetails.json` (units checked in `daily_units`; snow is in cm). The request-field test now uses this fixture.
 >   - New formatters in `weatherFormatting.ts`; `presentDayConditions` and the optional `feelsLike` of `presentDayDetail` in `forecastFormatting.ts`. The "·" separator is kept out of the spoken label.
 >   - 33 new tests; 3 mutation checks (compass sectors, snow unit, parser field), all caught.
->   - Docs: SPEC D-39, W-07, §11.1, §12 Q3, change log; STYLE §3.1, §12; TEST_REPORT §1.9, §2.2 – §2.4, §4. Linear: dated field-decision section on NIT-175.
+>   - Docs: SPEC D-43, W-07, §11.1, §12 Q3, change log; STYLE §3.1, §12; TEST_REPORT §1.9, §2.2 – §2.4, §4. Linear: dated field-decision section on NIT-175.
 > - **NIT-236:**
 >   - `DayDetailHero` shows "Feels like …" when both values exist; `DayDetailScreen` shows Precipitation (Total, Chance, Rain, Snow, Duration), Wind (Max speed, Max gusts, Coming from) and Sun (Sunrise, Sunset, Daylight, UV index) cards with `DetailRow`.
 >   - No new unit tests: the screen only places strings from the tested presenters.
@@ -912,6 +912,11 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - Wrap-up: `npm run check` 416 / 416, iOS export, Expo Doctor 20/20.
 >   - The NIT-237 brief asked for a landscape check without noticing that the app is portrait-only until W-22 (`app.json`, STYLE §14). The student's "resize mode" result was therefore not recorded as a landscape result; the landscape part of UX-26 waits for US-08.02. The brief also named the iPhone SE, which is not available for iOS 27.2. The smallest available iPhone (17e) was used instead and reported to work.
 >   - Docs: SPEC W-07 §11.1, §12 Q4, change log; TEST_REPORT §1.9, §2.2 – §2.4, §3, §4.
+> - **Merge of `dev` into `feat/Epic-04`** (on request, after the student ran `git merge dev`):
+>   - 12 conflicts in SPEC, STYLE, TEST_REPORT, `RootNavigator.tsx` and `HomeScreen.tsx`, all resolved by keeping both sides.
+>   - Both Epics had used D-37 – D-39 (and Epic 5 D-40). Epic 4's became D-41 – D-43 in docs and code comments; Epic 5's favourites TEST_REPORT sections became §1.11 and §1.12, as the Epic 5 entry asked.
+>   - Found while resolving: an earlier AI edit had put the NIT-235 – NIT-237 change-log rows into the decision table; moved to the change log.
+>   - `npm ci` installed Epic 5's AsyncStorage from the lockfile (lockfile unchanged); `npm run check` 605 / 605; iOS export passed.
 
 **Changes reviewed or modified by students**
 - Accepted as is: passing the `DailyForecast` in the route params (D-36).
@@ -936,6 +941,154 @@ Record actual outcomes only. Write `not run` where applicable.
 | Bundle build | `npx expo export --platform ios` without errors |
 | Android Emulator (what was checked) | not run |
 | iOS Simulator (what was checked) | Home screen works as before after `npx expo start -c`; tapping a day opens the detail screen, and the back button and swipe-back return to Home; N-1 – N-7 of TEST_REPORT §1.10 (all reported by the student, 2026-11-23) |
+| Physical device (Expo Go) | not run |
+
+**Lessons learned**
+-
+
+---
+
+### LLM-013 – Epic 5 analysis; US-05.01 and US-05.02 favourites logic and persistence (NIT-176, NIT-177)
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-23 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows; no emulator or simulator used |
+| **Linear user story / task** | NIT-176 (US-05.01): NIT-238, NIT-240 (NIT-239 logic only); NIT-177 (US-05.02): NIT-241 – NIT-243 |
+| **Requirement IDs** | W-08 |
+| **Branch / PR** | `feat/NIT-156-favorites` (from `dev` at `8150846`), uncommitted, no PR |
+| **Task given to AI** | First a read-only analysis of Epic 5 against the Epic 4 navigation on `dev`. Then implement the favourites business logic, persistence, ViewModel actions and tests, without the star button on the home screen and without touching the Epic 4 navigation files. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | Two structured prompts: "This is an ANALYSIS-ONLY session…" and "IMPLEMENT THE BACKEND LOGIC OF TWO USER STORIES… DO NOT implement NIT-239's actual HomeScreen star button during this phase." The second prompt fixed the tolerance (0.0001°), the storage key and schema, the repository and ViewModel interfaces, and the file-ownership rules. |
+
+**Changes made by AI**
+> - **Analysis (read-only):**
+>   - Reported the Git state: the branch equalled `dev` and `origin/dev` at `8150846`, which includes NIT-229.
+>   - Found that `HomeScreen` takes no navigation props and that nothing navigates yet (NIT-230 open).
+>   - Recommended a coordinate-based identity rule separate from `isSameLocation`, a versioned storage format, and a `Home` route param for returning a chosen favourite.
+>   - Listed the files at risk of Git conflicts.
+> - **Installed:** `npx expo install @react-native-async-storage/async-storage` → 2.2.0.
+> - **New source files:**
+>   - `src/utils/favorites.ts` (identity rule with `FAVORITE_COORDINATE_TOLERANCE`, add/remove/toggle/normalize);
+>   - `src/storage/keyValueStorage.ts` (`readJson`, `writeJson`; `src/storage/.gitkeep` deleted);
+>   - `src/parsers/favoritesParser.ts` (`FAVORITES_SCHEMA_VERSION`, `parseStoredFavorites`, `toStoredFavorites`);
+>   - `src/repositories/favoritesRepository.ts` (`loadFavorites`, `saveFavorites`);
+>   - `src/viewmodels/useFavoritesViewModel.ts` (hook plus pure rules).
+> - **New tests (132):** `tests/utils/favorites.test.ts`, `tests/parsers/favoritesParser.test.ts`, `tests/storage/keyValueStorage.test.ts`, `tests/repositories/favoritesRepository.test.ts`, `tests/viewmodels/useFavoritesViewModel.test.ts`.
+> - **Design choices the AI proposed:**
+>   - **Rounding allowance:** found with `node` that a plain `<= 0.0001` put some exact 0.0001 differences inside and others outside, so it added an allowance of 1e-9°.
+>   - **Strict reading of `null`:** stored `null` region/country is rejected, unlike `readOptionalString` for API data.
+>   - **`saveError` outside `LoadState`:** a failed save does not make the shown list outdated, so `refreshFailed` would mislead.
+>   - **Write gating:** changes are ignored while a write runs and after a failed read.
+> - **Docs:**
+>   - SPEC: §4, W-08 detail, §11 (W-08 → IN PROGRESS), §11.1, Q10 (partial), D-37 – D-39, §14.
+>   - STYLE: §3.1, §4, §11.
+>   - CONTEXT: §4, §12, §18.
+>   - TEST_REPORT: §1.11, §2.1 – §2.4.
+>   - README: technologies row.
+> - **Not changed:** `HomeScreen.tsx`, `HomeHeader.tsx`, `RootNavigator.tsx`, `routes.ts`, `DayDetailScreen.tsx`, `App.tsx`, the weather and location services, parsers and repositories, and every existing test. Linear was not updated.
+
+**Changes reviewed or modified by students**
+- Accepted as is:
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The first draft of `favoritesRepository.test.ts` contained two meaningless conditional expressions (`TYPED_LUND.name === '' ? … : …`). The AI replaced them with plain values before running the tests.
+- The first version of TEST_REPORT §2.2 gave `parseStoredFavorites` 41 tests; a recount showed 42. The failing-test names in §2.3 were checked by running the mutations a second time with the names listed.
+- The hook itself (React state, effects, refs) is not covered by unit tests, because the project has no React test renderer (SPEC Q21). Only its exported pure rules are tested.
+- Decision numbers D-37 – D-39 and this entry's number were taken as the next free numbers on `dev` at `8150846`. Concurrent Epic 4 work may use the same numbers; renumber when merging if needed.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-23) |
+| Unit tests (names) | `npm run check`: 27 suites, 480/480 PASS (348 earlier + 132 new; the earlier 22 suites also run alone: 348/348) |
+| Mutation checks | 9 faults introduced and reverted, all detected (TEST_REPORT §2.3) |
+| `npx expo-doctor` | 20/20 checks passed |
+| Bundle build | not run (the new modules are not imported by the app yet) |
+| Android Emulator (what was checked) | not run (no Android SDK on the Windows machine) |
+| iOS Simulator (what was checked) | not run |
+| Physical device (Expo Go) | not run |
+
+**Lessons learned**
+-
+
+---
+
+### LLM-014 – NIT-239 favourite star and US-05.03 favourites screen (NIT-178)
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-23 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows; no emulator, simulator or physical device used |
+| **Linear user story / task** | NIT-176 (US-05.01): NIT-239; NIT-178 (US-05.03): NIT-244 – NIT-246 |
+| **Requirement IDs** | W-08, W-09 |
+| **Branch / PR** | `feat/NIT-178-favorites-screen` (from `dev` at `9d90de1`), uncommitted, no PR |
+| **Task given to AI** | Complete Epic 5: the favourite star on the home header, a favourites screen with list, empty, loading and error states, navigation to it and back to Home with the chosen place, favourites synchronised between the screens, handling of damaged storage, tests and docs. Reuse the phase 1 code; do not overwrite Developer 2's Epic 4 work. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | Structured prompt "We are continuing the Weatherly project… CURRENT TASKS: NIT-239… NIT-178…", which fixed the synchronisation strategy (one ViewModel per screen, reload on focus, storage as source of truth) and allowed an optional, confirmed reset of damaged storage. |
+
+**Changes made by AI**
+> - **Git check:**
+>   - The branch equalled `dev` (`9d90de1`, PR #3 merged), with NIT-229 included.
+>   - Developer 2's NIT-230 commit `1bdc00b` (on `origin/feat/Epic-04`, not merged) changes the `HomeScreen` signature to `{ navigation }`. It was read with `git show` but not merged. The new signature `{ navigation, route }` uses the same style, so the merge conflict should be small.
+> - **ViewModel and repository** (phase 1 code, extended):
+>   - `useFavoritesViewModel`: `reload` made stable with `useCallback`; changes blocked while the list is read again; new `canChange` and `resetFavorites`; pure `canChangeFavorites`, `canResetFavorites`, `resetStoredFavorites`.
+>   - `favoritesRepository`: loads and saves run in call order.
+> - **Navigation:**
+>   - `routes.ts`: `Home: { selectedLocation?: Location } | undefined` and `Favorites: undefined`.
+>   - `RootNavigator.tsx`: the `Favorites` screen on the existing stack.
+> - **Views:**
+>   - `HomeHeader`: star (only with a place) and a favourites button; pure `presentFavoriteToggle`.
+>   - `HomeScreen`: favourites ViewModel; `useFocusEffect` reload; `selectedLocation` param → `handleSelectLocation`, then cleared; save-error notice.
+>   - New: `FavoritesScreen` (`FlatList`, `popTo('Home', …)`, `Alert` before reset), `FavoriteListItem`, `FavoritesStatus`.
+> - **Tests (57 new):**
+>   - new files: `tests/views/homeHeader.test.ts`, `tests/views/favoriteListItem.test.ts`, `tests/views/favoritesStatus.test.ts`, `tests/navigation/favoriteRoutes.test.ts`;
+>   - new blocks at the end of `tests/viewmodels/useFavoritesViewModel.test.ts` and `tests/repositories/favoritesRepository.test.ts`.
+> - **Checks:** 6 mutation checks; Android and iOS bundle export.
+> - **Docs:**
+>   - SPEC: W-08/W-09 detail, §11, §11.1, Q10, D-40, §14.
+>   - STYLE: §3.1, §3.3, §4.
+>   - CONTEXT: §18.
+>   - TEST_REPORT: §1.12 with a manual checklist F-1 – F-14 (all NOT RUN), §2.1 – §2.4.
+> - **Not changed:** `useWeatherViewModel`, the weather/location services, parsers and repositories, `DayDetailScreen`, `App.tsx` and the existing tests' code. Linear was not updated.
+
+**Changes reviewed or modified by students**
+- Accepted as is:
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- **Race found while designing:** with one ViewModel per screen, a tap on the star during Home's focus reload could save Home's old copy and bring back a place removed on the favourites screen. Changes are now blocked while reading (`canChange`), and the repository keeps reads and writes in order.
+- **Type error:** the first `FavoritesScreen` passed `null` as `ListHeaderComponent`, which the type does not allow; `tsc` caught it.
+- **Wrong test counts:** the first TEST_REPORT draft said `favoriteRoutes` had 5 tests and the new ViewModel blocks 14; recounting gave 6 and 13.
+- **Invented "before" run:** it also listed a "before the changes" `npm run check`. That run had not happened; the first run came after the source changes. It was corrected to what was actually run.
+- **Untested wiring:** the hooks, the focus effect and the param effect in `HomeScreen` are not unit-tested (no React renderer, SPEC Q21). Only their pure rules are; the rest needs the manual checks in TEST_REPORT §1.12.
+- **Numbering clash:** Developer 2's unmerged commit also adds a TEST_REPORT "§1.10", which clashes with the favourites §1.10 already on `dev`; renumber when merging.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (also part of `npm run check`, 2026-11-23) |
+| Unit tests (names) | `npm run check`: 31 suites, 537/537 PASS (480 earlier + 57 new) |
+| Mutation checks | 6 faults introduced and reverted, all detected (TEST_REPORT §2.3) |
+| `npx expo-doctor` | 20/20 checks passed |
+| Bundle build | `npx expo export --platform android --platform ios` without errors (output outside the repository) |
+| Android Emulator (what was checked) | not run |
+| iOS Simulator (what was checked) | not run |
 | Physical device (Expo Go) | not run |
 
 **Lessons learned**

@@ -119,7 +119,7 @@ describe('presentCurrentWeather', () => {
   });
 });
 
-// Detail-screen formatters (W-07, SPEC D-39). Real values come from the
+// Detail-screen formatters (W-07, SPEC D-43). Real values come from the
 // Stockholm response saved on 2026-11-23.
 describe('formatPrecipitation and formatSnowfall', () => {
   it('shows real rain to one decimal, also for a dry day', () => {

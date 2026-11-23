@@ -15,7 +15,7 @@ export type DayDetailHeroProps = {
 /**
  * The top of the day detail screen (W-07, NIT-233): the weekday and date,
  * a large icon, the condition and the day's high and low with full units,
- * then the feels-like high and low when the API sent both (SPEC D-39).
+ * then the feels-like high and low when the API sent both (SPEC D-43).
  * Built like the home screen's `WeatherHero`. Presentational: all texts come
  * from `presentDayDetail`, and screen readers hear the block as one sentence.
  */

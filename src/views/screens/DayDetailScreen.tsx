@@ -27,7 +27,7 @@ import { WeatherCard } from '../components/WeatherCard';
  *
  * The hero shows the date, condition and high/low (NIT-233), with the
  * place below it (NIT-233), then the Precipitation, Wind and Sun cards
- * (NIT-234, NIT-236; SPEC D-38, D-39). Precipitation and wind come first,
+ * (NIT-234, NIT-236; SPEC D-42, D-43). Precipitation and wind come first,
  * because they are what the story is about and why most people open a day.
  */
 export function DayDetailScreen({ route }: RootStackScreenProps<'DayDetail'>) {

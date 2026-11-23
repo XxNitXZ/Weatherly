@@ -161,7 +161,7 @@ describe('parseWeatherResponse', () => {
   });
 });
 
-describe('parseWeatherResponse – detail fields (W-07, SPEC D-39)', () => {
+describe('parseWeatherResponse – detail fields (W-07, SPEC D-43)', () => {
   // A real response to the extended request, saved on 2026-11-23 for Stockholm
   // (59.33, 18.07). Its `daily_units` confirm °C, mm, cm, h, m/s, ° and s.
   const DETAIL_KEYS = [

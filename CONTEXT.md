@@ -49,7 +49,7 @@ As targeted by the team (see [SPEC.md §3 and §8](SPEC.md#8-quality-requirement
 | Weather API | Open-Meteo | Decided (SPEC D-05) |
 | Geocoding API | Open-Meteo Geocoding API | Decided (SPEC D-24, supersedes D-06) |
 | Navigation | React Navigation, minimal packages | Decided (SPEC D-07); **not installed** |
-| Persistence | `@react-native-async-storage/async-storage` | Decided (SPEC D-08); **not installed** |
+| Persistence | `@react-native-async-storage/async-storage` | Decided (SPEC D-08); installed in US-05.02 (NIT-177), 2.2.0 |
 | Unit testing | Jest + `jest-expo` | Decided (SPEC D-09); installed as dev dependencies in US-02.01 (NIT-216). Run with `npm test`. |
 | Cross-platform testing | Android Emulator (Windows), iOS Simulator (macOS) | Decided (SPEC D-12) |
 | Safe areas | `react-native-safe-area-context` | Decided (SPEC D-26); installed in US-03.01 (NIT-169) |
@@ -96,7 +96,7 @@ Both developers:
 ## 8. Team Development Workflow
 
 1. Pick a Linear issue and move it to *In Progress*.
-2. Work on the Epic's feature branch, created from `dev` (`feat/Epic-xx`, SPEC D-37; [GIT_WORKFLOW.md](GIT_WORKFLOW.md)). Push it after each finished user story. The one-off direct-on-`dev` exception in [GIT_WORKFLOW.md §16](GIT_WORKFLOW.md#16-documented-exception-direct-work-on-dev-nit-163) does not change this step for future work.
+2. Work on the Epic's feature branch, created from `dev` (`feat/Epic-xx`, SPEC D-41; [GIT_WORKFLOW.md](GIT_WORKFLOW.md)). Push it after each finished user story. The one-off direct-on-`dev` exception in [GIT_WORKFLOW.md §16](GIT_WORKFLOW.md#16-documented-exception-direct-work-on-dev-nit-163) does not change this step for future work.
 3. Implement following STYLE.md, with AI assistance as described in §15.
 4. Run `npx tsc --noEmit` (and tests, once configured). Test on your platform.
 5. When the whole Epic is done, open a pull request into `dev`. The other student reviews it and tests on their platform.
@@ -117,7 +117,7 @@ There's no branch protection yet; it will be configured later. Never force-push 
 ## 10. Linear Project Structure
 
 - **Hierarchy:** Project *Weather App* → Epics → User Stories (`US-xx.yy`) → Tasks.
-- Every commit and PR should reference its Linear issue ID (e.g. `NIT-197`); branches are named after their Epic (`feat/Epic-04`, SPEC D-37).
+- Every commit and PR should reference its Linear issue ID (e.g. `NIT-197`); branches are named after their Epic (`feat/Epic-04`, SPEC D-41).
 - The full identifier list (9 epics, NIT-152 – NIT-160, and 32 user stories, NIT-161 – NIT-192, with titles) is in [SPEC.md §11.2](SPEC.md#112-linear-identifiers-weather-app-project).
 - Every requirement is mapped to its epic and user story in [SPEC.md §11](SPEC.md#11-requirement-tracking).
 
@@ -137,7 +137,7 @@ There's no branch protection yet; it will be configured later. Never force-push 
 
 ## 12. Local Persistence Strategy
 
-Planned, using `@react-native-async-storage/async-storage` (SPEC D-08) behind the `keyValueStorage` wrapper. Not installed yet.
+Uses `@react-native-async-storage/async-storage` (SPEC D-08) behind the `keyValueStorage` wrapper (`src/storage/keyValueStorage.ts`, US-05.02). Favourites are stored under `weatherly:favorites` in a versioned format (SPEC D-38); the cache and settings are still planned.
 
 | Data | Owner | Purpose |
 |---|---|---|
@@ -217,11 +217,21 @@ Update this section when the state changes.
 - Epic 3 and the weather-first redesign (SPEC D-33, D-34), merged in PR #2: `HomeScreen` with header, weather hero, "Rest of today" and the seven-day forecast on a day/night sky; search in `LocationSearchSheet`.
 - US-04.01 task NIT-229, merged early so Epic 5 can build on it: React Navigation with one native stack (D-35), `src/navigation/routes.ts`, `RootNavigator.tsx`, a minimal `DayDetailScreen`.
 
-**In progress** on `feat/Epic-04` (one branch per Epic, SPEC D-37):
-- US-04.01, Screen Navigation (NIT-173): done and pushed. Day rows open `DayDetailScreen` with the place, the day and the UTC offset (D-36); navigation checked on the iOS Simulator by report (TEST_REPORT §1.10). 353 unit tests.
-- Next: US-04.02, Daily Details Screen (NIT-174), then US-04.03 (NIT-175).
-- Epic 5 (favourites) is being started by Developer 1 from `dev`.
+**Epic 4 done** on `feat/Epic-04` (one branch per Epic, SPEC D-41), with `dev` merged into it on 2026-11-23; PR into `dev` pending:
+- US-04.01 (NIT-173): day rows open `DayDetailScreen` with the place, the day and the UTC offset (D-36); navigation checked on the iOS Simulator by report (TEST_REPORT §1.10).
+- US-04.02 (NIT-174): day sky with a matching header, hero with date, condition, high/low and feels-like, Sun card with polar days (D-42).
+- US-04.03 (NIT-175): Precipitation and Wind cards and the extra daily fields (D-43); missing values tested end to end; UX-26 partly run (landscape waits for W-22).
+- After the merge with `dev`: 605 unit tests pass.
 
 **Open checks:** every Android Emulator scenario; the on-screen iOS minus key for coordinates (TEST_REPORT §1.4).
+
+**Epic 5 phase 1** (favourites logic and persistence, US-05.01 without the star and US-05.02; SPEC D-37 – D-39) is on `dev` through PR #3 (`9d90de1`).
+
+**In progress on `feat/NIT-178-favorites-screen`** (from `dev` at `9d90de1`, uncommitted, 2026-11-23):
+- the star and a favourites button in the home header (NIT-239);
+- `FavoritesScreen`, the `Favorites` route and the return of a chosen place to Home (US-05.03);
+- reading the favourites again on focus, and storage reads and writes in order (SPEC D-40).
+
+Automated checks pass; nothing has been run on a device yet. Developer 2's NIT-230 commit (`1bdc00b` on `feat/Epic-04`) is not merged into `dev`; both change the `HomeScreen` signature, so expect a small conflict there. On 2026-11-23 `ANDROID_HOME` was still not set on the Windows machine.
 
 Which modules exist is tracked in STYLE §3.1; requirement status in SPEC §11.

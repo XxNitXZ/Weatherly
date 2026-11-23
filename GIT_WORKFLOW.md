@@ -10,7 +10,7 @@ Repository: **https://github.com/XxNitXZ/Weatherly** (public)
 |---|---|---|
 | `main` | Stable, demonstrable version. Every commit on `main` has been verified on Android and iOS. | PR from `dev` only |
 | `dev` | Integration branch. It builds and type-checks at all times. | PRs from work branches |
-| `feat/*` and other work branches | **One Epic per branch** (SPEC D-37), e.g. `feat/Epic-04`. Pushed after each finished user story; merged into `dev` by PR once the whole Epic is done. A part can be merged earlier when the other developer needs it (as NIT-229 was for Epic 5). | The developer who owns the Epic |
+| `feat/*` and other work branches | **One Epic per branch** (SPEC D-41), e.g. `feat/Epic-04`. Pushed after each finished user story; merged into `dev` by PR once the whole Epic is done. A part can be merged earlier when the other developer needs it (as NIT-229 was for Epic 5). | The developer who owns the Epic |
 
 ```
 main ─────────────●──────────────────●──────▶   (releases from dev)
@@ -53,7 +53,7 @@ git config --global user.email "you@example.com"
 ## 4. Branch Naming
 
 ```
-feat/Epic-<two-digit epic number>          # the default since SPEC D-37
+feat/Epic-<two-digit epic number>          # the default since SPEC D-41
 <type>/<linear-id>-<short-kebab-description>  # small fixes, docs or chores outside an Epic
 ```
 

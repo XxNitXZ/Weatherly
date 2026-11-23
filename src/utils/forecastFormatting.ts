@@ -236,11 +236,11 @@ export function presentDayDetail(day: DailyForecast, utcOffsetSeconds: number): 
   };
 }
 
-/** Shown for a missing optional value; the row stays (SPEC D-38). */
+/** Shown for a missing optional value; the row stays (SPEC D-42). */
 export const NOT_AVAILABLE_TEXT = 'Not available';
-/** Shown for sunrise and sunset when the sun does not rise (SPEC D-38, OQ-07). */
+/** Shown for sunrise and sunset when the sun does not rise (SPEC D-42, OQ-07). */
 export const POLAR_NIGHT_TEXT = 'Polar night';
-/** Shown for sunrise and sunset when the sun does not set (SPEC D-38, OQ-07). */
+/** Shown for sunrise and sunset when the sun does not set (SPEC D-42, OQ-07). */
 export const MIDNIGHT_SUN_TEXT = 'Midnight sun';
 
 /**
@@ -266,7 +266,7 @@ export type SunTimesPresentation = {
  *
  * Checking that sunrise is exactly the day's start keeps a real day of 23½
  * hours of daylight near the polar circle from being shown as midnight sun.
- * A missing value keeps its row and reads "Not available" (SPEC D-38).
+ * A missing value keeps its row and reads "Not available" (SPEC D-42).
  */
 export function presentSunTimes(day: DailyForecast, utcOffsetSeconds: number): SunTimesPresentation {
   const { sunriseEpochMs, sunsetEpochMs } = day;
@@ -292,8 +292,8 @@ function formatOptionalLocalTime(epochMs: number | undefined, utcOffsetSeconds: 
 
 /**
  * The values of the precipitation, wind and sun-extra rows of the day detail
- * screen (W-07, SPEC D-39). Every value is optional in the API; a missing
- * one keeps its row and reads "Not available" (SPEC D-38).
+ * screen (W-07, SPEC D-43). Every value is optional in the API; a missing
+ * one keeps its row and reads "Not available" (SPEC D-42).
  */
 export type DayConditionsPresentation = {
   readonly precipitationTotal: string;

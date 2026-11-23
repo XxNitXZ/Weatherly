@@ -60,7 +60,7 @@ describe('buildForecastUrl', () => {
 
   // Guards against the request and the parser drifting apart: the fixture is
   // the latest real response to this exact request (saved 2026-11-23 with the
-  // detail fields of SPEC D-39), which weatherParser is tested against.
+  // detail fields of SPEC D-43), which weatherParser is tested against.
   it('requests exactly the fields present in the parser test fixture', () => {
     const fieldsIn = (block: object): ReadonlyArray<string> =>
       Object.keys(block).filter((key) => key !== 'time' && key !== 'interval');

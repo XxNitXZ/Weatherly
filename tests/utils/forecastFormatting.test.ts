@@ -286,7 +286,7 @@ describe('presentSunTimes', () => {
   });
 });
 
-describe('presentDayDetail – feels like (SPEC D-39)', () => {
+describe('presentDayDetail – feels like (SPEC D-43)', () => {
   const details = parseWeatherResponse(detailsFixture);
 
   it('adds the real feels-like high and low to the text and the spoken sentence', () => {

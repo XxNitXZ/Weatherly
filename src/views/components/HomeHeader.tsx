@@ -6,22 +6,63 @@ import { MIN_TOUCH_TARGET, iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { formatCoordinates, formatLocationDetails } from '../../utils/locationFormatting';
 
+/** The favorite star for the selected place. The screen gets every value from `useFavoritesViewModel`. */
+export type FavoriteToggle = {
+  readonly isFavorite: boolean;
+  /** True while favorites are saved or read, or could not be read. */
+  readonly isDisabled: boolean;
+  readonly onToggle: () => void;
+};
+
 export type HomeHeaderProps = {
   /** The selected place, or `null` before the first search. */
   readonly location: Location | null;
+  /** The star for `location`; leave out when no place is selected. */
+  readonly favorite?: FavoriteToggle;
+  readonly onPressFavorites: () => void;
   readonly onPressSearch: () => void;
 };
 
+/** The icon and screen-reader texts of the favorite star. */
+export type FavoriteTogglePresentation = {
+  readonly icon: 'star' | 'star-outline';
+  readonly accessibilityLabel: string;
+  readonly accessibilityHint?: string;
+};
+
+/**
+ * The star for a place (NIT-239): filled when it is a favorite, outlined when
+ * not. The label says what a tap will do, with the place's name, so a screen
+ * reader user hears e.g. "Add Lund to favourites".
+ */
+export function presentFavoriteToggle(
+  placeName: string,
+  isFavorite: boolean,
+  isDisabled: boolean,
+): FavoriteTogglePresentation {
+  return {
+    icon: isFavorite ? 'star' : 'star-outline',
+    accessibilityLabel: isFavorite ? `Remove ${placeName} from favourites` : `Add ${placeName} to favourites`,
+    accessibilityHint: isDisabled ? 'Favourites are not available right now' : undefined,
+  };
+}
+
 /**
  * The top of the home screen (SPEC D-33): the selected place as the title,
- * its region and country (or coordinates) underneath, and a compact search
- * button. Before a place is chosen, the app name is shown.
+ * its region and country (or coordinates) underneath, then compact buttons:
+ * the favorite star for the selected place (only when a place is selected),
+ * the favorites list, and search. Before a place is chosen, the app name is
+ * shown. Presentational: the screen and its ViewModels decide what a tap does.
  */
-export function HomeHeader({ location, onPressSearch }: HomeHeaderProps) {
+export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch }: HomeHeaderProps) {
   const subtitle =
     location === null
       ? undefined
       : formatLocationDetails(location) ?? formatCoordinates(location.coordinates);
+  const star =
+    location !== null && favorite !== undefined
+      ? presentFavoriteToggle(location.name, favorite.isFavorite, favorite.isDisabled)
+      : undefined;
 
   return (
     <View style={styles.header}>
@@ -35,16 +76,46 @@ export function HomeHeader({ location, onPressSearch }: HomeHeaderProps) {
           </Text>
         )}
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Search for a place"
-        accessibilityHint="Opens search by place name or coordinates"
-        onPress={onPressSearch}
-        hitSlop={spacing.s}
-        style={({ pressed }) => [styles.searchButton, pressed && styles.searchButtonPressed]}
-      >
-        <MaterialCommunityIcons name="magnify" size={iconSize.s} color={skyColors.onSky} />
-      </Pressable>
+      <View style={styles.buttons}>
+        {star !== undefined && favorite !== undefined && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={star.accessibilityLabel}
+            accessibilityHint={star.accessibilityHint}
+            accessibilityState={{ selected: favorite.isFavorite, disabled: favorite.isDisabled }}
+            disabled={favorite.isDisabled}
+            onPress={favorite.onToggle}
+            hitSlop={spacing.xs}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.iconButtonPressed,
+              favorite.isDisabled && styles.iconButtonDisabled,
+            ]}
+          >
+            <MaterialCommunityIcons name={star.icon} size={iconSize.s} color={skyColors.onSky} />
+          </Pressable>
+        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Favourites"
+          accessibilityHint="Opens your saved places"
+          onPress={onPressFavorites}
+          hitSlop={spacing.xs}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+        >
+          <MaterialCommunityIcons name="star-box-multiple-outline" size={iconSize.s} color={skyColors.onSky} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Search for a place"
+          accessibilityHint="Opens search by place name or coordinates"
+          onPress={onPressSearch}
+          hitSlop={spacing.xs}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+        >
+          <MaterialCommunityIcons name="magnify" size={iconSize.s} color={skyColors.onSky} />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -71,7 +142,12 @@ const styles = StyleSheet.create({
     color: skyColors.onSkyMuted,
     fontSize: fontSize.body,
   },
-  searchButton: {
+  buttons: {
+    flexDirection: 'row',
+    // Wide enough apart that the buttons' enlarged touch areas (hitSlop) do not overlap.
+    gap: spacing.s,
+  },
+  iconButton: {
     width: MIN_TOUCH_TARGET,
     height: MIN_TOUCH_TARGET,
     borderRadius: MIN_TOUCH_TARGET / 2,
@@ -81,7 +157,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: skyColors.cardBorder,
   },
-  searchButtonPressed: {
+  iconButtonPressed: {
     opacity: 0.7,
+  },
+  iconButtonDisabled: {
+    opacity: 0.5,
   },
 });

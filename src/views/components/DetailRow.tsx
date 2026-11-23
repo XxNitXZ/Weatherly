@@ -6,7 +6,7 @@ import { fontSize, fontWeight } from '../../theme/typography';
 export type DetailRowProps = {
   /** What the value is, e.g. "Sunrise". */
   readonly label: string;
-  /** The formatted value, e.g. "08:14", or "Not available" (SPEC D-38). */
+  /** The formatted value, e.g. "08:14", or "Not available" (SPEC D-42). */
   readonly value: string;
 };
 
