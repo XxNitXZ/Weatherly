@@ -16,6 +16,13 @@ export const skyGradient: Readonly<Record<SkyVariant, string>> = {
   night: 'linear-gradient(180deg, #0F2147 0%, #14295A 55%, #1B3670 100%)',
 };
 
+/**
+ * Background of a native screen header on the day sky (the day detail
+ * screen). Equal to the gradient's first stop, so header and sky meet
+ * without an edge.
+ */
+export const skyHeaderColor = '#1F5DB8';
+
 /** Solid colour under the gradient, used if a platform cannot draw it. */
 export const skyBaseColor: Readonly<Record<SkyVariant, string>> = {
   day: '#1A4FA3',

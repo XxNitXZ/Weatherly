@@ -827,7 +827,7 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
-### LLM-012 – US-04.01 Screen navigation (NIT-229 – NIT-231)
+### LLM-012 – US-04.01 Screen navigation and US-04.02 Daily details screen
 
 | Field | Entry |
 |---|---|
@@ -835,8 +835,8 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-173 (US-04.01), tasks NIT-229, NIT-230 and NIT-231 |
-| **Requirement IDs** | W-07, W-26 |
+| **Linear user story / task** | NIT-173 (US-04.01): tasks NIT-229 – NIT-231; NIT-174 (US-04.02): task NIT-232 |
+| **Requirement IDs** | W-07, W-26, W-29 |
 | **Branch / PR** | `feat/Epic-04`, uncommitted, no PR |
 | **Task given to AI** | Explain an editor error and the template screen after pulling `dev`; explain `npm run ios` vs `npx expo start -c`; plan US-04.01; set up navigation (NIT-229). |
 | **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
@@ -871,7 +871,15 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - `tests/navigation/routes.test.ts` (5 tests): `DayDetail` params built from the real forecast survive a JSON round trip; the tapped day is carried; a coordinate place keeps no region or country.
 >   - Mutation check: the parser temporarily returned a `Date` for `dateEpochMs`; all 5 tests failed; the file was restored from a backup and `git diff` was empty.
 >   - Scenarios N-1 – N-7 written into TEST_REPORT §1.10; results recorded as reported by the student.
->   - N-7 ("no new request on return") could not be observed: the temporary log from the brief was not added before the student reported.
+>   - N-7 ("no new request on return"): the temporary log from the brief was not added; the student reported that N-7 is already known to work.
+> - **Process:** on request, one feature branch per Epic (SPEC D-37); `GIT_WORKFLOW.md` §1, §4, §5, §9 and `CONTEXT.md` §8, §11 updated; CONTEXT §18 rewritten (it still described Epic 3 as uncommitted).
+> - **US-04.02 planning:** the student chose "Not available" for missing optional values (over hiding the row) and moved sunrise, sunset and OQ-07 from US-04.03 into US-04.02; NIT-174 and NIT-175 updated in Linear.
+> - **NIT-232:**
+>   - `DayDetail` header in the sky's top colour (`skyHeaderColor`, new token) with white tint and no divider.
+>   - `DayDetailScreen` on the day sky, one `ScrollView`, bottom safe area; it shows weekday, date and place details as before.
+>   - `DayDetailPresentation` and `presentDayDetail` in `forecastFormatting.ts` (tests follow in NIT-233).
+>   - New `DetailRow` component, not used until NIT-234.
+>   - Docs: STYLE §3.1, §4; SPEC change log.
 
 **Changes reviewed or modified by students**
 - Accepted as is: passing the `DailyForecast` in the route params (D-36).
@@ -895,7 +903,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | `npx expo-doctor` | 20/20 checks passed |
 | Bundle build | `npx expo export --platform ios` without errors |
 | Android Emulator (what was checked) | not run |
-| iOS Simulator (what was checked) | Home screen works as before after `npx expo start -c`; tapping a day opens the detail screen, and the back button and swipe-back return to Home; N-1 – N-6 of TEST_REPORT §1.10 (all reported by the student, 2026-11-23); N-7 not observed |
+| iOS Simulator (what was checked) | Home screen works as before after `npx expo start -c`; tapping a day opens the detail screen, and the back button and swipe-back return to Home; N-1 – N-7 of TEST_REPORT §1.10 (all reported by the student, 2026-11-23) |
 | Physical device (Expo Go) | not run |
 
 **Lessons learned**

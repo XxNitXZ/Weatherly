@@ -173,3 +173,41 @@ export function presentForecastHourItem(
     accessibilityLabel: isNow ? `Now, ${forecast.accessibilityLabel}` : forecast.accessibilityLabel,
   };
 }
+
+/** The typed view props of the day detail screen (W-07, NIT-232). */
+export type DayDetailPresentation = {
+  /** E.g. "Saturday". */
+  readonly weekday: string;
+  /** E.g. "21 November". */
+  readonly date: string;
+  /** A day always uses the day icon, as in the seven-day list. */
+  readonly icon: WeatherIconName;
+  readonly condition: string;
+  /** With the full unit, e.g. "2 °C" (SPEC D-33: details keep full units). */
+  readonly high: string;
+  readonly low: string;
+  /** One sentence for screen readers, e.g. "Saturday 21 November: Overcast, high 2 °C, low -3 °C". */
+  readonly accessibilityLabel: string;
+};
+
+/**
+ * Display texts for the top of the day detail screen: the date, the
+ * condition and the day's high and low (W-07). The values are shown as the
+ * API sent them, like the seven-day list.
+ */
+export function presentDayDetail(day: DailyForecast, utcOffsetSeconds: number): DayDetailPresentation {
+  const label = formatDayLabel(day.dateEpochMs, utcOffsetSeconds);
+  const condition = describeWeatherCode(day.weatherCode);
+  const high = formatTemperature(day.temperatureMaxCelsius);
+  const low = formatTemperature(day.temperatureMinCelsius);
+
+  return {
+    weekday: label.weekdayLong,
+    date: label.dateLong,
+    icon: weatherIconName(day.weatherCode, true),
+    condition,
+    high,
+    low,
+    accessibilityLabel: `${label.weekdayLong} ${label.dateLong}: ${condition}, high ${high}, low ${low}`,
+  };
+}

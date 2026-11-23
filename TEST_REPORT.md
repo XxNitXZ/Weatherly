@@ -213,9 +213,9 @@ Scenarios for UX-09, run on the iOS Simulator by Tyrone Asante on 2026-11-23. Re
 | N-4 | Double-tap a day quickly | Only one detail screen opens; one back returns to Home | PASS (by report) |
 | N-5 | Go back, search another place, open a day | The detail screen shows the new place | PASS (by report) |
 | N-6 | Accessibility Inspector on a day row | Label (day, condition, high, low), "Button" trait and hint are read | PASS (by report) |
-| N-7 | Open and close a day while watching Metro's log | No new weather request | See note |
+| N-7 | Open and close a day while watching Metro's log | No new weather request | PASS (by report: "We already know N-7 works", 2026-11-23) |
 
-**Note on N-7:** the temporary `console.log` in `weatherRepository.getReport` described in the brief was not added before the report, so Metro could not show requests. The code supports the expected result: `DayDetailScreen` imports no repository or service, and `HomeScreen` stays mounted (D-35). Confirming it on screen needs the temporary log.
+**Note on N-7:** the temporary `console.log` described in the brief was not added. The student reported that N-7 is already known to work. The code supports it: `DayDetailScreen` imports no repository or service, and `HomeScreen` stays mounted (D-35).
 
 Android Emulator: all NOT RUN.
 
@@ -500,7 +500,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-08 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-08 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-09 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-09 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Reported "the simulator scenarios also work" for N-1 – N-6 (TEST_REPORT §1.10; N-7 not observable without a temporary log). The detail screen shows only the weekday, date and place so far, not the day's weather (US-04.02) | PASS (by report; navigation part only) |
+| UX-09 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Reported "the simulator scenarios also work" for N-1 – N-7 (TEST_REPORT §1.10). The detail screen shows only the weekday, date and place so far, not the day's weather (US-04.02) | PASS (by report; navigation part only) |
 | UX-10 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-10 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-11 | Android Emulator (Windows) | | | | NOT RUN |

@@ -96,10 +96,10 @@ Both developers:
 ## 8. Team Development Workflow
 
 1. Pick a Linear issue and move it to *In Progress*.
-2. Create a feature branch from `dev` ([GIT_WORKFLOW.md](GIT_WORKFLOW.md)). The one-off direct-on-`dev` exception in [GIT_WORKFLOW.md §16](GIT_WORKFLOW.md#16-documented-exception-direct-work-on-dev-nit-163) does not change this step for future work.
+2. Work on the Epic's feature branch, created from `dev` (`feat/Epic-xx`, SPEC D-37; [GIT_WORKFLOW.md](GIT_WORKFLOW.md)). Push it after each finished user story. The one-off direct-on-`dev` exception in [GIT_WORKFLOW.md §16](GIT_WORKFLOW.md#16-documented-exception-direct-work-on-dev-nit-163) does not change this step for future work.
 3. Implement following STYLE.md, with AI assistance as described in §15.
 4. Run `npx tsc --noEmit` (and tests, once configured). Test on your platform.
-5. Open a pull request into `dev`. The other student reviews it and tests on their platform.
+5. When the whole Epic is done, open a pull request into `dev`. The other student reviews it and tests on their platform.
 6. Merge, then update SPEC.md status, TEST_REPORT.md and LLM_PROCESS.md.
 7. Complete the end-of-session checklist (§16).
 
@@ -117,7 +117,7 @@ There's no branch protection yet; it will be configured later. Never force-push 
 ## 10. Linear Project Structure
 
 - **Hierarchy:** Project *Weather App* → Epics → User Stories (`US-xx.yy`) → Tasks.
-- Every commit, branch or PR should reference its Linear issue ID (e.g. `NIT-197`).
+- Every commit and PR should reference its Linear issue ID (e.g. `NIT-197`); branches are named after their Epic (`feat/Epic-04`, SPEC D-37).
 - The full identifier list (9 epics, NIT-152 – NIT-160, and 32 user stories, NIT-161 – NIT-192, with titles) is in [SPEC.md §11.2](SPEC.md#112-linear-identifiers-weather-app-project).
 - Every requirement is mapped to its epic and user story in [SPEC.md §11](SPEC.md#11-requirement-tracking).
 
@@ -211,18 +211,17 @@ Complete this at the end of every work session (AI-assisted or not):
 
 Update this section when the state changes.
 
-**State on `dev`** (from `git log`, as of 2026-11-22, commit `6f057f5`):
-- Project setup: Expo SDK 58 + TypeScript (US-01.01), Git and GitHub with `main`/`dev` (US-01.02), MVVM folder structure and shared types (US-01.03), project documentation (US-01.04). The app runs on the iOS Simulator (TEST_REPORT §1.1); the Android Emulator run is still open.
-- Epic 2 (US-02.01 – US-02.04) on `dev`: weather models and `weatherParser`; `httpClient`, `weatherService` and `weatherRepository.getReport`; Open-Meteo geocoding with `locationRepository` and `useSearchViewModel`; coordinate validation, `useCoordinateSearchViewModel` and `CoordinateSearchForm`. 117 unit tests.
-- No screens on `dev` yet: `App.tsx` is still the Expo template.
+**State on `dev`** (from `git log`, as of 2026-11-23):
+- Project setup (Epic 1): Expo SDK 58 + TypeScript, Git and GitHub with `main`/`dev`, MVVM folder structure and shared types, project documentation. The app runs on the iOS Simulator (TEST_REPORT §1.1); the Android Emulator run is still open.
+- Epic 2: weather models and `weatherParser`; `httpClient`, `weatherService` and `weatherRepository.getReport`; Open-Meteo geocoding with `locationRepository` and `useSearchViewModel`; coordinate validation and `useCoordinateSearchViewModel`.
+- Epic 3 and the weather-first redesign (SPEC D-33, D-34), merged in PR #2: `HomeScreen` with header, weather hero, "Rest of today" and the seven-day forecast on a day/night sky; search in `LocationSearchSheet`.
+- US-04.01 task NIT-229, merged early so Epic 5 can build on it: React Navigation with one native stack (D-35), `src/navigation/routes.ts`, `RootNavigator.tsx`, a minimal `DayDetailScreen`.
 
-**In progress** on `feat/NIT-169-home-search`, not yet committed and not yet run on a device:
-- US-03.01, Home Screen & Search Interface (NIT-169): `HomeScreen` with place-name and coordinate search, wired into `App.tsx`.
-- US-03.02, Current Weather Conditions (NIT-170): `useWeatherViewModel`; the current weather is now shown by `WeatherHero`.
-- US-03.03, Seven-Day Forecast (NIT-171), and US-03.04, Today's Hourly Forecast (NIT-172): `DailyForecastList` and `HourlyForecastList`, from the same report.
-- Weather-first redesign of the home screen (SPEC D-33, D-34): header with search button, weather hero, glass forecast cards on a day/night sky, search in `LocationSearchSheet`, icons from `@expo/vector-icons`.
-- All four Epic 3 stories and the redesign are on this one branch at the team's request, so the pull request will cover all of them.
+**In progress** on `feat/Epic-04` (one branch per Epic, SPEC D-37):
+- US-04.01, Screen Navigation (NIT-173): done and pushed. Day rows open `DayDetailScreen` with the place, the day and the UTC offset (D-36); navigation checked on the iOS Simulator by report (TEST_REPORT §1.10). 353 unit tests.
+- Next: US-04.02, Daily Details Screen (NIT-174), then US-04.03 (NIT-175).
+- Epic 5 (favourites) is being started by Developer 1 from `dev`.
 
-**Windows machine (Developer 1), 2026-11-22:** dependencies installed and `npm run check` passes; no Android SDK or emulator installed yet (`ANDROID_HOME` not set).
+**Open checks:** every Android Emulator scenario; the on-screen iOS minus key for coordinates (TEST_REPORT §1.4).
 
 Which modules exist is tracked in STYLE §3.1; requirement status in SPEC §11.

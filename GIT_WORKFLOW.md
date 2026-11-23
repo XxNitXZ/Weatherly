@@ -10,14 +10,14 @@ Repository: **https://github.com/XxNitXZ/Weatherly** (public)
 |---|---|---|
 | `main` | Stable, demonstrable version. Every commit on `main` has been verified on Android and iOS. | PR from `dev` only |
 | `dev` | Integration branch. It builds and type-checks at all times. | PRs from work branches |
-| `feat/*` and other work branches | One Linear issue (task or small story) per branch | The developer who owns it |
+| `feat/*` and other work branches | **One Epic per branch** (SPEC D-37), e.g. `feat/Epic-04`. Pushed after each finished user story; merged into `dev` by PR once the whole Epic is done. A part can be merged earlier when the other developer needs it (as NIT-229 was for Epic 5). | The developer who owns the Epic |
 
 ```
 main ─────────────●──────────────────●──────▶   (releases from dev)
                  ╱                  ╱
 dev  ──●───●────●───●────●────────●─────────▶   (integration)
         ╲     ╱      ╲      ╱
-feat/…   ●──●         ●──●                      (one issue each)
+feat/…   ●──●         ●──●                      (one Epic each)
 ```
 
 ## 2. First-Time Setup (clone)
@@ -53,28 +53,29 @@ git config --global user.email "you@example.com"
 ## 4. Branch Naming
 
 ```
-<type>/<linear-id>-<short-kebab-description>
+feat/Epic-<two-digit epic number>          # the default since SPEC D-37
+<type>/<linear-id>-<short-kebab-description>  # small fixes, docs or chores outside an Epic
 ```
 
 | Type | Use for | Example |
 |---|---|---|
-| `feat/` | New functionality | `feat/NIT-xxx-place-name-search` |
+| `feat/` | New functionality: one Epic | `feat/Epic-05` |
 | `fix/` | Bug fixes | `fix/NIT-xxx-offline-banner-overlap` |
 | `docs/` | Documentation only | `docs/NIT-164-project-documentation` |
 | `chore/` | Tooling, config, dependencies | `chore/NIT-xxx-add-jest` |
 | `test/` | Tests only | `test/NIT-xxx-parser-tests` |
 
-`feat/*` is the default. Use the other prefixes only when the change is purely of that type. Replace `NIT-xxx` with the real Linear issue ID.
+`feat/Epic-xx` is the default. Use the other prefixes only for a change that is purely of that type and not part of an Epic. Replace `NIT-xxx` with the real Linear issue ID. Commit messages still name the Linear issue (§6), so each story stays traceable inside an Epic branch.
 
 ## 5. Starting Work
 
 ```bash
 git switch dev
 git pull --ff-only                          # make sure dev is up to date
-git switch -c feat/NIT-xxx-short-description
+git switch -c feat/Epic-xx
 ```
 
-Keep branches short-lived (a few days at most) and focused on one Linear issue.
+Keep a branch focused on one Epic. Push it after each finished user story, and merge `dev` into it regularly (§11) so it does not drift far from what the other developer is doing.
 
 ## 6. Commit Messages (Conventional Commits)
 
@@ -110,7 +111,7 @@ Rules:
 ## 7. Pushing a Work Branch
 
 ```bash
-git push -u origin feat/NIT-xxx-short-description   # first push, sets upstream
+git push -u origin feat/Epic-xx                     # first push, sets upstream
 git push                                            # later pushes
 ```
 
@@ -153,16 +154,16 @@ Anything non-obvious, open questions, screenshots (real ones only).
 2. The reviewer checks out the branch and runs it on their own platform when the change affects the UI or behaviour:
    ```bash
    git fetch origin
-   git switch feat/NIT-xxx-short-description
+   git switch feat/Epic-xx
    npm ci            # only if package-lock.json changed
    ```
 3. The reviewer leaves comments. The author pushes fixes as new commits (no force-push).
-4. When the review is approved and checks pass, merge into `dev` with **Squash and merge**, giving one clean Conventional Commit per issue on `dev`.
+4. When the review is approved and checks pass, merge into `dev` with **Squash and merge**, giving one clean Conventional Commit per merged branch (normally one Epic) on `dev`. The story-by-story commits remain in the PR's history on GitHub.
 5. Delete the remote branch after merging (GitHub button), and locally:
    ```bash
    git switch dev
    git pull --ff-only
-   git branch -d feat/NIT-xxx-short-description
+   git branch -d feat/Epic-xx
    ```
 
 ## 10. Keeping `main` Stable (Releases)
@@ -178,7 +179,7 @@ Bring the latest `dev` into your work branch, preferably by merging so no force-
 ```bash
 git switch dev
 git pull --ff-only
-git switch feat/NIT-xxx-short-description
+git switch feat/Epic-xx
 git merge dev
 ```
 
