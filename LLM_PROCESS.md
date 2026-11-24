@@ -1104,7 +1104,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-157 (Epic 6); NIT-179 (US-06.01): task NIT-247 |
+| **Linear user story / task** | NIT-157 (Epic 6); NIT-179 (US-06.01): tasks NIT-247, NIT-248 |
 | **Requirement IDs** | W-10, W-11, W-12 |
 | **Branch / PR** | `feat/EPIC-06`, uncommitted, no PR |
 | **Task given to AI** | Compare Epic 6 in Linear with the lab PDF and point out where Linear over- or under-simplifies; record the dev merge result and the merge-commit rule; plan US-06.01 and build NIT-247. |
@@ -1122,6 +1122,12 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - The brief promised a test for the gear button's label; it was left out, because header button labels are inline JSX and the project has no component renderer (SPEC Q21).
 >   - Mutation check: `isSelected` always true; 3 of 6 tests failed; file restored.
 >   - Docs: SPEC W-10 detail, §11 (IN PROGRESS), §11.1, change log; STYLE §3.1, §4; TEST_REPORT §1.13, §2.1 – §2.4, §4; Linear: scope decision added as a comment on NIT-157 (the description is too long to rewrite safely through the tool).
+>   - The student reported "It works" for the gear button, the defaults on the Settings screen and going back.
+> - **NIT-248:**
+>   - New: `src/parsers/settingsParser.ts` (forgiving, field-by-field defaults), `src/repositories/settingsRepository.ts` (ordered writes), `src/viewmodels/useSettingsViewModel.tsx` (`SettingsProvider`, `useSettingsViewModel`, `applySettingsChange`); `App.tsx` wraps the navigator in the provider; `SettingsScreen` shows and changes the current settings, rows disabled until loaded, save-error notice.
+>   - Tests: `settingsParser.test.ts` (18), `settingsRepository.test.ts` (7), `useSettingsViewModel.test.ts` (3).
+>   - Mutation checks: invalid field throws (3 failed); version check removed (4 failed); saves not ordered (1 failed); all restored. The third was added beyond the brief, to show the write-order test can fail.
+>   - Docs: SPEC D-44, W-10, §11.1, §12 Q10, change log; STYLE §3.1, §4; TEST_REPORT §1.13, §2.1 – §2.4, §4.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the Epic 6 scope changes; the US-06.01 plan and decisions 1 – 5.
@@ -1140,9 +1146,9 @@ Record actual outcomes only. Write `not run` where applicable.
 |---|---|
 | Read and understood line by line | |
 | `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-24) |
-| Unit tests (names) | `settingsPresentation.test.ts` (6); full suite 611 / 611 |
+| Unit tests (names) | `settingsPresentation.test.ts` (6), `settingsParser.test.ts` (18), `settingsRepository.test.ts` (7), `useSettingsViewModel.test.ts` (3); full suite 639 / 639 |
 | Android Emulator (what was checked) | |
-| iOS Simulator (what was checked) | |
+| iOS Simulator (what was checked) | NIT-247: gear button, Settings with the defaults, back and swipe-back (reported by the student) |
 
 **Lessons learned**
 -

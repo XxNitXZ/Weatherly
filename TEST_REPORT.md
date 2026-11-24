@@ -341,7 +341,15 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 | `cog-outline` and `check` glyphs exist | 2026-11-24 | Both present in the installed MaterialCommunityIcons glyph map | PASS |
 | `npm run check` | 2026-11-24 | `tsc --noEmit` without errors; Jest 611 / 611 | PASS |
 | iOS bundle | 2026-11-24 | `npx expo export --platform ios` exported without errors | PASS |
-| Gear button on Home; a long place name still fits (iPhone 17e); Settings shows 30 min, °C and m/s ticked and marked "default"; back and swipe-back return to Home with the same place (iOS Simulator) | | | NOT RUN |
+| Gear button on Home; a long place name still fits (iPhone 17e); Settings shows 30 min, °C and m/s ticked and marked "default"; back and swipe-back return to Home with the same place (iOS Simulator) | 2026-11-24 | Tyrone Asante reported "It works" | PASS (by report) |
+
+**NIT-248 (stored settings, choosing):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| `npm run check` | 2026-11-24 | `tsc --noEmit` without errors; Jest 639 / 639 | PASS |
+| iOS bundle | 2026-11-24 | `npx expo export --platform ios` exported without errors | PASS |
+| Choose 60 min, °F, km/h; checkmarks move at once; still selected after going back and reopening Settings; still selected after fully closing and restarting the app; "default" still shown on the default options; VoiceOver reads a tapped row as selected (iOS Simulator) | | | NOT RUN |
 
 ## 2. Automated Unit Tests
 
@@ -377,6 +385,8 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Favourites load/save result → `LoadState`, write gating | Error-state logic (ViewModel) | `loadFavoritesState`, `reloadingState`, `planFavoritesChange`, `saveFavoritesChange`, `isFavoriteIn` in `src/viewmodels/useFavoritesViewModel.ts` (US-05.01, US-05.02) | W-08 | proposed |
 | Favourites state → star, list, empty and error views; `AppError` kind → message | Error-state logic (View) | `presentFavoriteToggle` in `HomeHeader.tsx`, `describeFavoritesStatus`, `favoritesLoadErrorMessage`, `favoritesSaveErrorMessage` in `FavoritesStatus.tsx`, `presentFavoriteItem` in `FavoriteListItem.tsx` (NIT-239, US-05.03) | W-08, W-09 | |
 | Settings → screen texts (selected, default, spoken units) | Data transformation | `presentSettings` in `src/utils/settingsPresentation.ts` (NIT-247) | W-10 – W-12 | |
+| Stored settings JSON → `AppSettings` (defaults field by field) | JSON parsing | `parseStoredSettings`, `toStoredSettings` in `src/parsers/settingsParser.ts` (NIT-248) | W-10 – W-12 | |
+| Settings storage: defaults, round trip, write order, storage errors | (extra) | `settingsRepository` (NIT-248) | W-10 | |
 | Read/write order across screens | (extra) | `favoritesRepository` (US-05.03, SPEC D-40) | W-08, W-09 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
@@ -523,6 +533,9 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | favoritesRepository › order of reads and writes (3 tests) | W-08, W-09 | a read started during a delayed write; a failed write followed by another; three operations started at once | the read waits and returns the new list; the next operation still runs; results follow the start order | as expected (2026-11-23) | PASS |
 | settings options and defaults (2 tests) | W-10 – W-12 | the option lists; `DEFAULT_SETTINGS` | every default is offered; 30 min, Celsius, metres per second | as expected (2026-11-24) | PASS |
 | presentSettings (4 tests) | W-10 – W-12 | the defaults; changed settings (60 min, °F, km/h) | titles "Refresh weather every", "Temperature", "Wind speed"; labels "15 min" … "°C", "°F", "m/s", "km/h"; exactly one selected per group; "default" stays on the default option; spoken "metres per second, default", "kilometres per hour" | as expected (2026-11-24) | PASS |
+| settingsParser (18 tests) | W-10, D-44 | valid stored value; `undefined`; `null`, a string, a number, arrays; version `undefined`, 0, 2, "1"; one invalid field (45 min, "kelvin", `null`); "60" as text; a missing field; an extra field; write and JSON round trip | the stored settings; defaults; defaults; defaults; only that field defaulted; refresh 30; wind defaulted; ignored; `{ version: 1, … }` read back unchanged | as expected (2026-11-24) | PASS |
+| settingsRepository (7 tests) | W-10, D-44 | nothing saved; save then load; stored format; text that is not JSON; `getItem` fails; `setItem` fails after an earlier save; a slow first save followed by a second | defaults; the same settings; `{ version: 1, … }` under `weatherly:settings`; defaults; `AppError('storage')`; `AppError('storage')` and the earlier value kept; the second (last) choice stored | as expected (2026-11-24) | PASS |
+| applySettingsChange (3 tests) | W-10 | one field; all fields; the current object | only that field changed; all changed; the current object unchanged | as expected (2026-11-24) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -599,6 +612,9 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Detail fields (NIT-235) | `weatherParser`: `snowfallSumCm` read from `rain_sum` | 3 parser detail tests, real rainy day (4 of 398 failed) | yes (file restored from a backup) | 2026-11-23 | PASS |
 | Missing values (NIT-237) | `formatOptional`: `value === undefined` → `!value` (zero treated as missing) | 3 `presentDayConditions` tests, 2 end-to-end tests (all rows present; zero on a dry day) (5 of 416 failed) | yes (file restored, `cmp` equal) | 2026-11-23 | PASS |
 | Settings texts (NIT-247) | `presentSettings`: `isSelected: value === selected` → `true` | 3 of 6 `settingsPresentation` tests | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Settings storage (NIT-248) | `settingsParser`: an invalid field throws instead of falling back to its default | 3 parser tests (invalid field, number as text, missing field) (3 of 639 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Settings storage (NIT-248) | `settingsParser`: version check removed | the 4 wrong-version tests (4 of 639 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Settings storage (NIT-248) | `settingsRepository`: `saveSettings` no longer waits for earlier writes | `…two quick saves in the order they were made…` (1 of 639 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -628,6 +644,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-237 | `npm run check` | 416 | 416 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `feat/Epic-04` with `dev` (Epic 5) merged in, conflicts resolved, uncommitted | `npm run check` | 605 | 605 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06` after `8c09dfc`, with NIT-247 | `npm run check` | 611 | 611 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-24 | uncommitted, on `feat/EPIC-06` after `8c09dfc`, with NIT-248 | `npm run check` | 639 | 639 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
@@ -732,5 +749,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 26 executed | 2 of 26 executed: UX-09 PASS (by report); UX-26 partial (by report; landscape NOT RUN until W-22) |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 611 / 611 (run on macOS, 2026-11-24) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 639 / 639 (run on macOS, 2026-11-24) |
 | Known open defects | | |

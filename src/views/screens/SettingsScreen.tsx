@@ -2,11 +2,11 @@ import { StatusBar } from 'expo-status-bar';
 import { Fragment } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { DEFAULT_SETTINGS } from '../../models/AppSettings';
 import { colors } from '../../theme/colors';
 import { CONTENT_MAX_WIDTH, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { presentSettings, type SettingGroupPresentation } from '../../utils/settingsPresentation';
+import { SETTINGS_SAVE_ERROR_MESSAGE, useSettingsViewModel } from '../../viewmodels/useSettingsViewModel';
 import { SettingOptionRow } from '../components/SettingOptionRow';
 
 /**
@@ -15,26 +15,49 @@ import { SettingOptionRow } from '../components/SettingOptionRow';
  * stack from the gear button on Home, with the native header "Settings",
  * in the same light style as the favourites screen.
  *
- * NIT-247 shows the defaults; the options cannot be chosen yet. NIT-248 adds
- * the stored settings and choosing.
+ * The current settings come from the shared `useSettingsViewModel` (SPEC
+ * D-44). A tap applies a choice at once and saves it in the background. The
+ * options stay disabled until the stored settings have been read, so a
+ * choice cannot be overwritten by the read finishing later.
  */
 export function SettingsScreen() {
-  const settings = presentSettings(DEFAULT_SETTINGS);
+  const { settings: current, isLoaded, saveError, updateSettings } = useSettingsViewModel();
+  const settings = presentSettings(current);
 
   return (
     // The native header already keeps clear of the status bar and the notch.
     <SafeAreaView style={styles.root} edges={['bottom', 'left', 'right']}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
-        <SettingGroup group={settings.refreshInterval} />
-        <SettingGroup group={settings.temperatureUnit} />
-        <SettingGroup group={settings.windSpeedUnit} />
+        {saveError !== null && (
+          <Text style={styles.saveError} accessibilityRole="alert">
+            {SETTINGS_SAVE_ERROR_MESSAGE}
+          </Text>
+        )}
+        <SettingGroup
+          group={settings.refreshInterval}
+          onSelect={isLoaded ? (refreshIntervalMinutes) => updateSettings({ refreshIntervalMinutes }) : undefined}
+        />
+        <SettingGroup
+          group={settings.temperatureUnit}
+          onSelect={isLoaded ? (temperatureUnit) => updateSettings({ temperatureUnit }) : undefined}
+        />
+        <SettingGroup
+          group={settings.windSpeedUnit}
+          onSelect={isLoaded ? (windSpeedUnit) => updateSettings({ windSpeedUnit }) : undefined}
+        />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function SettingGroup<Value>({ group }: { readonly group: SettingGroupPresentation<Value> }) {
+type SettingGroupProps<Value> = {
+  readonly group: SettingGroupPresentation<Value>;
+  /** Leave out while the options cannot be chosen yet. */
+  readonly onSelect?: (value: Value) => void;
+};
+
+function SettingGroup<Value>({ group, onSelect }: SettingGroupProps<Value>) {
   return (
     <View style={styles.group}>
       <Text style={styles.groupTitle} accessibilityRole="header">
@@ -44,7 +67,7 @@ function SettingGroup<Value>({ group }: { readonly group: SettingGroupPresentati
         {group.options.map((option, index) => (
           <Fragment key={String(option.value)}>
             {index > 0 && <View style={styles.separator} />}
-            <SettingOptionRow option={option} />
+            <SettingOptionRow option={option} onSelect={onSelect} />
           </Fragment>
         ))}
       </View>
@@ -66,6 +89,10 @@ const styles = StyleSheet.create({
   },
   group: {
     gap: spacing.s,
+  },
+  saveError: {
+    color: colors.error,
+    fontSize: fontSize.body,
   },
   groupTitle: {
     color: colors.textMuted,
