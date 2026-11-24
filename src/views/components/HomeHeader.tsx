@@ -21,6 +21,7 @@ export type HomeHeaderProps = {
   readonly favorite?: FavoriteToggle;
   readonly onPressFavorites: () => void;
   readonly onPressSearch: () => void;
+  readonly onPressSettings: () => void;
 };
 
 /** The icon and screen-reader texts of the favorite star. */
@@ -51,10 +52,10 @@ export function presentFavoriteToggle(
  * The top of the home screen (SPEC D-33): the selected place as the title,
  * its region and country (or coordinates) underneath, then compact buttons:
  * the favorite star for the selected place (only when a place is selected),
- * the favorites list, and search. Before a place is chosen, the app name is
+ * the favorites list, search and settings. Before a place is chosen, the app name is
  * shown. Presentational: the screen and its ViewModels decide what a tap does.
  */
-export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch }: HomeHeaderProps) {
+export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch, onPressSettings }: HomeHeaderProps) {
   const subtitle =
     location === null
       ? undefined
@@ -114,6 +115,16 @@ export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch
           style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
         >
           <MaterialCommunityIcons name="magnify" size={iconSize.s} color={skyColors.onSky} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          accessibilityHint="Opens refresh and unit settings"
+          onPress={onPressSettings}
+          hitSlop={spacing.xs}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+        >
+          <MaterialCommunityIcons name="cog-outline" size={iconSize.s} color={skyColors.onSky} />
         </Pressable>
       </View>
     </View>

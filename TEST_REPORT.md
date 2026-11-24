@@ -259,6 +259,12 @@ Code uncommitted on `feat/Epic-04` after `e406795`, on macOS. Nothing navigates 
 | UX-26, landscape (iOS Simulator) | 2026-11-23 | Reported to work "when I used resize mode". The app is still portrait-only (`app.json` `"orientation": "portrait"`, STYLE §14) until W-22 (US-08.02), so the screen did not actually rotate; this is not a landscape result | NOT RUN (blocked by W-22) |
 | UX-26 on the Android Emulator | | | NOT RUN |
 
+**Epic 4 merged into `dev` (merge commit `8c09dfc`):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Day detail and favourites together on `dev`: open a day; star a place, open Favourites, choose it; open a day afterwards (iOS Simulator) | 2026-11-23 | Tyrone Asante reported "It worked, on dev now and all is merged" and "Everything worked on dev" | PASS (by report) |
+
 ### 1.10 Navigation and Return (US-04.01, NIT-231)
 
 Scenarios for UX-09, run on the iOS Simulator by Tyrone Asante on 2026-11-23. Results were reported in one message: "the simulator scenarios also work". No screenshots or logs were shared.
@@ -326,6 +332,17 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 | F-13 | Back button, iOS swipe-back and the Android back button on Favourites | Home with the same place and scroll position | NOT RUN |
 | F-14 | Landscape and a small phone on Favourites | List scrolls; content stays inside the safe area | NOT RUN |
 
+### 1.13 Settings Screen (US-06.01)
+
+**NIT-247 (screen and entry point, defaults shown):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| `cog-outline` and `check` glyphs exist | 2026-11-24 | Both present in the installed MaterialCommunityIcons glyph map | PASS |
+| `npm run check` | 2026-11-24 | `tsc --noEmit` without errors; Jest 611 / 611 | PASS |
+| iOS bundle | 2026-11-24 | `npx expo export --platform ios` exported without errors | PASS |
+| Gear button on Home; a long place name still fits (iPhone 17e); Settings shows 30 min, °C and m/s ticked and marked "default"; back and swipe-back return to Home with the same place (iOS Simulator) | | | NOT RUN |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -359,6 +376,7 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Storage failures → `AppError` kind | Error-state logic (data layer) | `src/storage/keyValueStorage.ts`, `src/repositories/favoritesRepository.ts` (US-05.02) | W-08 | |
 | Favourites load/save result → `LoadState`, write gating | Error-state logic (ViewModel) | `loadFavoritesState`, `reloadingState`, `planFavoritesChange`, `saveFavoritesChange`, `isFavoriteIn` in `src/viewmodels/useFavoritesViewModel.ts` (US-05.01, US-05.02) | W-08 | proposed |
 | Favourites state → star, list, empty and error views; `AppError` kind → message | Error-state logic (View) | `presentFavoriteToggle` in `HomeHeader.tsx`, `describeFavoritesStatus`, `favoritesLoadErrorMessage`, `favoritesSaveErrorMessage` in `FavoritesStatus.tsx`, `presentFavoriteItem` in `FavoriteListItem.tsx` (NIT-239, US-05.03) | W-08, W-09 | |
+| Settings → screen texts (selected, default, spoken units) | Data transformation | `presentSettings` in `src/utils/settingsPresentation.ts` (NIT-247) | W-10 – W-12 | |
 | Read/write order across screens | (extra) | `favoritesRepository` (US-05.03, SPEC D-40) | W-08, W-09 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
@@ -503,6 +521,8 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | favoriteRoutes (6 tests) | W-09 | Home params with a geocoded and a coordinate place; a favourite read back from storage; chosen place equal to / different from the shown place; no place shown | params survive a JSON round trip; the forecast URL uses the saved coordinates exactly; no new weather request for the shown place, a load otherwise | as expected (2026-11-23) | PASS |
 | useFavoritesViewModel › canChangeFavorites, canResetFavorites, resetStoredFavorites, two screens (13 tests) | W-08, W-09 | saved, refreshing, loading and error states with and without a write; damaged storage then reset; reset with a failing write; two ViewModel copies on the real repository | changes only from a current list and without a write; reset only after a failed read; damaged text replaced by `{"version":1,"favorites":[]}` only by the reset, kept when it fails; a removal on Favourites is seen by Home after its focus reload; no duplicate from two screens; storage unchanged after a failed removal | as expected (2026-11-23) | PASS |
 | favoritesRepository › order of reads and writes (3 tests) | W-08, W-09 | a read started during a delayed write; a failed write followed by another; three operations started at once | the read waits and returns the new list; the next operation still runs; results follow the start order | as expected (2026-11-23) | PASS |
+| settings options and defaults (2 tests) | W-10 – W-12 | the option lists; `DEFAULT_SETTINGS` | every default is offered; 30 min, Celsius, metres per second | as expected (2026-11-24) | PASS |
+| presentSettings (4 tests) | W-10 – W-12 | the defaults; changed settings (60 min, °F, km/h) | titles "Refresh weather every", "Temperature", "Wind speed"; labels "15 min" … "°C", "°F", "m/s", "km/h"; exactly one selected per group; "default" stays on the default option; spoken "metres per second, default", "kilometres per hour" | as expected (2026-11-24) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
 | refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
@@ -578,6 +598,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Detail fields (NIT-235) | `formatSnowfall`: unit "cm" → "mm" | snowfall formatter test, real rainy day, zero-as-value test (3 of 398 failed) | yes (file restored from a backup) | 2026-11-23 | PASS |
 | Detail fields (NIT-235) | `weatherParser`: `snowfallSumCm` read from `rain_sum` | 3 parser detail tests, real rainy day (4 of 398 failed) | yes (file restored from a backup) | 2026-11-23 | PASS |
 | Missing values (NIT-237) | `formatOptional`: `value === undefined` → `!value` (zero treated as missing) | 3 `presentDayConditions` tests, 2 end-to-end tests (all rows present; zero on a dry day) (5 of 416 failed) | yes (file restored, `cmp` equal) | 2026-11-23 | PASS |
+| Settings texts (NIT-247) | `presentSettings`: `isSelected: value === selected` → `true` | 3 of 6 `settingsPresentation` tests | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -606,6 +627,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-236 | `npm run check` | 398 | 398 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | uncommitted, on `feat/Epic-04`, with NIT-237 | `npm run check` | 416 | 416 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `feat/Epic-04` with `dev` (Epic 5) merged in, conflicts resolved, uncommitted | `npm run check` | 605 | 605 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-24 | uncommitted, on `feat/EPIC-06` after `8c09dfc`, with NIT-247 | `npm run check` | 611 | 611 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
@@ -710,5 +732,5 @@ Fill this in from the tables above. Do not estimate.
 | | Android Emulator | iOS Simulator |
 |---|---|---|
 | UX scenarios executed / PASS | 0 of 26 executed | 2 of 26 executed: UX-09 PASS (by report); UX-26 partial (by report; landscape NOT RUN until W-22) |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 605 / 605 (run on macOS, 2026-11-23, after merging `dev`) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 611 / 611 (run on macOS, 2026-11-24) |
 | Known open defects | | |

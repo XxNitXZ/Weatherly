@@ -158,7 +158,7 @@ Anything non-obvious, open questions, screenshots (real ones only).
    npm ci            # only if package-lock.json changed
    ```
 3. The reviewer leaves comments. The author pushes fixes as new commits (no force-push).
-4. When the review is approved and checks pass, merge into `dev` with **Squash and merge**, giving one clean Conventional Commit per merged branch (normally one Epic) on `dev`. The story-by-story commits remain in the PR's history on GitHub.
+4. When the review is approved and checks pass, merge into `dev` with **Create a merge commit** (decided 2026-11-24; first used for Epic 4). The story-by-story commits of the Epic branch stay visible on `dev`, so each user story can be traced in the history, which helps at the oral exam. Squash merging was the earlier rule; it would have turned a whole Epic into one commit.
 5. Delete the remote branch after merging (GitHub button), and locally:
    ```bash
    git switch dev

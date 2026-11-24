@@ -7,8 +7,6 @@ import type { DailyForecast } from '../models/Weather';
  *
  * Params are small, serialisable plain values. `DayDetail` gets the day the
  * user tapped, so the detail screen sends no request (SPEC D-36).
- *
- * `Settings` is added in Epic 6, together with its screen.
  */
 export type RootStackParamList = {
   /**
@@ -28,6 +26,8 @@ export type RootStackParamList = {
   };
   /** The saved favorite places (W-09). It reads them itself, so it needs no params. */
   Favorites: undefined;
+  /** The user's settings (W-10). It reads them itself, so it needs no params. */
+  Settings: undefined;
 };
 
 /** Typed `navigation` and `route` props for one screen of the root stack. */

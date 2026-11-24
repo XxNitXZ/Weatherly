@@ -1096,6 +1096,59 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-015 – Epic 6 scope check against the lab and US-06.01 Settings screen
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-24 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Tyrone Asante (Developer 2) |
+| **Platform** | macOS, iOS Simulator |
+| **Linear user story / task** | NIT-157 (Epic 6); NIT-179 (US-06.01): task NIT-247 |
+| **Requirement IDs** | W-10, W-11, W-12 |
+| **Branch / PR** | `feat/EPIC-06`, uncommitted, no PR |
+| **Task given to AI** | Compare Epic 6 in Linear with the lab PDF and point out where Linear over- or under-simplifies; record the dev merge result and the merge-commit rule; plan US-06.01 and build NIT-247. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "go through it in Linear and compare it to the teachers requirements …"; "I meant that the app has to satisfy the requirements and that you should point out where our Linear might have overcomplicated or oversimplified some features"; "Keep the plan as it is, send the NIT-247 brief" |
+
+**Changes made by AI**
+> - **Scope check:** the AI first answered with a design comparison; the student clarified that the question was over- or under-scoping against the lab. Second answer: Linear's "at least one UI preference" undershoots the lab's "other UI preferences"; "affects refresh behaviour" is not testable without a concrete rule (the cache is Epic 7); persistence goes beyond the lab but is cheap; a background timer is not needed. The student agreed and added pull-to-refresh.
+> - **Process:** GIT_WORKFLOW §9 changed from squash merge to merge commit (the student's choice for Epic 4); the student's "everything worked on dev" recorded in TEST_REPORT §1.9.
+> - **US-06.01 plan:** shared `SettingsProvider`, options 15/30/60 min (default 30), all settings stored from the start, field-by-field fallback for damaged values, units visible before they take effect (explained on request; the student kept the plan).
+> - **NIT-247:**
+>   - New: `src/models/AppSettings.ts`, `src/utils/settingsPresentation.ts`, `src/views/components/SettingOptionRow.tsx`, `src/views/screens/SettingsScreen.tsx`, `tests/utils/settingsPresentation.test.ts` (6 tests).
+>   - Changed: `routes.ts` (`Settings`), `RootNavigator.tsx`, `HomeHeader.tsx` (gear button, `onPressSettings`), `HomeScreen.tsx`.
+>   - The model file was first named `Settings.ts` and renamed to `AppSettings.ts`, the name STYLE §3.1 had planned.
+>   - The brief promised a test for the gear button's label; it was left out, because header button labels are inline JSX and the project has no component renderer (SPEC Q21).
+>   - Mutation check: `isSelected` always true; 3 of 6 tests failed; file restored.
+>   - Docs: SPEC W-10 detail, §11 (IN PROGRESS), §11.1, change log; STYLE §3.1, §4; TEST_REPORT §1.13, §2.1 – §2.4, §4; Linear: scope decision added as a comment on NIT-157 (the description is too long to rewrite safely through the tool).
+
+**Changes reviewed or modified by students**
+- Accepted as is: the Epic 6 scope changes; the US-06.01 plan and decisions 1 – 5.
+- Modified (what and why): pull-to-refresh added to the scope by the student.
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The first scope answer compared designs instead of judging scope against the lab, as the student had asked.
+- The brief listed a header-label test that the project's no-renderer test setup cannot run.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-24) |
+| Unit tests (names) | `settingsPresentation.test.ts` (6); full suite 611 / 611 |
+| Android Emulator (what was checked) | |
+| iOS Simulator (what was checked) | |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

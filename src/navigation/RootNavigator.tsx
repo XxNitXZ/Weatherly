@@ -3,6 +3,7 @@ import { skyColors, skyHeaderColor } from '../theme/sky';
 import { DayDetailScreen } from '../views/screens/DayDetailScreen';
 import { FavoritesScreen } from '../views/screens/FavoritesScreen';
 import { HomeScreen } from '../views/screens/HomeScreen';
+import { SettingsScreen } from '../views/screens/SettingsScreen';
 import type { RootStackParamList } from './routes';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -12,7 +13,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  *
  * - `Home` is the root. Its native header is hidden because the screen draws
  *   its own header on the sky background.
- * - `DayDetail` and `Favorites` are pushed on top with the native header, so
+ * - `DayDetail`, `Favorites` and `Settings` are pushed on top with the native header, so
  *   iOS shows a back button and allows swiping back, and Android's back
  *   button works. The `DayDetail` header is coloured like the top of the day
  *   sky, with a white title and back arrow and no divider, so it blends into
@@ -37,6 +38,7 @@ export function RootNavigator() {
         })}
       />
       <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'Favourites' }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
     </Stack.Navigator>
   );
 }

@@ -122,6 +122,7 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
             }
             onPressFavorites={() => navigation.navigate('Favorites')}
             onPressSearch={() => setSearchOpen(true)}
+            onPressSettings={() => navigation.navigate('Settings')}
           />
           {favoritesViewModel.saveError !== null && (
             <View style={styles.notice}>
