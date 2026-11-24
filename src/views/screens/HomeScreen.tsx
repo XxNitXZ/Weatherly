@@ -9,6 +9,7 @@ import type { RootStackScreenProps } from '../../navigation/routes';
 import { skyBaseColor, skyColors, skyGradient, skyVariantFor } from '../../theme/sky';
 import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { selectTodayForecast } from '../../utils/forecastSelection';
+import { displayUnitsOf } from '../../utils/units';
 import { useCoordinateSearchViewModel } from '../../viewmodels/useCoordinateSearchViewModel';
 import { useFavoritesViewModel } from '../../viewmodels/useFavoritesViewModel';
 import { useSearchViewModel } from '../../viewmodels/useSearchViewModel';
@@ -65,7 +66,10 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
   const coordinateViewModel = useCoordinateSearchViewModel();
   const weatherViewModel = useWeatherViewModel();
   const favoritesViewModel = useFavoritesViewModel();
-  const { refreshIntervalMinutes } = useSettingsViewModel().settings;
+  const { settings } = useSettingsViewModel();
+  const { refreshIntervalMinutes } = settings;
+  // Temperature and wind follow the user's units on every section (W-12, SPEC D-46).
+  const units = displayUnitsOf(settings);
   const [isSearchOpen, setSearchOpen] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
 
@@ -190,18 +194,21 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
                 current={report.current}
                 utcOffsetSeconds={report.utcOffsetSeconds}
                 today={selectTodayForecast(forecast)}
+                units={units}
               />
               <HourlyForecastList
                 hours={forecast.todayHours}
                 utcOffsetSeconds={report.utcOffsetSeconds}
                 daily={report.daily}
                 nowEpochMs={fetched.fetchedAtEpochMs}
+                units={units}
               />
               <DailyForecastList
                 days={forecast.days}
                 todayDateEpochMs={forecast.todayDateEpochMs}
                 utcOffsetSeconds={report.utcOffsetSeconds}
                 onSelectDay={handleSelectDay}
+                units={units}
               />
             </>
           ) : (

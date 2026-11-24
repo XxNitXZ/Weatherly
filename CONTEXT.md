@@ -217,11 +217,13 @@ Update this section when the state changes.
 - Epic 3 and the weather-first redesign (SPEC D-33, D-34), merged in PR #2: `HomeScreen` with header, weather hero, "Rest of today" and the seven-day forecast on a day/night sky; search in `LocationSearchSheet`.
 - US-04.01 task NIT-229, merged early so Epic 5 can build on it: React Navigation with one native stack (D-35), `src/navigation/routes.ts`, `RootNavigator.tsx`, a minimal `DayDetailScreen`.
 
-**Epic 4 done** on `feat/Epic-04` (one branch per Epic, SPEC D-41), with `dev` merged into it on 2026-11-23; PR into `dev` pending:
-- US-04.01 (NIT-173): day rows open `DayDetailScreen` with the place, the day and the UTC offset (D-36); navigation checked on the iOS Simulator by report (TEST_REPORT §1.10).
-- US-04.02 (NIT-174): day sky with a matching header, hero with date, condition, high/low and feels-like, Sun card with polar days (D-42).
-- US-04.03 (NIT-175): Precipitation and Wind cards and the extra daily fields (D-43); missing values tested end to end; UX-26 partly run (landscape waits for W-22).
-- After the merge with `dev`: 605 unit tests pass.
+**Epic 4** (day details, SPEC D-35, D-36, D-41 – D-43) is on `dev` through a merge commit (`8c09dfc`, 2026-11-23); W-07 was set to VERIFIED by the students.
+
+**Epic 6 done** on `feat/EPIC-06` (2026-11-24); PR into `dev` pending:
+- US-06.01 (NIT-179): `SettingsScreen` from the gear on Home; settings stored and shared by `SettingsProvider` (D-44); UX-14 reported to work.
+- US-06.02 (NIT-180): stale weather refreshed when Home comes back into view or the app returns from the background (`isStale`, D-45); pull-to-refresh; failed-refresh notice with "Try again". UX-27 reported to work; UX-15 partly (the refresh after the interval was not waited out).
+- US-06.03 (NIT-181): temperature (°C/°F) and wind (m/s, km/h) units on every screen (D-46); UX-16 reported to work.
+- 697 unit tests pass; iOS export and Expo Doctor pass.
 
 **Open checks:** every Android Emulator scenario; the on-screen iOS minus key for coordinates (TEST_REPORT §1.4).
 

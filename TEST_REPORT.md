@@ -383,6 +383,19 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 | Expo Doctor | 2026-11-24 | 20/20 checks passed | PASS |
 | Pull down: white spinner, then gone; Mac Wi-Fi off and pull: "No connection. Showing the weather from HH:MM." with the weather still shown; Wi-Fi on and "Try again": notice gone; VoiceOver reads the notice and the button (iOS Simulator) | 2026-11-24 | Tyrone Asante reported "It all works" | PASS (by report) |
 
+### 1.15 Temperature and Wind Units (US-06.03)
+
+**NIT-255 (units applied on every screen; NIT-253 and NIT-254 covered by US-06.01):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Type check finds every place without a unit | 2026-11-24 | After making the unit a required argument, `tsc` reported exactly the 5 component calls and 40 existing test calls; all were given a unit | PASS |
+| Existing formatter and presenter tests unchanged in °C/m/s | 2026-11-24 | The test diff adds only unit arguments (`METRIC_UNITS`, `'celsius'`, `'metresPerSecond'`); no expected value changed; all pass | PASS |
+| `npm run check` | 2026-11-24 | `tsc --noEmit` without errors; Jest 697 / 697 | PASS |
+| iOS bundle | 2026-11-24 | `npx expo export --platform ios` exported without errors | PASS |
+| Expo Doctor | 2026-11-24 | 20/20 checks passed | PASS |
+| °F and km/h on Home (hero, hourly, seven-day) and the day detail screen (hero, Wind card); VoiceOver says °F; switching back to °C and m/s; units kept after a restart; no reload when switching (iOS Simulator) | 2026-11-24 | Tyrone Asante reported "It works" | PASS (by report) |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -421,6 +434,7 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Settings storage: defaults, round trip, write order, storage errors | (extra) | `settingsRepository` (NIT-248) | W-10 | |
 | Refresh rule (stale at the boundary) and refresh state changes | Data transformation; error-state logic | `isStale` in `src/utils/refreshPolicy.ts`; `shouldRefresh`, `startRefresh`, `finishRefresh`, `failRefresh` in `useWeatherViewModel` (NIT-250, NIT-252) | W-11 | |
 | Failed refresh → notice text | Error-state logic (View) | `describeRefreshNotice` in `src/views/components/WeatherStatus.tsx` (NIT-383) | W-11, W-18 | |
+| °C/m/s → °F/km/h, rounded once after converting; consistency across all presenters | Data transformation | `units.ts`; the `unit` argument of the formatters and presenters (NIT-255) | W-12 | |
 | Read/write order across screens | (extra) | `favoritesRepository` (US-05.03, SPEC D-40) | W-08, W-09 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
@@ -578,6 +592,8 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | refreshPolicy › other cases (7 tests) | W-11, D-45 | 1 ms before 15 min; fetched this moment; fetch time 1 ms in the future; each interval 15/30/60 at one minute before and at the interval; 20 min old with 15 and with 30 min | `false`; `false`; `true`; `false` then `true` for each; `true`, `false` | as expected (2026-11-24) | PASS |
 | refresh state changes (14 tests) | W-11, D-45 | `shouldRefresh` with stale/fresh success, while refreshing, after a failed refresh, idle/loading/error; `startRefresh`; `finishRefresh`; `failRefresh` after a refresh, after an earlier failure, while a new place loads | true/false/false/true/false×3; old report kept with `isRefreshing: true` (earlier error kept); new report, error cleared; `refreshFailed` with old report and the error, the newer error replaces the older, unchanged | as expected (2026-11-24) | PASS |
 | describeRefreshNotice (12 tests) | W-11, W-18, D-45 | idle, loading, success, success while refreshing, error; `refreshFailed` with network, timeout; with http, parse, unknown; while retrying; developer message | `null` ×5; "No connection. Showing the weather from 11:15." (the fixture's observation time in Stockholm); "Couldn't update the weather. Showing the weather from 11:15."; still shown; never contains it | as expected (2026-11-24) | PASS |
+| units (12 tests) | W-12, D-46 | 0, 100, −40, 37, −17.5 °C; 0, 1, 10, 5.6 m/s; metric unchanged; 0.4 °C and 3.1 m/s converted; units from settings | 32, 212, −40, 98.6, 0.5 °F; 0, 3.6, 36, 20.16 km/h; unchanged; 32.72 and 11.16 (not rounded); metric for the defaults, imperial for changed settings | as expected (2026-11-24) | PASS |
+| displayUnits (10 tests) | W-12, D-46 | real Stockholm values in °F and km/h through the formatters, the Home hero, an hour, a day row, the day detail hero and Wind card; every presenter text for both real forecasts in each unit system | "34 °F", "27 °F", 0.4 °C → "33 °F" (rounded after converting), no "-0"; "11 km/h", "55 km/h"; spoken texts in °F and km/h; other detail rows unchanged; with °F/km/h no text contains °C or m/s (over 1000 texts), and the reverse | as expected (2026-11-24) | PASS |
 
 ### 2.3 Mutation Test Evidence
 
@@ -656,6 +672,9 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Refresh state (NIT-252) | `failRefresh` returns `error` without the old report | 2 `failRefresh` tests (2 of 663 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | Refresh state (NIT-252) | `shouldRefresh` no longer checks `isRefreshing` | `…does not start a second refresh while one is running` (1 of 663 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | Refresh notice (NIT-383) | `describeRefreshNotice`: offline errors no longer recognised (`isOffline = false`) | the network and timeout tests (2 of 675 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Units (NIT-255) | `celsiusToFahrenheit` without `+ 32` | 12 of 697 failed (conversion, formatter and presenter tests) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Units (NIT-255) | `formatTemperature` rounds the °C value before converting | 4 of 697 failed (0.4 °C → 33 °F and the presenters that show it) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Units (NIT-255) | `presentHourlyForecast` ignores the chosen unit (always °C) | 2 of 697 failed, including the consistency test (`…no text on any screen shows °C or m/s`) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -688,6 +707,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-24 | uncommitted, on `feat/EPIC-06` after `8c09dfc`, with NIT-248 | `npm run check` | 639 | 639 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-250 + NIT-252 | `npm run check` | 663 | 663 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-383 | `npm run check` | 675 | 675 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-255 | `npm run check` | 697 | 697 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
@@ -716,7 +736,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-13 | W-09 | Favourites screen with entries | Tap a favourite | Its weather view opens |
 | UX-14 | W-10 | Any screen | Open Settings, change a value, restart the app | Settings screen opens and the change persists |
 | UX-15 | W-11 | Weather shown, refresh interval set (e.g. 15 min) | Return to Home or reopen the app before and after the interval passes | Before the interval nothing reloads; after it the weather is fetched again (spinner, new "Observed" time) while the old weather stays visible. With the cache (Epic 7), the fresh data then also comes from the cache |
-| UX-16 | W-12 | Weather view in °C | Switch to °F in Settings and return | All temperatures are shown in °F |
+| UX-16 | W-12 | Weather view in °C and m/s | Switch to °F and km/h in Settings and return; open a day | All temperatures are shown in °F and all wind speeds in km/h, on Home and on the day detail screen, also for VoiceOver; nothing reloads |
 | UX-17 | W-16, W-17 | Location loaded once, then device offline | Open that location | Cached data is shown with an offline / last-updated indicator |
 | UX-18 | W-17, W-18 | No cache for the location, device offline | Open a new location | An error message with a retry action is shown |
 | UX-19 | W-18 | Error state from UX-18 | Restore the network and tap retry | Data loads successfully |
@@ -764,7 +784,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-15 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-15 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Before the interval: returning to Home causes no reload (reported, §1.14). After the interval: not run (the 15 minutes were not waited out) | PARTIAL (by report; after-interval part NOT RUN) |
 | UX-16 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-16 | iOS Simulator (macOS) | | | | NOT RUN |
+| UX-16 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | °F and km/h on Home and the day detail screen, VoiceOver, no reload, switching back and a restart reported to work (§1.15, NIT-255) | PASS (by report) |
 | UX-17 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-17 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-18 | Android Emulator (Windows) | | | | NOT RUN |
@@ -793,6 +813,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 27 executed | 5 of 27 executed: UX-09, UX-14 and UX-27 PASS (by report); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 675 / 675 (run on macOS, 2026-11-24) |
+| UX scenarios executed / PASS | 0 of 27 executed | 6 of 27 executed: UX-09, UX-14, UX-16 and UX-27 PASS (by report); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 697 / 697 (run on macOS, 2026-11-24) |
 | Known open defects | | |

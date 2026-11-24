@@ -1,3 +1,4 @@
+import { METRIC_UNITS } from '../../src/utils/units';
 import fixture from '../fixtures/openMeteoForecast.json';
 import type { CurrentWeather } from '../../src/models/Weather';
 import { parseWeatherResponse } from '../../src/parsers/weatherParser';
@@ -32,7 +33,7 @@ describe('formatTemperature', () => {
     [-0.5, `0${NBSP}°C`],
     [25, `25${NBSP}°C`],
   ])('%p → %j', (celsius, expected) => {
-    expect(formatTemperature(celsius)).toBe(expected);
+    expect(formatTemperature(celsius, 'celsius')).toBe(expected);
   });
 });
 
@@ -54,7 +55,7 @@ describe('formatWindSpeed', () => {
     [0, `0.0${NBSP}m/s`],
     [12, `12.0${NBSP}m/s`],
   ])('%p → %j', (metresPerSecond, expected) => {
-    expect(formatWindSpeed(metresPerSecond)).toBe(expected);
+    expect(formatWindSpeed(metresPerSecond, 'metresPerSecond')).toBe(expected);
   });
 });
 
@@ -81,7 +82,7 @@ describe('presentCurrentWeather', () => {
   it('formats the current conditions of the saved real forecast', () => {
     const report = parseWeatherResponse(fixture);
 
-    expect(presentCurrentWeather(report.current, report.utcOffsetSeconds)).toEqual({
+    expect(presentCurrentWeather(report.current, report.utcOffsetSeconds, METRIC_UNITS)).toEqual({
       temperature: `1${NBSP}°C`,
       condition: 'Overcast',
       observedAt: '11:15',
@@ -99,7 +100,7 @@ describe('presentCurrentWeather', () => {
       isDay: true,
     };
 
-    const weather = presentCurrentWeather(current, 3600);
+    const weather = presentCurrentWeather(current, 3600, METRIC_UNITS);
 
     expect(weather.feelsLike).toBeUndefined();
     expect(weather.humidity).toBeUndefined();
@@ -115,7 +116,7 @@ describe('presentCurrentWeather', () => {
       isDay: false,
     };
 
-    expect(presentCurrentWeather(current, 0).condition).toBe('Unknown conditions');
+    expect(presentCurrentWeather(current, 0, METRIC_UNITS).condition).toBe('Unknown conditions');
   });
 });
 

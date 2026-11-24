@@ -5,6 +5,7 @@ import { HOURLY_ITEM_WIDTH, iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { presentForecastHourItem } from '../../utils/forecastFormatting';
 import { WeatherIcon } from './WeatherIcon';
+import type { DisplayUnits } from '../../utils/units';
 
 export type HourlyForecastItemProps = {
   readonly hour: HourlyForecast;
@@ -13,6 +14,8 @@ export type HourlyForecastItemProps = {
   readonly daily: ReadonlyArray<DailyForecast>;
   /** The report's fetch time; the hour that contains it is labelled "Now". */
   readonly nowEpochMs: number;
+  /** The user's display units (W-12; SPEC D-46). */
+  readonly units: DisplayUnits;
 };
 
 /**
@@ -20,8 +23,8 @@ export type HourlyForecastItemProps = {
  * the temperature. The condition is in the screen-reader label.
  * Presentational: all texts come from `presentForecastHourItem`.
  */
-export function HourlyForecastItem({ hour, utcOffsetSeconds, daily, nowEpochMs }: HourlyForecastItemProps) {
-  const forecast = presentForecastHourItem(hour, utcOffsetSeconds, daily, nowEpochMs);
+export function HourlyForecastItem({ hour, utcOffsetSeconds, daily, nowEpochMs, units }: HourlyForecastItemProps) {
+  const forecast = presentForecastHourItem(hour, utcOffsetSeconds, daily, nowEpochMs, units);
   const isNow = forecast.label === 'Now';
 
   return (

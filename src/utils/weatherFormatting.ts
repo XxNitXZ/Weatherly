@@ -1,34 +1,40 @@
+import type { TemperatureUnit, WindSpeedUnit } from '../models/AppSettings';
 import type { CurrentWeather, DailyForecast } from '../models/Weather';
+import { convertTemperature, convertWindSpeed, type DisplayUnits } from './units';
 import { describeWeatherCode } from './weatherCode';
 import { weatherIconName, type WeatherIconName } from './weatherIcon';
 
 /**
  * Display formatting for weather values (W-04; STYLE.md §12). Pure: no React,
- * no I/O. Values arrive in the units the request fixes (°C, %, m/s, SPEC D-05)
- * and are shown in those units; conversion to the user's units is W-12.
+ * no I/O. Values arrive in the units the request fixes (°C, %, m/s, SPEC D-05).
+ * Temperature and wind speed are converted to the user's units (W-12, SPEC
+ * D-46) here, when they are formatted; the unit is a required argument, so
+ * the compiler finds every place that formats one.
  *
- * Rounding policy, the same everywhere: temperatures and percentages to whole
- * numbers, wind speed to one decimal. A non-breaking space keeps a value and
- * its unit on the same line.
+ * Rounding policy, the same everywhere, applied once, after converting:
+ * temperatures (°C and °F), percentages and km/h to whole numbers, m/s to one
+ * decimal. A non-breaking space keeps a value and its unit on the same line.
  */
 
 const NBSP = ' ';
 
+const TEMPERATURE_SYMBOL: Readonly<Record<TemperatureUnit, string>> = { celsius: '°C', fahrenheit: '°F' };
+
 /**
- * E.g. 1.2 → "1 °C", -2.6 → "-3 °C". -0.4 rounds to -0, which a template
- * string prints as "0", so "-0 °C" never appears.
+ * E.g. 1.2 → "1 °C", or "34 °F" in Fahrenheit. -0.4 rounds to -0, which a
+ * template string prints as "0", so "-0 °C" never appears.
  */
-export function formatTemperature(celsius: number): string {
-  return `${Math.round(celsius)}${NBSP}°C`;
+export function formatTemperature(celsius: number, unit: TemperatureUnit): string {
+  return `${Math.round(convertTemperature(celsius, unit))}${NBSP}${TEMPERATURE_SYMBOL[unit]}`;
 }
 
 /**
  * The compact form for large and dense displays (hero, hourly, seven-day),
- * e.g. 1.2 → "1°". The unit is always spoken in full in the screen-reader
- * label, and all values are in °C until W-12 (SPEC D-33).
+ * e.g. 1.2 → "1°", or "34°" in Fahrenheit. The unit is always spoken in full
+ * in the screen-reader label (SPEC D-33).
  */
-export function formatTemperatureShort(celsius: number): string {
-  return `${Math.round(celsius)}°`;
+export function formatTemperatureShort(celsius: number, unit: TemperatureUnit): string {
+  return `${Math.round(convertTemperature(celsius, unit))}°`;
 }
 
 /** E.g. 89 → "89 %". */
@@ -36,8 +42,11 @@ export function formatPercent(percent: number): string {
   return `${Math.round(percent)}${NBSP}%`;
 }
 
-/** E.g. 3.14 → "3.1 m/s". */
-export function formatWindSpeed(metresPerSecond: number): string {
+/** E.g. 3.14 → "3.1 m/s", or "11 km/h" (whole numbers, as km/h is usually shown). */
+export function formatWindSpeed(metresPerSecond: number, unit: WindSpeedUnit): string {
+  if (unit === 'kilometresPerHour') {
+    return `${Math.round(convertWindSpeed(metresPerSecond, unit))}${NBSP}km/h`;
+  }
   return `${metresPerSecond.toFixed(1)}${NBSP}m/s`;
 }
 
@@ -115,20 +124,21 @@ export type CurrentWeatherPresentation = {
 export function presentCurrentWeather(
   current: CurrentWeather,
   utcOffsetSeconds: number,
+  units: DisplayUnits,
 ): CurrentWeatherPresentation {
   return {
-    temperature: formatTemperature(current.temperatureCelsius),
+    temperature: formatTemperature(current.temperatureCelsius, units.temperature),
     condition: describeWeatherCode(current.weatherCode),
     observedAt: formatLocalTime(current.timeEpochMs, utcOffsetSeconds),
     feelsLike:
       current.apparentTemperatureCelsius === undefined
         ? undefined
-        : formatTemperature(current.apparentTemperatureCelsius),
+        : formatTemperature(current.apparentTemperatureCelsius, units.temperature),
     humidity:
       current.relativeHumidityPercent === undefined
         ? undefined
         : formatPercent(current.relativeHumidityPercent),
-    wind: current.windSpeedMs === undefined ? undefined : formatWindSpeed(current.windSpeedMs),
+    wind: current.windSpeedMs === undefined ? undefined : formatWindSpeed(current.windSpeedMs, units.windSpeed),
   };
 }
 
@@ -153,12 +163,13 @@ export function presentWeatherHero(
   current: CurrentWeather,
   utcOffsetSeconds: number,
   today: DailyForecast | undefined,
+  units: DisplayUnits,
 ): WeatherHeroPresentation {
-  const weather = presentCurrentWeather(current, utcOffsetSeconds);
+  const weather = presentCurrentWeather(current, utcOffsetSeconds, units);
   const highLow =
     today === undefined
       ? undefined
-      : `High ${formatTemperature(today.temperatureMaxCelsius)}, low ${formatTemperature(today.temperatureMinCelsius)}`;
+      : `High ${formatTemperature(today.temperatureMaxCelsius, units.temperature)}, low ${formatTemperature(today.temperatureMinCelsius, units.temperature)}`;
   const details = [
     weather.feelsLike === undefined ? undefined : `feels like ${weather.feelsLike}`,
     weather.humidity === undefined ? undefined : `humidity ${weather.humidity}`,
@@ -175,10 +186,10 @@ export function presentWeatherHero(
 
   return {
     ...weather,
-    temperatureShort: formatTemperatureShort(current.temperatureCelsius),
+    temperatureShort: formatTemperatureShort(current.temperatureCelsius, units.temperature),
     icon: weatherIconName(current.weatherCode, current.isDay),
-    highShort: today === undefined ? undefined : formatTemperatureShort(today.temperatureMaxCelsius),
-    lowShort: today === undefined ? undefined : formatTemperatureShort(today.temperatureMinCelsius),
+    highShort: today === undefined ? undefined : formatTemperatureShort(today.temperatureMaxCelsius, units.temperature),
+    lowShort: today === undefined ? undefined : formatTemperatureShort(today.temperatureMinCelsius, units.temperature),
     accessibilityLabel: `${sentences.join('. ')}.`,
   };
 }

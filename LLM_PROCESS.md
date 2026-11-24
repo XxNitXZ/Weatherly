@@ -1104,7 +1104,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-157 (Epic 6); NIT-179 (US-06.01): tasks NIT-247 – NIT-249; NIT-180 (US-06.02): tasks NIT-250 + NIT-252 (one step), NIT-383; NIT-251 covered |
+| **Linear user story / task** | NIT-157 (Epic 6); NIT-179 (US-06.01): tasks NIT-247 – NIT-249; NIT-180 (US-06.02): tasks NIT-250 + NIT-252 (one step), NIT-383; NIT-251 covered; NIT-181 (US-06.03): task NIT-255; NIT-253, NIT-254 covered |
 | **Requirement IDs** | W-10, W-11, W-12 |
 | **Branch / PR** | `feat/EPIC-06`, uncommitted, no PR |
 | **Task given to AI** | Compare Epic 6 in Linear with the lab PDF and point out where Linear over- or under-simplifies; record the dev merge result and the merge-commit rule; plan US-06.01 and build NIT-247. |
@@ -1147,6 +1147,15 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - Wrap-up: `npm run check` 675 / 675, iOS export, Expo Doctor 20/20.
 >   - Docs: SPEC D-45, §11.1, change log; STYLE §3.1; TEST_REPORT §1.14, §2.1 – §2.4, §3, §4.
 >   - The student reported that pull-to-refresh, the offline notice, "Try again" and VoiceOver work. The refresh after 15 minutes in the background was not waited out; the student chose to rely on the unit tests, so it is recorded as NOT RUN and UX-15 as partial.
+> - **US-06.03 plan:** accepted with decisions 1 – 6 (convert when formatting, required unit argument, screens pass `units`, whole °F and km/h). NIT-253 and NIT-254 were already covered by US-06.01.
+> - **NIT-255:**
+>   - New: `src/utils/units.ts`; `tests/utils/units.test.ts` (12), `tests/utils/displayUnits.test.ts` (10, including a consistency test over every presenter text).
+>   - The unit became a required argument of `formatTemperature`, `formatTemperatureShort`, `formatWindSpeed` and 8 presenters. `tsc` then listed the 5 component calls and 40 test calls that lacked a unit; the components (`WeatherHero`, `HourlyForecastItem`/`List`, `DailyForecastRow`/`List`, `DayDetailHero`) got a `units` prop, `HomeScreen` and `DayDetailScreen` pass `displayUnitsOf(settings)`. `HourlyForecastList` passes `extraData={units}` so its items redraw on a unit change.
+>   - The AI's script for adding units to the test calls first inserted an import inside a multi-line import block; fixed before the tests ran. The test diff was checked to contain only unit arguments.
+>   - Mutation checks: no `+ 32` (12 failed); rounding before converting (4 failed); hourly presenter ignores the unit (2 failed, including the consistency test); all restored.
+>   - Docs: SPEC W-12, D-46, §11, §11.1, change log; STYLE §3.1, §4, §12; TEST_REPORT §1.15, §2.1 – §2.4, §3 (UX-16), §4.
+>   - The student reported "It works" for all UX-16 checks.
+> - **Epic 6 wrap-up:** no code changed after NIT-255's checks (`npm run check` 697 / 697, iOS export, Expo Doctor 20/20). CONTEXT §18 updated: Epic 4 on `dev`, Epic 6 done on `feat/EPIC-06` with the PR pending.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the Epic 6 scope changes; the US-06.01 plan and decisions 1 – 5.
@@ -1165,7 +1174,7 @@ Record actual outcomes only. Write `not run` where applicable.
 |---|---|
 | Read and understood line by line | |
 | `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-24) |
-| Unit tests (names) | `settingsPresentation.test.ts` (6), `settingsParser.test.ts` (18), `settingsRepository.test.ts` (7), `useSettingsViewModel.test.ts` (3), `refreshPolicy.test.ts` (10), `useWeatherViewModel.test.ts` (+14), `weatherStatus.test.ts` (+12); full suite 675 / 675 |
+| Unit tests (names) | `settingsPresentation.test.ts` (6), `settingsParser.test.ts` (18), `settingsRepository.test.ts` (7), `useSettingsViewModel.test.ts` (3), `refreshPolicy.test.ts` (10), `useWeatherViewModel.test.ts` (+14), `weatherStatus.test.ts` (+12), `units.test.ts` (12), `displayUnits.test.ts` (10); full suite 697 / 697 |
 | Android Emulator (what was checked) | |
 | iOS Simulator (what was checked) | NIT-247: gear button, Settings with the defaults, back and swipe-back; NIT-248: choosing, reopening, full restart, VoiceOver; NIT-249: largest text, iPhone 17e, headings (all reported by the student) |
 

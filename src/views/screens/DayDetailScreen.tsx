@@ -7,6 +7,8 @@ import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { fontSize } from '../../theme/typography';
 import { presentDayConditions, presentSunTimes } from '../../utils/forecastFormatting';
 import { formatLocationDetails } from '../../utils/locationFormatting';
+import { displayUnitsOf } from '../../utils/units';
+import { useSettingsViewModel } from '../../viewmodels/useSettingsViewModel';
 import { DayDetailHero } from '../components/DayDetailHero';
 import { DetailRow } from '../components/DetailRow';
 import { WeatherCard } from '../components/WeatherCard';
@@ -34,13 +36,14 @@ export function DayDetailScreen({ route }: RootStackScreenProps<'DayDetail'>) {
   const { location, day, utcOffsetSeconds } = route.params;
   const locationDetails = formatLocationDetails(location);
   const sun = presentSunTimes(day, utcOffsetSeconds);
-  const conditions = presentDayConditions(day);
+  const units = displayUnitsOf(useSettingsViewModel().settings);
+  const conditions = presentDayConditions(day, units);
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom', 'left', 'right']}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content}>
-        <DayDetailHero day={day} utcOffsetSeconds={utcOffsetSeconds} />
+        <DayDetailHero day={day} utcOffsetSeconds={utcOffsetSeconds} units={units} />
         {locationDetails !== undefined && <Text style={styles.details}>{locationDetails}</Text>}
         <View style={styles.cards}>
           <WeatherCard title="Precipitation">

@@ -6,12 +6,15 @@ import { FORECAST_TEMPERATURE_WIDTH, MIN_TOUCH_TARGET, iconSize, radius, spacing
 import { fontSize, fontWeight } from '../../theme/typography';
 import { presentForecastDayRow } from '../../utils/forecastFormatting';
 import { WeatherIcon } from './WeatherIcon';
+import type { DisplayUnits } from '../../utils/units';
 
 export type DailyForecastRowProps = {
   readonly day: DailyForecast;
   readonly utcOffsetSeconds: number;
   readonly isToday: boolean;
   readonly onPress: () => void;
+  /** The user's display units (W-12; SPEC D-46). */
+  readonly units: DisplayUnits;
 };
 
 /**
@@ -21,8 +24,8 @@ export type DailyForecastRowProps = {
  * condition is in the screen-reader label. Presentational: all texts come
  * from `presentForecastDayRow`, and the screen decides what a tap does.
  */
-export function DailyForecastRow({ day, utcOffsetSeconds, isToday, onPress }: DailyForecastRowProps) {
-  const forecast = presentForecastDayRow(day, utcOffsetSeconds, isToday);
+export function DailyForecastRow({ day, utcOffsetSeconds, isToday, onPress, units }: DailyForecastRowProps) {
+  const forecast = presentForecastDayRow(day, utcOffsetSeconds, isToday, units);
 
   return (
     <Pressable

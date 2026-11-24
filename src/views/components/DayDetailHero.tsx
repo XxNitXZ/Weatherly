@@ -5,11 +5,14 @@ import { iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { presentDayDetail } from '../../utils/forecastFormatting';
 import { WeatherIcon } from './WeatherIcon';
+import type { DisplayUnits } from '../../utils/units';
 
 export type DayDetailHeroProps = {
   readonly day: DailyForecast;
   /** The location's UTC offset from the report, so the date is the location's date. */
   readonly utcOffsetSeconds: number;
+  /** The user's display units (W-12; SPEC D-46). */
+  readonly units: DisplayUnits;
 };
 
 /**
@@ -19,8 +22,8 @@ export type DayDetailHeroProps = {
  * Built like the home screen's `WeatherHero`. Presentational: all texts come
  * from `presentDayDetail`, and screen readers hear the block as one sentence.
  */
-export function DayDetailHero({ day, utcOffsetSeconds }: DayDetailHeroProps) {
-  const detail = presentDayDetail(day, utcOffsetSeconds);
+export function DayDetailHero({ day, utcOffsetSeconds, units }: DayDetailHeroProps) {
+  const detail = presentDayDetail(day, utcOffsetSeconds, units);
 
   return (
     <View

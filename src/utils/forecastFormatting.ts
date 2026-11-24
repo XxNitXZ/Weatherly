@@ -13,6 +13,7 @@ import {
   formatUvIndex,
   formatWindSpeed,
 } from './weatherFormatting';
+import type { DisplayUnits } from './units';
 import { isDaytimeAt, weatherIconName, type WeatherIconName } from './weatherIcon';
 
 /**
@@ -95,11 +96,12 @@ export function presentDailyForecast(
   day: DailyForecast,
   utcOffsetSeconds: number,
   isToday: boolean,
+  units: DisplayUnits,
 ): DailyForecastPresentation {
   const label = formatDayLabel(day.dateEpochMs, utcOffsetSeconds);
   const condition = describeWeatherCode(day.weatherCode);
-  const high = formatTemperature(day.temperatureMaxCelsius);
-  const low = formatTemperature(day.temperatureMinCelsius);
+  const high = formatTemperature(day.temperatureMaxCelsius, units.temperature);
+  const low = formatTemperature(day.temperatureMinCelsius, units.temperature);
   const spokenDay = `${isToday ? 'Today, ' : ''}${label.weekdayLong} ${label.dateLong}`;
 
   return {
@@ -126,9 +128,10 @@ export type HourlyForecastPresentation = {
 export function presentHourlyForecast(
   hour: HourlyForecast,
   utcOffsetSeconds: number,
+  units: DisplayUnits,
 ): HourlyForecastPresentation {
   const time = formatLocalTime(hour.timeEpochMs, utcOffsetSeconds);
-  const temperature = formatTemperature(hour.temperatureCelsius);
+  const temperature = formatTemperature(hour.temperatureCelsius, units.temperature);
   const condition = describeWeatherCode(hour.weatherCode);
   return { time, temperature, condition, accessibilityLabel: `${time}: ${temperature}, ${condition}` };
 }
@@ -146,12 +149,13 @@ export function presentForecastDayRow(
   day: DailyForecast,
   utcOffsetSeconds: number,
   isToday: boolean,
+  units: DisplayUnits,
 ): ForecastDayRowPresentation {
   return {
-    ...presentDailyForecast(day, utcOffsetSeconds, isToday),
+    ...presentDailyForecast(day, utcOffsetSeconds, isToday, units),
     icon: weatherIconName(day.weatherCode, true),
-    highShort: formatTemperatureShort(day.temperatureMaxCelsius),
-    lowShort: formatTemperatureShort(day.temperatureMinCelsius),
+    highShort: formatTemperatureShort(day.temperatureMaxCelsius, units.temperature),
+    lowShort: formatTemperatureShort(day.temperatureMinCelsius, units.temperature),
   };
 }
 
@@ -174,14 +178,15 @@ export function presentForecastHourItem(
   utcOffsetSeconds: number,
   daily: ReadonlyArray<DailyForecast>,
   nowEpochMs: number,
+  units: DisplayUnits,
 ): ForecastHourItemPresentation {
-  const forecast = presentHourlyForecast(hour, utcOffsetSeconds);
+  const forecast = presentHourlyForecast(hour, utcOffsetSeconds, units);
   const isNow = hour.timeEpochMs <= nowEpochMs && nowEpochMs < hour.timeEpochMs + HOUR_MS;
   return {
     ...forecast,
     label: isNow ? 'Now' : forecast.time,
     icon: weatherIconName(hour.weatherCode, isDaytimeAt(hour.timeEpochMs, daily)),
-    temperatureShort: formatTemperatureShort(hour.temperatureCelsius),
+    temperatureShort: formatTemperatureShort(hour.temperatureCelsius, units.temperature),
     accessibilityLabel: isNow ? `Now, ${forecast.accessibilityLabel}` : forecast.accessibilityLabel,
   };
 }
@@ -212,15 +217,19 @@ export type DayDetailPresentation = {
  * condition and the day's high and low (W-07). The values are shown as the
  * API sent them, like the seven-day list.
  */
-export function presentDayDetail(day: DailyForecast, utcOffsetSeconds: number): DayDetailPresentation {
+export function presentDayDetail(
+  day: DailyForecast,
+  utcOffsetSeconds: number,
+  units: DisplayUnits,
+): DayDetailPresentation {
   const label = formatDayLabel(day.dateEpochMs, utcOffsetSeconds);
   const condition = describeWeatherCode(day.weatherCode);
-  const high = formatTemperature(day.temperatureMaxCelsius);
-  const low = formatTemperature(day.temperatureMinCelsius);
+  const high = formatTemperature(day.temperatureMaxCelsius, units.temperature);
+  const low = formatTemperature(day.temperatureMinCelsius, units.temperature);
   const { apparentTemperatureMaxCelsius: feelsMax, apparentTemperatureMinCelsius: feelsMin } = day;
   const hasFeelsLike = feelsMax !== undefined && feelsMin !== undefined;
-  const feelsHigh = hasFeelsLike ? formatTemperature(feelsMax) : '';
-  const feelsLow = hasFeelsLike ? formatTemperature(feelsMin) : '';
+  const feelsHigh = hasFeelsLike ? formatTemperature(feelsMax, units.temperature) : '';
+  const feelsLow = hasFeelsLike ? formatTemperature(feelsMin, units.temperature) : '';
   const summary = `${label.weekdayLong} ${label.dateLong}: ${condition}, high ${high}, low ${low}`;
 
   return {
@@ -308,15 +317,16 @@ export type DayConditionsPresentation = {
   readonly daylight: string;
 };
 
-export function presentDayConditions(day: DailyForecast): DayConditionsPresentation {
+export function presentDayConditions(day: DailyForecast, units: DisplayUnits): DayConditionsPresentation {
+  const formatWind = (metresPerSecond: number) => formatWindSpeed(metresPerSecond, units.windSpeed);
   return {
     precipitationTotal: formatOptional(day.precipitationSumMm, formatPrecipitation),
     precipitationChance: formatOptional(day.precipitationProbabilityMaxPercent, formatPercent),
     rain: formatOptional(day.rainSumMm, formatPrecipitation),
     snowfall: formatOptional(day.snowfallSumCm, formatSnowfall),
     precipitationHours: formatOptional(day.precipitationHours, formatHours),
-    windSpeedMax: formatOptional(day.windSpeedMaxMs, formatWindSpeed),
-    windGustsMax: formatOptional(day.windGustsMaxMs, formatWindSpeed),
+    windSpeedMax: formatOptional(day.windSpeedMaxMs, formatWind),
+    windGustsMax: formatOptional(day.windGustsMaxMs, formatWind),
     windDirection: formatOptional(day.windDirectionDominantDegrees, formatCompassDirection),
     uvIndexMax: formatOptional(day.uvIndexMax, formatUvIndex),
     daylight: formatOptional(day.daylightDurationSeconds, formatDaylight),

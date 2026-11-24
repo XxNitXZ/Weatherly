@@ -5,6 +5,7 @@ import { iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { presentWeatherHero } from '../../utils/weatherFormatting';
 import { WeatherIcon } from './WeatherIcon';
+import type { DisplayUnits } from '../../utils/units';
 
 export type WeatherHeroProps = {
   readonly current: CurrentWeather;
@@ -12,6 +13,8 @@ export type WeatherHeroProps = {
   readonly utcOffsetSeconds: number;
   /** Today's daily entry from the same report, for the high and low. */
   readonly today: DailyForecast | undefined;
+  /** The user's display units (W-12; SPEC D-46). */
+  readonly units: DisplayUnits;
 };
 
 /**
@@ -20,8 +23,8 @@ export type WeatherHeroProps = {
  * feels-like temperature, humidity and wind when the API provided them.
  * Presentational: all texts come from `presentWeatherHero`.
  */
-export function WeatherHero({ current, utcOffsetSeconds, today }: WeatherHeroProps) {
-  const weather = presentWeatherHero(current, utcOffsetSeconds, today);
+export function WeatherHero({ current, utcOffsetSeconds, today, units }: WeatherHeroProps) {
+  const weather = presentWeatherHero(current, utcOffsetSeconds, today, units);
   const details = [
     weather.feelsLike === undefined ? undefined : `Feels like ${weather.feelsLike}`,
     weather.humidity === undefined ? undefined : `Humidity ${weather.humidity}`,
