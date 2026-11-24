@@ -370,8 +370,18 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 |---|---|---|---|
 | `npm run check` | 2026-11-24 | `tsc --noEmit` without errors; Jest 663 / 663 | PASS |
 | iOS bundle | 2026-11-24 | `npx expo export --platform ios` exported without errors | PASS |
-| Home loads a place as before; going to a day, Favourites and Settings and back causes no reload and no flicker (iOS Simulator) | | | NOT RUN |
-| Interval 15 min, app in the background for over 15 minutes, reopened: "Observed" time in the hero changes (iOS Simulator) | | | NOT RUN |
+| Home loads a place as before; going to a day, Favourites and Settings and back causes no reload and no flicker (iOS Simulator) | 2026-11-24 | Tyrone Asante reported "The checks passed" | PASS (by report) |
+| Interval 15 min, app in the background for over 15 minutes, reopened: "Observed" time in the hero changes (iOS Simulator) | 2026-11-24 | Not waited out: the student reopened the app before 15 minutes had passed and chose to rely on the unit tests (`isStale`, `shouldRefresh`) | NOT RUN |
+
+**NIT-383 (pull-to-refresh and failed-refresh notice; US-06.02 wrap-up):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| `cloud-off-outline` glyph exists | 2026-11-24 | Present in the installed MaterialCommunityIcons glyph map | PASS |
+| `npm run check` | 2026-11-24 | `tsc --noEmit` without errors; Jest 675 / 675 | PASS |
+| iOS bundle | 2026-11-24 | `npx expo export --platform ios` exported without errors | PASS |
+| Expo Doctor | 2026-11-24 | 20/20 checks passed | PASS |
+| Pull down: white spinner, then gone; Mac Wi-Fi off and pull: "No connection. Showing the weather from HH:MM." with the weather still shown; Wi-Fi on and "Try again": notice gone; VoiceOver reads the notice and the button (iOS Simulator) | 2026-11-24 | Tyrone Asante reported "It all works" | PASS (by report) |
 
 ## 2. Automated Unit Tests
 
@@ -410,6 +420,7 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Stored settings JSON → `AppSettings` (defaults field by field) | JSON parsing | `parseStoredSettings`, `toStoredSettings` in `src/parsers/settingsParser.ts` (NIT-248) | W-10 – W-12 | |
 | Settings storage: defaults, round trip, write order, storage errors | (extra) | `settingsRepository` (NIT-248) | W-10 | |
 | Refresh rule (stale at the boundary) and refresh state changes | Data transformation; error-state logic | `isStale` in `src/utils/refreshPolicy.ts`; `shouldRefresh`, `startRefresh`, `finishRefresh`, `failRefresh` in `useWeatherViewModel` (NIT-250, NIT-252) | W-11 | |
+| Failed refresh → notice text | Error-state logic (View) | `describeRefreshNotice` in `src/views/components/WeatherStatus.tsx` (NIT-383) | W-11, W-18 | |
 | Read/write order across screens | (extra) | `favoritesRepository` (US-05.03, SPEC D-40) | W-08, W-09 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
@@ -566,6 +577,7 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | refreshPolicy › exact boundary | W-11 | fetched exactly 15 min ago, interval 15 min | `true` (SPEC W-11: the boundary counts as stale) | as expected (2026-11-24) | PASS |
 | refreshPolicy › other cases (7 tests) | W-11, D-45 | 1 ms before 15 min; fetched this moment; fetch time 1 ms in the future; each interval 15/30/60 at one minute before and at the interval; 20 min old with 15 and with 30 min | `false`; `false`; `true`; `false` then `true` for each; `true`, `false` | as expected (2026-11-24) | PASS |
 | refresh state changes (14 tests) | W-11, D-45 | `shouldRefresh` with stale/fresh success, while refreshing, after a failed refresh, idle/loading/error; `startRefresh`; `finishRefresh`; `failRefresh` after a refresh, after an earlier failure, while a new place loads | true/false/false/true/false×3; old report kept with `isRefreshing: true` (earlier error kept); new report, error cleared; `refreshFailed` with old report and the error, the newer error replaces the older, unchanged | as expected (2026-11-24) | PASS |
+| describeRefreshNotice (12 tests) | W-11, W-18, D-45 | idle, loading, success, success while refreshing, error; `refreshFailed` with network, timeout; with http, parse, unknown; while retrying; developer message | `null` ×5; "No connection. Showing the weather from 11:15." (the fixture's observation time in Stockholm); "Couldn't update the weather. Showing the weather from 11:15."; still shown; never contains it | as expected (2026-11-24) | PASS |
 
 ### 2.3 Mutation Test Evidence
 
@@ -643,6 +655,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Refresh rule (NIT-250) | `isStale`: `>=` → `>` (boundary no longer stale) | the boundary test and the three interval tests (4 of 663 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | Refresh state (NIT-252) | `failRefresh` returns `error` without the old report | 2 `failRefresh` tests (2 of 663 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | Refresh state (NIT-252) | `shouldRefresh` no longer checks `isRefreshing` | `…does not start a second refresh while one is running` (1 of 663 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Refresh notice (NIT-383) | `describeRefreshNotice`: offline errors no longer recognised (`isOffline = false`) | the network and timeout tests (2 of 675 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -674,6 +687,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-24 | uncommitted, on `feat/EPIC-06` after `8c09dfc`, with NIT-247 | `npm run check` | 611 | 611 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06` after `8c09dfc`, with NIT-248 | `npm run check` | 639 | 639 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-250 + NIT-252 | `npm run check` | 663 | 663 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-383 | `npm run check` | 675 | 675 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
@@ -701,7 +715,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-12 | W-08, W-09 | At least one favourite saved | Fully close and reopen the app | Favourites are still listed |
 | UX-13 | W-09 | Favourites screen with entries | Tap a favourite | Its weather view opens |
 | UX-14 | W-10 | Any screen | Open Settings, change a value, restart the app | Settings screen opens and the change persists |
-| UX-15 | W-11 | Data loaded, refresh interval set | Reopen the location before and after the interval passes | Cache is used before the interval; fresh data is fetched after it |
+| UX-15 | W-11 | Weather shown, refresh interval set (e.g. 15 min) | Return to Home or reopen the app before and after the interval passes | Before the interval nothing reloads; after it the weather is fetched again (spinner, new "Observed" time) while the old weather stays visible. With the cache (Epic 7), the fresh data then also comes from the cache |
 | UX-16 | W-12 | Weather view in °C | Switch to °F in Settings and return | All temperatures are shown in °F |
 | UX-17 | W-16, W-17 | Location loaded once, then device offline | Open that location | Cached data is shown with an offline / last-updated indicator |
 | UX-18 | W-17, W-18 | No cache for the location, device offline | Open a new location | An error message with a retry action is shown |
@@ -713,6 +727,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-24 | W-08, W-30 | Location already a favourite | Try to add it again (e.g. via search) | No duplicate favourite is created |
 | UX-25 | W-09 | No favourites saved | Open the Favourites screen | Empty-state guidance is shown |
 | UX-26 | W-07, W-21, W-22 | Day detail open, on the smallest available iPhone simulator (iPhone 17e on iOS 27.2) or a small Android phone. Landscape part only after W-22 (US-08.02) | Scroll to the bottom; rotate to landscape and back; set the largest text size | All cards scroll into view, nothing is cut off or overlaps, labels and values wrap, the header and back navigation keep working |
+| UX-27 | W-11, W-18 | Weather shown on Home | Pull down on the weather; then pull again with the network off; then tap "Try again" with the network back | A spinner shows and the weather updates; offline, a "No connection. Showing the weather from HH:MM." notice appears and the old weather stays; "Try again" updates the weather and the notice disappears |
 
 ### 3.2 Execution Log
 
@@ -747,7 +762,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-14 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-14 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Chose 60 min, °F, km/h; still selected after reopening Settings and after fully closing and restarting the app (§1.13, NIT-248) | PASS (by report) |
 | UX-15 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-15 | iOS Simulator (macOS) | | | | NOT RUN |
+| UX-15 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Before the interval: returning to Home causes no reload (reported, §1.14). After the interval: not run (the 15 minutes were not waited out) | PARTIAL (by report; after-interval part NOT RUN) |
 | UX-16 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-16 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-17 | Android Emulator (Windows) | | | | NOT RUN |
@@ -770,6 +785,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-25 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-26 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-26 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Smallest screen (iPhone 17e) and largest text size reported to work (TEST_REPORT §1.9). Landscape not run: the app is portrait-only until W-22 (US-08.02) | PARTIAL (by report; landscape NOT RUN) |
+| UX-27 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Pull, offline notice, "Try again" back online reported to work (§1.14, NIT-383) | PASS (by report) |
 
 ## 4. Summary
 
@@ -777,6 +793,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 26 executed | 3 of 26 executed: UX-09 and UX-14 PASS (by report); UX-26 partial (by report; landscape NOT RUN until W-22) |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 663 / 663 (run on macOS, 2026-11-24) |
+| UX scenarios executed / PASS | 0 of 27 executed | 5 of 27 executed: UX-09, UX-14 and UX-27 PASS (by report); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 675 / 675 (run on macOS, 2026-11-24) |
 | Known open defects | | |

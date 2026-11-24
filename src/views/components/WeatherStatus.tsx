@@ -3,8 +3,9 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import type { AppError } from '../../models/AppError';
 import type { FetchedWeatherReport } from '../../models/Weather';
 import { skyColors } from '../../theme/sky';
-import { MIN_TOUCH_TARGET, iconSize, spacing } from '../../theme/spacing';
+import { MIN_TOUCH_TARGET, iconSize, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { formatLocalTime } from '../../utils/weatherFormatting';
 import type { LoadState } from '../../viewmodels/loadState';
 
 /**
@@ -109,7 +110,108 @@ export function WeatherStatus({ state, onRetry }: WeatherStatusProps) {
   );
 }
 
+/** What the notice above the weather says after a failed refresh. */
+export type RefreshNoticeContent = {
+  readonly text: string;
+};
+
+/**
+ * The notice for a failed refresh (W-11, W-18; SPEC D-45), or `null` when
+ * there is none. Only `refreshFailed` has one: the old weather is still on
+ * screen, and the notice says that it could not be updated and how old it
+ * is. The time is the observation time the hero shows ("Observed 10:42"),
+ * in the place's local time, so the two always match. Offline errors
+ * (`network`, `timeout`) say so; every other error gets the general text.
+ */
+export function describeRefreshNotice(
+  state: LoadState<FetchedWeatherReport>,
+): RefreshNoticeContent | null {
+  if (state.status !== 'refreshFailed') {
+    return null;
+  }
+  const { report } = state.data;
+  const shownTime = formatLocalTime(report.current.timeEpochMs, report.utcOffsetSeconds);
+  const isOffline = state.error.kind === 'network' || state.error.kind === 'timeout';
+  const reason = isOffline ? 'No connection.' : "Couldn't update the weather.";
+  return { text: `${reason} Showing the weather from ${shownTime}.` };
+}
+
+export type RefreshNoticeProps = {
+  readonly state: LoadState<FetchedWeatherReport>;
+  /** Fetches the weather again; shown as "Try again". */
+  readonly onRetry: () => void;
+};
+
+/**
+ * A short notice on the sky after a failed refresh, with a "Try again"
+ * button. The button is the accessible way to retry: pull-to-refresh is hard
+ * to do with VoiceOver. Disabled while the retry runs.
+ */
+export function RefreshNotice({ state, onRetry }: RefreshNoticeProps) {
+  const content = describeRefreshNotice(state);
+  if (content === null) {
+    return null;
+  }
+  const isRetrying = state.status === 'refreshFailed' && state.isRefreshing;
+
+  return (
+    <View style={styles.notice}>
+      <View style={styles.noticeMessage}>
+        <MaterialCommunityIcons
+          name="cloud-off-outline"
+          size={iconSize.s}
+          color={skyColors.onSky}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+        <Text style={styles.noticeText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          {content.text}
+        </Text>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Try again"
+        accessibilityHint="Fetches the weather again"
+        accessibilityState={{ disabled: isRetrying }}
+        disabled={isRetrying}
+        onPress={onRetry}
+        style={({ pressed }) => [styles.retry, styles.noticeRetry, (pressed || isRetrying) && styles.retryPressed]}
+      >
+        <Text style={styles.retryText}>Try again</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  notice: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing.s,
+    padding: spacing.m,
+    borderRadius: radius.s,
+    borderWidth: 1,
+    backgroundColor: skyColors.card,
+    borderColor: skyColors.cardBorder,
+  },
+  noticeMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 200,
+  },
+  noticeText: {
+    flex: 1,
+    color: skyColors.onSky,
+    fontSize: fontSize.body,
+  },
+  noticeRetry: {
+    paddingHorizontal: spacing.m,
+  },
   status: {
     alignItems: 'center',
     gap: spacing.m,

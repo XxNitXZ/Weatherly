@@ -1,12 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
+import { AppState, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Location } from '../../models/Location';
 import type { DailyForecast } from '../../models/Weather';
 import type { RootStackScreenProps } from '../../navigation/routes';
-import { skyBaseColor, skyGradient, skyVariantFor } from '../../theme/sky';
+import { skyBaseColor, skyColors, skyGradient, skyVariantFor } from '../../theme/sky';
 import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { selectTodayForecast } from '../../utils/forecastSelection';
 import { useCoordinateSearchViewModel } from '../../viewmodels/useCoordinateSearchViewModel';
@@ -19,7 +19,7 @@ import { FavoritesSaveNotice } from '../components/FavoritesStatus';
 import { HomeHeader } from '../components/HomeHeader';
 import { HourlyForecastList } from '../components/HourlyForecastList';
 import { WeatherHero } from '../components/WeatherHero';
-import { WeatherStatus } from '../components/WeatherStatus';
+import { RefreshNotice, WeatherStatus } from '../components/WeatherStatus';
 import { WelcomePanel } from '../components/WelcomePanel';
 import { LocationSearchSheet } from './LocationSearchSheet';
 
@@ -56,7 +56,9 @@ import { LocationSearchSheet } from './LocationSearchSheet';
  * returns from the background, the weather is fetched again if it is at
  * least the chosen refresh interval old. There is no timer: these are the
  * moments someone actually looks at the weather. The shown weather stays
- * until the new one arrives.
+ * until the new one arrives. Pulling down on the weather always fetches
+ * again; the spinner shows during every refresh. A failed refresh shows
+ * `RefreshNotice` with "Try again" under the header (NIT-383).
  */
 export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) {
   const searchViewModel = useSearchViewModel();
@@ -70,6 +72,7 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
   const { location, state, forecast } = weatherViewModel;
   const fetched = state.status === 'success' || state.status === 'refreshFailed' ? state.data : undefined;
   const report = fetched?.report;
+  const isRefreshing = (state.status === 'success' || state.status === 'refreshFailed') && state.isRefreshing;
   const sky = skyVariantFor(report?.current.isDay);
 
   function handleSelectLocation(selected: Location): void {
@@ -155,8 +158,30 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
               <FavoritesSaveNotice error={favoritesViewModel.saveError} tone="sky" />
             </View>
           )}
+          {state.status === 'refreshFailed' && (
+            <View style={styles.notice}>
+              <RefreshNotice state={state} onRetry={weatherViewModel.refresh} />
+            </View>
+          )}
         </View>
-        <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.content}
+          refreshControl={
+            // Only with weather on screen: before a place is chosen or while it
+            // loads, there is nothing to refresh.
+            report === undefined ? undefined : (
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={weatherViewModel.refresh}
+                tintColor={skyColors.onSky}
+                colors={[skyColors.onSky]}
+                progressBackgroundColor={skyBaseColor.day}
+                accessibilityLabel="Refreshing weather"
+              />
+            )
+          }
+        >
           {location === null ? (
             <WelcomePanel onPressSearch={() => setSearchOpen(true)} />
           ) : report !== undefined && fetched !== undefined && forecast !== null ? (

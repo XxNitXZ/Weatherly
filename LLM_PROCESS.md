@@ -1104,7 +1104,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-157 (Epic 6); NIT-179 (US-06.01): tasks NIT-247 – NIT-249; NIT-180 (US-06.02): tasks NIT-250 + NIT-252 (one step), NIT-251 covered |
+| **Linear user story / task** | NIT-157 (Epic 6); NIT-179 (US-06.01): tasks NIT-247 – NIT-249; NIT-180 (US-06.02): tasks NIT-250 + NIT-252 (one step), NIT-383; NIT-251 covered |
 | **Requirement IDs** | W-10, W-11, W-12 |
 | **Branch / PR** | `feat/EPIC-06`, uncommitted, no PR |
 | **Task given to AI** | Compare Epic 6 in Linear with the lab PDF and point out where Linear over- or under-simplifies; record the dev merge result and the merge-commit rule; plan US-06.01 and build NIT-247. |
@@ -1137,6 +1137,16 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - `HomeScreen`: `useFocusEffect` and an `AppState` listener call `refreshIfStale` with the interval from settings.
 >   - Mutation checks: boundary `>=` → `>` (4 failed); `failRefresh` drops the old report (2 failed); `shouldRefresh` ignores `isRefreshing` (1 failed); all restored.
 >   - Docs: SPEC W-11, D-45, §11, §11.1, Q6, Q11, change log; STYLE §3.1, §3.2, §4; TEST_REPORT §1.14, §2.1 – §2.4, §4.
+>   - The student reported that Home loads as before and that returning to Home causes no reload.
+> - **NIT-251:** on the student's question, the AI explained that it needed no code: `settingsRepository` (NIT-248) already stores the interval, and UX-14 showed it survives a restart.
+> - **NIT-383:**
+>   - `WeatherStatus.tsx`: pure `describeRefreshNotice` and the `RefreshNotice` component with a "Try again" button (instead of "Pull down to try again", because pulling is hard with VoiceOver).
+>   - `HomeScreen`: `RefreshControl` on the `ScrollView`, only with weather on screen; the notice under the header for `refreshFailed`.
+>   - 12 tests added to `weatherStatus.test.ts`; mutation check (offline errors not recognised): 2 failed, restored.
+>   - TEST_REPORT: UX-15 reworded for refresh without the cache; UX-27 "Pull to refresh" added (iOS row only).
+>   - Wrap-up: `npm run check` 675 / 675, iOS export, Expo Doctor 20/20.
+>   - Docs: SPEC D-45, §11.1, change log; STYLE §3.1; TEST_REPORT §1.14, §2.1 – §2.4, §3, §4.
+>   - The student reported that pull-to-refresh, the offline notice, "Try again" and VoiceOver work. The refresh after 15 minutes in the background was not waited out; the student chose to rely on the unit tests, so it is recorded as NOT RUN and UX-15 as partial.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the Epic 6 scope changes; the US-06.01 plan and decisions 1 – 5.
@@ -1155,7 +1165,7 @@ Record actual outcomes only. Write `not run` where applicable.
 |---|---|
 | Read and understood line by line | |
 | `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-24) |
-| Unit tests (names) | `settingsPresentation.test.ts` (6), `settingsParser.test.ts` (18), `settingsRepository.test.ts` (7), `useSettingsViewModel.test.ts` (3), `refreshPolicy.test.ts` (10), `useWeatherViewModel.test.ts` (+14); full suite 663 / 663 |
+| Unit tests (names) | `settingsPresentation.test.ts` (6), `settingsParser.test.ts` (18), `settingsRepository.test.ts` (7), `useSettingsViewModel.test.ts` (3), `refreshPolicy.test.ts` (10), `useWeatherViewModel.test.ts` (+14), `weatherStatus.test.ts` (+12); full suite 675 / 675 |
 | Android Emulator (what was checked) | |
 | iOS Simulator (what was checked) | NIT-247: gear button, Settings with the defaults, back and swipe-back; NIT-248: choosing, reopening, full restart, VoiceOver; NIT-249: largest text, iPhone 17e, headings (all reported by the student) |
 
