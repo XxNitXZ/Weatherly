@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
+import { AppState, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Location } from '../../models/Location';
 import type { DailyForecast } from '../../models/Weather';
@@ -12,6 +12,7 @@ import { selectTodayForecast } from '../../utils/forecastSelection';
 import { useCoordinateSearchViewModel } from '../../viewmodels/useCoordinateSearchViewModel';
 import { useFavoritesViewModel } from '../../viewmodels/useFavoritesViewModel';
 import { useSearchViewModel } from '../../viewmodels/useSearchViewModel';
+import { useSettingsViewModel } from '../../viewmodels/useSettingsViewModel';
 import { useWeatherViewModel } from '../../viewmodels/useWeatherViewModel';
 import { DailyForecastList } from '../components/DailyForecastList';
 import { FavoritesSaveNotice } from '../components/FavoritesStatus';
@@ -50,12 +51,19 @@ import { LocationSearchSheet } from './LocationSearchSheet';
  * - A place chosen on the favorites screen comes back as the
  *   `selectedLocation` route param and goes through `handleSelectLocation`,
  *   the same weather flow as a search result.
+ *
+ * Refresh (US-06.02; SPEC D-45): when Home comes back into view, or the app
+ * returns from the background, the weather is fetched again if it is at
+ * least the chosen refresh interval old. There is no timer: these are the
+ * moments someone actually looks at the weather. The shown weather stays
+ * until the new one arrives.
  */
 export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) {
   const searchViewModel = useSearchViewModel();
   const coordinateViewModel = useCoordinateSearchViewModel();
   const weatherViewModel = useWeatherViewModel();
   const favoritesViewModel = useFavoritesViewModel();
+  const { refreshIntervalMinutes } = useSettingsViewModel().settings;
   const [isSearchOpen, setSearchOpen] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
 
@@ -91,6 +99,24 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
       reloadFavorites();
     }, [reloadFavorites]),
   );
+
+  // Refresh stale weather when Home comes back into view (from a day, the
+  // favorites or the settings screen) or the app returns from the
+  // background (SPEC D-45).
+  const { refreshIfStale } = weatherViewModel;
+  useFocusEffect(
+    useCallback(() => {
+      refreshIfStale(refreshIntervalMinutes);
+    }, [refreshIfStale, refreshIntervalMinutes]),
+  );
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (appState) => {
+      if (appState === 'active') {
+        refreshIfStale(refreshIntervalMinutes);
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshIfStale, refreshIntervalMinutes]);
 
   // A place handed back by another screen (a chosen favorite): load it like a
   // search result, then clear the param so the same place can be chosen again

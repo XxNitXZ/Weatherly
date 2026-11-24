@@ -349,7 +349,29 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 |---|---|---|---|
 | `npm run check` | 2026-11-24 | `tsc --noEmit` without errors; Jest 639 / 639 | PASS |
 | iOS bundle | 2026-11-24 | `npx expo export --platform ios` exported without errors | PASS |
-| Choose 60 min, °F, km/h; checkmarks move at once; still selected after going back and reopening Settings; still selected after fully closing and restarting the app; "default" still shown on the default options; VoiceOver reads a tapped row as selected (iOS Simulator) | | | NOT RUN |
+| Choose 60 min, °F, km/h; checkmarks move at once; still selected after going back and reopening Settings; still selected after fully closing and restarting the app; "default" still shown on the default options; VoiceOver reads a tapped row as selected (iOS Simulator) | 2026-11-24 | Tyrone Asante reported "It works" | PASS (by report) |
+
+**NIT-249 (checks on the simulator, US-06.01 wrap-up):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Largest text size: group titles and option rows wrap, checkmark stays visible (iOS Simulator) | 2026-11-24 | Tyrone Asante reported "The three checks works" | PASS (by report) |
+| iPhone 17e: all three groups fit or scroll (iOS Simulator) | 2026-11-24 | Same report | PASS (by report) |
+| VoiceOver reads the group titles as headings (iOS Simulator) | 2026-11-24 | Same report | PASS (by report) |
+| `npm run check` | 2026-11-24 | `tsc --noEmit` without errors; Jest 639 / 639 | PASS |
+| iOS bundle | 2026-11-24 | `npx expo export --platform ios` exported without errors | PASS |
+| Expo Doctor | 2026-11-24 | 20/20 checks passed | PASS |
+
+### 1.14 Refresh Interval and Pull-to-Refresh (US-06.02)
+
+**NIT-250 + NIT-252 (refresh rule; refresh on focus and on return from the background), done as one step:**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| `npm run check` | 2026-11-24 | `tsc --noEmit` without errors; Jest 663 / 663 | PASS |
+| iOS bundle | 2026-11-24 | `npx expo export --platform ios` exported without errors | PASS |
+| Home loads a place as before; going to a day, Favourites and Settings and back causes no reload and no flicker (iOS Simulator) | | | NOT RUN |
+| Interval 15 min, app in the background for over 15 minutes, reopened: "Observed" time in the hero changes (iOS Simulator) | | | NOT RUN |
 
 ## 2. Automated Unit Tests
 
@@ -387,6 +409,7 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Settings → screen texts (selected, default, spoken units) | Data transformation | `presentSettings` in `src/utils/settingsPresentation.ts` (NIT-247) | W-10 – W-12 | |
 | Stored settings JSON → `AppSettings` (defaults field by field) | JSON parsing | `parseStoredSettings`, `toStoredSettings` in `src/parsers/settingsParser.ts` (NIT-248) | W-10 – W-12 | |
 | Settings storage: defaults, round trip, write order, storage errors | (extra) | `settingsRepository` (NIT-248) | W-10 | |
+| Refresh rule (stale at the boundary) and refresh state changes | Data transformation; error-state logic | `isStale` in `src/utils/refreshPolicy.ts`; `shouldRefresh`, `startRefresh`, `finishRefresh`, `failRefresh` in `useWeatherViewModel` (NIT-250, NIT-252) | W-11 | |
 | Read/write order across screens | (extra) | `favoritesRepository` (US-05.03, SPEC D-40) | W-08, W-09 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
@@ -538,9 +561,11 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | applySettingsChange (3 tests) | W-10 | one field; all fields; the current object | only that field changed; all changed; the current object unchanged | as expected (2026-11-24) | PASS |
 | geocodingParser › parses results | W-02 | valid fixture | list of `Location` | | NOT RUN |
 | geocodingParser › handles empty results | W-01, W-02 | fixture with no results | empty list | | NOT RUN |
-| refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | | NOT RUN |
-| refreshPolicy › old data is stale | W-11 | fetched 20 min ago, interval 15 min | `true` | | NOT RUN |
-| refreshPolicy › exact boundary | W-11 | fetched exactly 15 min ago, interval 15 min | as defined in SPEC W-11 (document the rule) | | NOT RUN |
+| refreshPolicy › fresh data is not stale | W-11 | fetched 5 min ago, interval 15 min | `false` | as expected (2026-11-24) | PASS |
+| refreshPolicy › old data is stale | W-11 | fetched 20 min ago, interval 15 min | `true` | as expected (2026-11-24) | PASS |
+| refreshPolicy › exact boundary | W-11 | fetched exactly 15 min ago, interval 15 min | `true` (SPEC W-11: the boundary counts as stale) | as expected (2026-11-24) | PASS |
+| refreshPolicy › other cases (7 tests) | W-11, D-45 | 1 ms before 15 min; fetched this moment; fetch time 1 ms in the future; each interval 15/30/60 at one minute before and at the interval; 20 min old with 15 and with 30 min | `false`; `false`; `true`; `false` then `true` for each; `true`, `false` | as expected (2026-11-24) | PASS |
+| refresh state changes (14 tests) | W-11, D-45 | `shouldRefresh` with stale/fresh success, while refreshing, after a failed refresh, idle/loading/error; `startRefresh`; `finishRefresh`; `failRefresh` after a refresh, after an earlier failure, while a new place loads | true/false/false/true/false×3; old report kept with `isRefreshing: true` (earlier error kept); new report, error cleared; `refreshFailed` with old report and the error, the newer error replaces the older, unchanged | as expected (2026-11-24) | PASS |
 
 ### 2.3 Mutation Test Evidence
 
@@ -615,6 +640,9 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Settings storage (NIT-248) | `settingsParser`: an invalid field throws instead of falling back to its default | 3 parser tests (invalid field, number as text, missing field) (3 of 639 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | Settings storage (NIT-248) | `settingsParser`: version check removed | the 4 wrong-version tests (4 of 639 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | Settings storage (NIT-248) | `settingsRepository`: `saveSettings` no longer waits for earlier writes | `…two quick saves in the order they were made…` (1 of 639 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Refresh rule (NIT-250) | `isStale`: `>=` → `>` (boundary no longer stale) | the boundary test and the three interval tests (4 of 663 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Refresh state (NIT-252) | `failRefresh` returns `error` without the old report | 2 `failRefresh` tests (2 of 663 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Refresh state (NIT-252) | `shouldRefresh` no longer checks `isRefreshing` | `…does not start a second refresh while one is running` (1 of 663 failed) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -645,6 +673,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-23 | `feat/Epic-04` with `dev` (Epic 5) merged in, conflicts resolved, uncommitted | `npm run check` | 605 | 605 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06` after `8c09dfc`, with NIT-247 | `npm run check` | 611 | 611 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06` after `8c09dfc`, with NIT-248 | `npm run check` | 639 | 639 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-250 + NIT-252 | `npm run check` | 663 | 663 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
@@ -716,7 +745,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-13 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-13 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-14 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-14 | iOS Simulator (macOS) | | | | NOT RUN |
+| UX-14 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Chose 60 min, °F, km/h; still selected after reopening Settings and after fully closing and restarting the app (§1.13, NIT-248) | PASS (by report) |
 | UX-15 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-15 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-16 | Android Emulator (Windows) | | | | NOT RUN |
@@ -748,6 +777,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 26 executed | 2 of 26 executed: UX-09 PASS (by report); UX-26 partial (by report; landscape NOT RUN until W-22) |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 639 / 639 (run on macOS, 2026-11-24) |
+| UX scenarios executed / PASS | 0 of 26 executed | 3 of 26 executed: UX-09 and UX-14 PASS (by report); UX-26 partial (by report; landscape NOT RUN until W-22) |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 663 / 663 (run on macOS, 2026-11-24) |
 | Known open defects | | |

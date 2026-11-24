@@ -1104,7 +1104,7 @@ Record actual outcomes only. Write `not run` where applicable.
 | **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
 | **Operated by** | Tyrone Asante (Developer 2) |
 | **Platform** | macOS, iOS Simulator |
-| **Linear user story / task** | NIT-157 (Epic 6); NIT-179 (US-06.01): tasks NIT-247, NIT-248 |
+| **Linear user story / task** | NIT-157 (Epic 6); NIT-179 (US-06.01): tasks NIT-247 – NIT-249; NIT-180 (US-06.02): tasks NIT-250 + NIT-252 (one step), NIT-251 covered |
 | **Requirement IDs** | W-10, W-11, W-12 |
 | **Branch / PR** | `feat/EPIC-06`, uncommitted, no PR |
 | **Task given to AI** | Compare Epic 6 in Linear with the lab PDF and point out where Linear over- or under-simplifies; record the dev merge result and the merge-commit rule; plan US-06.01 and build NIT-247. |
@@ -1128,6 +1128,15 @@ Record actual outcomes only. Write `not run` where applicable.
 >   - Tests: `settingsParser.test.ts` (18), `settingsRepository.test.ts` (7), `useSettingsViewModel.test.ts` (3).
 >   - Mutation checks: invalid field throws (3 failed); version check removed (4 failed); saves not ordered (1 failed); all restored. The third was added beyond the brief, to show the write-order test can fail.
 >   - Docs: SPEC D-44, W-10, §11.1, §12 Q10, change log; STYLE §3.1, §4; TEST_REPORT §1.13, §2.1 – §2.4, §4.
+>   - The student reported "It works" for choosing, reopening, a full restart and VoiceOver.
+> - **NIT-249:** no code. The student reported that the largest text size, the iPhone 17e and VoiceOver headings work; UX-14 recorded from the NIT-248 check; wrap-up: `npm run check` 639 / 639, iOS export, Expo Doctor 20/20. Docs: TEST_REPORT §1.13, §3.2, §4; SPEC §11.1, change log.
+> - **US-06.02 planning:** plan accepted (refresh on focus and on return from the background, no timer, pull-to-refresh, minimal failure notice). New Linear task NIT-383 created for pull-to-refresh and the notice. On the student's suggestion, NIT-250 and NIT-252 were done as one step; the working rule now allows merging a small task that only the next one uses.
+> - **NIT-250 + NIT-252:**
+>   - New: `src/utils/refreshPolicy.ts` (`isStale`), `tests/utils/refreshPolicy.test.ts` (10).
+>   - `useWeatherViewModel`: `refresh`, `refreshIfStale`, and the pure `shouldRefresh`, `startRefresh`, `finishRefresh`, `failRefresh` (14 tests added to `useWeatherViewModel.test.ts`). While writing it, the AI found two problems in its first version and fixed them before the hand-off: two triggers in the same moment could start two requests (the latest state is now updated at once), and the functions changed identity on every render, so the focus effect would have re-run on every render (now `useCallback`).
+>   - `HomeScreen`: `useFocusEffect` and an `AppState` listener call `refreshIfStale` with the interval from settings.
+>   - Mutation checks: boundary `>=` → `>` (4 failed); `failRefresh` drops the old report (2 failed); `shouldRefresh` ignores `isRefreshing` (1 failed); all restored.
+>   - Docs: SPEC W-11, D-45, §11, §11.1, Q6, Q11, change log; STYLE §3.1, §3.2, §4; TEST_REPORT §1.14, §2.1 – §2.4, §4.
 
 **Changes reviewed or modified by students**
 - Accepted as is: the Epic 6 scope changes; the US-06.01 plan and decisions 1 – 5.
@@ -1146,9 +1155,9 @@ Record actual outcomes only. Write `not run` where applicable.
 |---|---|
 | Read and understood line by line | |
 | `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-24) |
-| Unit tests (names) | `settingsPresentation.test.ts` (6), `settingsParser.test.ts` (18), `settingsRepository.test.ts` (7), `useSettingsViewModel.test.ts` (3); full suite 639 / 639 |
+| Unit tests (names) | `settingsPresentation.test.ts` (6), `settingsParser.test.ts` (18), `settingsRepository.test.ts` (7), `useSettingsViewModel.test.ts` (3), `refreshPolicy.test.ts` (10), `useWeatherViewModel.test.ts` (+14); full suite 663 / 663 |
 | Android Emulator (what was checked) | |
-| iOS Simulator (what was checked) | NIT-247: gear button, Settings with the defaults, back and swipe-back (reported by the student) |
+| iOS Simulator (what was checked) | NIT-247: gear button, Settings with the defaults, back and swipe-back; NIT-248: choosing, reopening, full restart, VoiceOver; NIT-249: largest text, iPhone 17e, headings (all reported by the student) |
 
 **Lessons learned**
 -
