@@ -219,11 +219,13 @@ Update this section when the state changes.
 
 **Epic 4** (day details, SPEC D-35, D-36, D-41 – D-43) is on `dev` through a merge commit (`8c09dfc`, 2026-11-23); W-07 was set to VERIFIED by the students.
 
-**Epic 6 done** on `feat/EPIC-06` (2026-11-24); PR into `dev` pending:
+**Epic 6** (settings, refresh and units; SPEC D-44 – D-46) is on `dev` through a merge commit (2026-11-24):
 - US-06.01 (NIT-179): `SettingsScreen` from the gear on Home; settings stored and shared by `SettingsProvider` (D-44); UX-14 reported to work.
 - US-06.02 (NIT-180): stale weather refreshed when Home comes back into view or the app returns from the background (`isStale`, D-45); pull-to-refresh; failed-refresh notice with "Try again". UX-27 reported to work; UX-15 partly (the refresh after the interval was not waited out).
 - US-06.03 (NIT-181): temperature (°C/°F) and wind (m/s, km/h) units on every screen (D-46); UX-16 reported to work.
 - 697 unit tests pass; iOS export and Expo Doctor pass.
+
+**In progress on `feat/EPIC-07`** (from `dev`, 2026-11-25): offline support and the cache (NIT-158). The scope was checked against the lab on 2026-11-25: one cache entry, the last viewed place restored at launch, and US-07.03 and US-07.04 reduced to a check of what Epic 2 and Epic 6 already built.
 
 **Open checks:** every Android Emulator scenario; the on-screen iOS minus key for coordinates (TEST_REPORT §1.4).
 

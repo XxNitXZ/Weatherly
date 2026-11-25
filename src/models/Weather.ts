@@ -1,3 +1,5 @@
+import type { Location } from './Location';
+
 /**
  * Weather models used inside the app (W-15). Built by `weatherParser` from an
  * Open-Meteo response; views and ViewModels never see the raw API JSON.
@@ -87,4 +89,14 @@ export type WeatherReport = {
 export type FetchedWeatherReport = {
   readonly report: WeatherReport;
   readonly fetchedAtEpochMs: number;
+};
+
+/**
+ * The last weather the user saw, together with its place (W-16; SPEC D-47).
+ * Stored by `weatherRepository` as the app's single cache entry. The place is
+ * part of the entry, so cached weather is never shown under another place's
+ * name, and it is the place restored when the app starts.
+ */
+export type CachedWeatherReport = FetchedWeatherReport & {
+  readonly location: Location;
 };

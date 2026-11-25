@@ -1,12 +1,7 @@
 import { AppError } from '../models/AppError';
 import type { Location } from '../models/Location';
-import {
-  MAX_LATITUDE,
-  MAX_LONGITUDE,
-  MIN_LATITUDE,
-  MIN_LONGITUDE,
-} from '../utils/coordinateValidation';
-import { readArray, readNumber, readObject, readString } from './jsonReaders';
+import { readArray, readNumber, readObject } from './jsonReaders';
+import { parseStoredLocation, toStoredLocation, type StoredLocation } from './storedLocation';
 
 /**
  * The stored favorites format (W-08; SPEC D-38): the only module that knows
@@ -18,8 +13,9 @@ import { readArray, readNumber, readObject, readString } from './jsonReaders';
  *                   "coordinates": { "latitude": 55.70584, "longitude": 13.19321 } }] }
  * ```
  *
- * Each entry has exactly the fields of `Location`. `region` and `country` are
- * left out when the place has none. The list is newest first.
+ * Each entry is a `StoredLocation` (`storedLocation.ts`): exactly the fields
+ * of `Location`; `region` and `country` are left out when the place has none.
+ * The list is newest first.
  *
  * Reading is strict, like the API parsers: anything unexpected throws
  * AppError('parse') with the path of the bad field, and nothing is repaired
@@ -28,13 +24,6 @@ import { readArray, readNumber, readObject, readString } from './jsonReaders';
 
 /** The version this code writes and the only one it reads. */
 export const FAVORITES_SCHEMA_VERSION = 1;
-
-type StoredLocation = {
-  readonly name: string;
-  readonly region?: string;
-  readonly country?: string;
-  readonly coordinates: { readonly latitude: number; readonly longitude: number };
-};
 
 export type StoredFavorites = {
   readonly version: typeof FAVORITES_SCHEMA_VERSION;
@@ -76,66 +65,4 @@ export function toStoredFavorites(favorites: ReadonlyArray<Location>): StoredFav
     version: FAVORITES_SCHEMA_VERSION,
     favorites: favorites.map(toStoredLocation),
   };
-}
-
-function toStoredLocation(location: Location): StoredLocation {
-  return {
-    name: location.name,
-    ...(location.region !== undefined ? { region: location.region } : {}),
-    ...(location.country !== undefined ? { country: location.country } : {}),
-    coordinates: {
-      latitude: location.coordinates.latitude,
-      longitude: location.coordinates.longitude,
-    },
-  };
-}
-
-function parseStoredLocation(value: unknown, path: string): Location {
-  const entry = readObject(value, path);
-  const coordinates = readObject(entry.coordinates, `${path}.coordinates`);
-
-  return {
-    name: readNonEmptyString(entry.name, `${path}.name`),
-    region: readStoredOptionalString(entry.region, `${path}.region`),
-    country: readStoredOptionalString(entry.country, `${path}.country`),
-    coordinates: {
-      latitude: readNumberInRange(
-        coordinates.latitude,
-        `${path}.coordinates.latitude`,
-        MIN_LATITUDE,
-        MAX_LATITUDE,
-      ),
-      longitude: readNumberInRange(
-        coordinates.longitude,
-        `${path}.coordinates.longitude`,
-        MIN_LONGITUDE,
-        MAX_LONGITUDE,
-      ),
-    },
-  };
-}
-
-function readNonEmptyString(value: unknown, path: string): string {
-  const text = readString(value, path);
-  if (text.trim() === '') {
-    throw new AppError('parse', `${path}: expected a non-empty string`);
-  }
-  return text;
-}
-
-/**
- * Missing means "none". Unlike `readOptionalString` for API data, `null` is
- * rejected: this app never writes `null`, so a stored `null` means the data
- * was not written by this code.
- */
-function readStoredOptionalString(value: unknown, path: string): string | undefined {
-  return value === undefined ? undefined : readString(value, path);
-}
-
-function readNumberInRange(value: unknown, path: string, min: number, max: number): number {
-  const number = readNumber(value, path);
-  if (number < min || number > max) {
-    throw new AppError('parse', `${path}: expected a number in [${min}, ${max}], got ${number}`);
-  }
-  return number;
 }

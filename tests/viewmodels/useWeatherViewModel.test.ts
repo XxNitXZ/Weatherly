@@ -19,6 +19,12 @@ import {
  * its request ordering uses `createLatestRequestGuard`, tested separately.
  */
 
+// The ViewModel imports `weatherRepository`, which holds the cache on the
+// device (SPEC D-47); without this mock, loading AsyncStorage fails in Jest.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
 const LUND: Location = {
   name: 'Lund',
   region: 'Skåne län',

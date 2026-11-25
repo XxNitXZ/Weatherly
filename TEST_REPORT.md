@@ -396,6 +396,16 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 | Expo Doctor | 2026-11-24 | 20/20 checks passed | PASS |
 | °F and km/h on Home (hero, hourly, seven-day) and the day detail screen (hero, Wind card); VoiceOver says °F; switching back to °C and m/s; units kept after a restart; no reload when switching (iOS Simulator) | 2026-11-24 | Tyrone Asante reported "It works" | PASS (by report) |
 
+### 1.16 Weather Cache Entry (US-07.01)
+
+**NIT-256 (cache entry model, parser and repository; nothing calls it yet, so there is no simulator check):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Favourites unchanged after the place format moved to `storedLocation` | 2026-11-25 | `favoritesParser` and `favoritesRepository` tests: 68 / 68, no test changed | PASS |
+| Mutation checks | 2026-11-25 | 2 deliberate faults, each detected, both reverted (§2.3) | PASS |
+| `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 729 / 729 | PASS |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -435,6 +445,7 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | Refresh rule (stale at the boundary) and refresh state changes | Data transformation; error-state logic | `isStale` in `src/utils/refreshPolicy.ts`; `shouldRefresh`, `startRefresh`, `finishRefresh`, `failRefresh` in `useWeatherViewModel` (NIT-250, NIT-252) | W-11 | |
 | Failed refresh → notice text | Error-state logic (View) | `describeRefreshNotice` in `src/views/components/WeatherStatus.tsx` (NIT-383) | W-11, W-18 | |
 | °C/m/s → °F/km/h, rounded once after converting; consistency across all presenters | Data transformation | `units.ts`; the `unit` argument of the formatters and presenters (NIT-255) | W-12 | |
+| Stored weather cache ↔ `CachedWeatherReport` (round trip over real reports; damaged entries) | JSON parsing | `parseStoredWeatherCache`, `toStoredWeatherCache` in `src/parsers/weatherCacheParser.ts`; `loadLastReport`, `saveLastReport` in `weatherRepository` (NIT-256) | W-16 | |
 | Read/write order across screens | (extra) | `favoritesRepository` (US-05.03, SPEC D-40) | W-08, W-09 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
@@ -594,6 +605,11 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | describeRefreshNotice (12 tests) | W-11, W-18, D-45 | idle, loading, success, success while refreshing, error; `refreshFailed` with network, timeout; with http, parse, unknown; while retrying; developer message | `null` ×5; "No connection. Showing the weather from 11:15." (the fixture's observation time in Stockholm); "Couldn't update the weather. Showing the weather from 11:15."; still shown; never contains it | as expected (2026-11-24) | PASS |
 | units (12 tests) | W-12, D-46 | 0, 100, −40, 37, −17.5 °C; 0, 1, 10, 5.6 m/s; metric unchanged; 0.4 °C and 3.1 m/s converted; units from settings | 32, 212, −40, 98.6, 0.5 °F; 0, 3.6, 36, 20.16 km/h; unchanged; 32.72 and 11.16 (not rounded); metric for the defaults, imperial for changed settings | as expected (2026-11-24) | PASS |
 | displayUnits (10 tests) | W-12, D-46 | real Stockholm values in °F and km/h through the formatters, the Home hero, an hour, a day row, the day detail hero and Wind card; every presenter text for both real forecasts in each unit system | "34 °F", "27 °F", 0.4 °C → "33 °F" (rounded after converting), no "-0"; "11 km/h", "55 km/h"; spoken texts in °F and km/h; other detail rows unchanged; with °F/km/h no text contains °C or m/s (over 1000 texts), and the reverse | as expected (2026-11-24) | PASS |
+| weatherCacheParser › round trip (5 tests) | W-16, D-47 | reports parsed from the Stockholm, Stockholm details, Longyearbyen and McMurdo fixtures, stored and read back through JSON text | exactly the cached report (`toEqual`); place and fetch time kept | as expected (2026-11-25) | PASS |
+| weatherCacheParser › writing (3 tests) | W-16, D-47 | the Stockholm details report; one with `windSpeedMs` not set; one with an extra field | version 1; the unset field left out and no `null` in the text; the extra field not stored | as expected (2026-11-25) | PASS |
+| weatherCacheParser › rejected values (15 tests) | W-16, D-47 | a string; version missing, 2; place missing, latitude 91; fetch time as text; report missing; timezone missing; current temperature as text; `isDay` = 1; `hourly` an object; hour 5 without time; day 3 without max temperature; `uvIndexMax` = `null`; `windSpeedMs` = "calm" | `AppError('parse')` naming the field, e.g. `report.daily[3].temperatureMaxCelsius` | as expected (2026-11-25) | PASS |
+| weatherCacheParser › accepted values (2 tests) | W-16, D-47 | `uvIndexMax` missing; an unknown extra field | not set; ignored, report unchanged | as expected (2026-11-25) | PASS |
+| weatherRepository › the cache entry (7 tests) | W-16, D-47 | the key; nothing stored; save then load; `{ not json` and an invalid entry; a storage read error; a storage write error after an earlier save; two quick saves with the first one slow | `weatherly:lastWeather`; `null`; the saved entry; `null` twice; `null`; `AppError('storage')`, earlier entry kept; the second entry stored | as expected (2026-11-25) | PASS |
 
 ### 2.3 Mutation Test Evidence
 
@@ -675,6 +691,8 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Units (NIT-255) | `celsiusToFahrenheit` without `+ 32` | 12 of 697 failed (conversion, formatter and presenter tests) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | Units (NIT-255) | `formatTemperature` rounds the °C value before converting | 4 of 697 failed (0.4 °C → 33 °F and the presenters that show it) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | Units (NIT-255) | `presentHourlyForecast` ignores the chosen unit (always °C) | 2 of 697 failed, including the consistency test (`…no text on any screen shows °C or m/s`) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
+| Weather cache (NIT-256) | `toStoredWeatherCache` leaves out the current `windSpeedMs` | 5 of 25 failed (the 4 round trips and the extra-field test) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
+| Weather cache (NIT-256) | `loadLastReport` throws a `parse` error instead of giving `null` | 1 of 11 failed (`…gives null for a damaged entry instead of throwing`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -708,6 +726,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-250 + NIT-252 | `npm run check` | 663 | 663 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-383 | `npm run check` | 675 | 675 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-255 | `npm run check` | 697 | 697 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-25 | uncommitted, on `feat/EPIC-07` from `dev`, with NIT-256 | `npm run check` | 729 | 729 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |

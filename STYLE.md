@@ -29,7 +29,7 @@
 | **View** | `src/views/` | Render ViewModel state; forward user events to ViewModel functions; layout and styling. Screens own navigation calls (`navigation.navigate`) and pass route params to their ViewModel. | Call `fetch`, read storage, parse JSON, hold business rules. |
 | **ViewModel** | `src/viewmodels/` | Custom hooks (`useXxxViewModel`) that hold screen state, loading/error state, and user intents (`search()`, `refresh()`, `toggleFavorite()`). | Render JSX, call `fetch` directly, know API JSON shapes, import or call React Navigation. |
 | **Navigation** | `src/navigation/` | Navigator setup and typed route-parameter lists. | Contain business logic or data fetching. |
-| **Repository** | `src/repositories/` | Single source of truth per data type. Combines a service with its parser so callers receive typed models. `weatherRepository` also decides between cache and network and applies refresh policy and offline fallback; `locationRepository` stays thin (service + parser only, no caching; SPEC D-17). | Know about React or UI. |
+| **Repository** | `src/repositories/` | Single source of truth per data type. Combines a service with its parser so callers receive typed models. `weatherRepository` also keeps the one weather cache entry (SPEC D-47); `locationRepository` stays thin (service + parser only, no caching; SPEC D-17). | Know about React or UI. |
 | **API service** | `src/services/api/` | Build URLs, perform HTTP requests, map HTTP failures to `AppError`. Return raw `unknown` JSON. | Parse into models, cache, touch UI. |
 | **Parser** | `src/parsers/` | Pure functions: `unknown` JSON → typed Model, or throw `AppError('parse')`. | Do I/O. |
 | **Storage** | `src/storage/` | Thin wrapper around the persistence library (D-08); JSON (de)serialisation of stored values. | Contain business rules. |
@@ -53,10 +53,12 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/parsers/jsonReaders.ts` | Shared readers for parsers (`readObject`, `readString`, `readOptionalString`, `readNumber`, `readOptionalNumber`, `readArray`) that throw `AppError('parse')` with the field path. | **Exists** (NIT-206) |
 | `src/parsers/weatherParser.ts` | `parseWeatherResponse(json: unknown): WeatherReport`. Throws `AppError('parse', …)` with the field path. Optional `null`/missing values become `undefined`. | **Exists** (NIT-215) |
 | `src/repositories/locationRepository.ts` | `searchLocations(query): Promise<ReadonlyArray<Location>>`: `fetchLocations` → `parseGeocodingResponse`. No caching or other behaviour (SPEC D-17). Errors pass through unchanged. | **Exists** (NIT-206) |
-| `src/repositories/weatherRepository.ts` | `getReport(coordinates): Promise<FetchedWeatherReport>`: `fetchForecast` → `parseWeatherResponse` → `{ report, fetchedAtEpochMs }` (SPEC D-18). Errors pass through unchanged. Planned: cache, refresh policy, and reporting a fallback to a cached entry after a failed refresh (§11). | **Exists** without cache (NIT-212); cache planned (NIT-182, NIT-183) |
+| `src/repositories/weatherRepository.ts` | `getReport(coordinates): Promise<FetchedWeatherReport>`: `fetchForecast` → `parseWeatherResponse` → `{ report, fetchedAtEpochMs }` (SPEC D-18). Errors pass through unchanged. The cache entry (SPEC D-47), key `weatherly:lastWeather`: `loadLastReport(): Promise<CachedWeatherReport \| null>` (never throws; nothing stored, damaged or unreadable gives `null`) and `saveLastReport(cached)` (throws `AppError('storage')`); reads and writes run in order. | **Exists** (NIT-212; cache NIT-256) |
 | `src/repositories/favoritesRepository.ts` | `FAVORITES_STORAGE_KEY = 'weatherly:favorites'`. `loadFavorites(): Promise<ReadonlyArray<Location>>`: `readJson` → `parseStoredFavorites` → `normalizeFavorites`; nothing stored → `[]`. `saveFavorites(favorites): Promise<void>`: `normalizeFavorites` → `toStoredFavorites` → `writeJson`; resolves only after the write is confirmed. All loads and saves run one after another in call order, also after a failure, so a read started after another screen's write sees it (SPEC D-40). Errors pass through unchanged (`storage`, `parse`); damaged data is never overwritten here (SPEC D-38). No network. | **Exists** (NIT-177, NIT-242; order NIT-178) |
 | `src/repositories/settingsRepository.ts` | `loadSettings(): Promise<AppSettings>` (defaults when nothing usable is stored; throws only `AppError('storage')`) and `saveSettings(settings)`, through `keyValueStorage` under `weatherly:settings`; reads and writes run in order (SPEC D-44). | **Exists** (NIT-248) |
 | `src/storage/keyValueStorage.ts` | `readJson(key): Promise<unknown>` (`undefined` when nothing is stored) and `writeJson(key, value): Promise<void>`; the only importer of AsyncStorage (D-08). Throws `AppError('storage')` when AsyncStorage fails and `AppError('parse')` when the stored text is not JSON. Knows nothing about what is stored. | **Exists** (NIT-177; planned earlier for NIT-182) |
+| `src/parsers/storedLocation.ts` | The stored format of a place, shared by the favourites and the weather cache: `StoredLocation`, `toStoredLocation(location)` and `parseStoredLocation(value, path)` (strict; non-empty name, no `null`, coordinates within bounds). | **Exists** (NIT-256, moved out of `favoritesParser`) |
+| `src/parsers/weatherCacheParser.ts` | The stored weather cache format (SPEC D-47): `WEATHER_CACHE_SCHEMA_VERSION = 1`, `toStoredWeatherCache(cached)` (copies every model field by name, leaves out unset optional fields) and `parseStoredWeatherCache(json: unknown): CachedWeatherReport` (strict; `AppError('parse')` with the path; `null` rejected). Reads the app's model, not Open-Meteo's format. | **Exists** (NIT-256) |
 | `src/parsers/favoritesParser.ts` | The stored favourites format (SPEC D-38): `FAVORITES_SCHEMA_VERSION = 1`, `parseStoredFavorites(json: unknown): ReadonlyArray<Location>` (strict; `AppError('parse')` with the path) and `toStoredFavorites(favorites): StoredFavorites` (only the fields of `Location`). Built on `jsonReaders`; bounds from `coordinateValidation`. | **Exists** (NIT-177, NIT-241) |
 | `src/parsers/settingsParser.ts` | The stored settings format (SPEC D-44): `SETTINGS_SCHEMA_VERSION = 1`, `parseStoredSettings(json): AppSettings` (never throws; defaults for unusable values, field by field), `toStoredSettings(settings)`. | **Exists** (NIT-248) |
 | `src/utils/favorites.ts` | Favourite identity and list rules (SPEC D-37): `FAVORITE_COORDINATE_TOLERANCE = 0.0001`, `isSameFavoritePlace(a, b)`, `containsFavorite(list, location)`, `addFavorite`, `removeFavorite`, `toggleFavorite` (newest first; return the original array when nothing changes), `normalizeFavorites(list)` (removes duplicates, keeps the entry saved first). Never mutate their input. | **Exists** (NIT-176, NIT-238, NIT-240) |
@@ -102,7 +104,7 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/theme/colors.ts`, `spacing.ts`, `typography.ts` | Design tokens (§12). **Minimal starting set**: only the tokens the existing components use (US-02.04, extended in US-03.01, e.g. `surface`, `primarySubtle`, `CONTENT_MAX_WIDTH`). The visual design system is defined in US-08.01. | **Exists**, minimal (NIT-208, NIT-217) |
 | `src/viewmodels/use…ViewModel.ts` (others) | Expose `LoadState<T>` plus intent functions (`refresh`, …). Never receive `navigation`. | Planned (NIT-174, …) |
 | `src/navigation/routes.ts`, `RootNavigator.tsx` | Typed route params and navigator setup. | Planned (NIT-173; SPEC OQ-05) |
-| `src/models/Weather.ts` | `CurrentWeather`, `HourlyForecast`, `DailyForecast` and `WeatherReport` (`timezone`, `utcOffsetSeconds`, `current`, `hourly`, `daily`). Written against a real Open-Meteo response. Times in `…EpochMs`, units in field names, API `null` values as optional fields. | **Exists** (NIT-214) |
+| `src/models/Weather.ts` | `CurrentWeather`, `HourlyForecast`, `DailyForecast` and `WeatherReport` (`timezone`, `utcOffsetSeconds`, `current`, `hourly`, `daily`); `FetchedWeatherReport` (with `fetchedAtEpochMs`) and `CachedWeatherReport` (plus its `location`; SPEC D-47). Written against a real Open-Meteo response. Times in `…EpochMs`, units in field names, API `null` values as optional fields. | **Exists** (NIT-214) |
 | `src/models/AppSettings.ts` | `AppSettings` (`refreshIntervalMinutes: 15 \| 30 \| 60`, `temperatureUnit: 'celsius' \| 'fahrenheit'`, `windSpeedUnit: 'metresPerSecond' \| 'kilometresPerHour'`), the allowed values once each (`REFRESH_INTERVAL_OPTIONS`, `TEMPERATURE_UNIT_OPTIONS`, `WIND_SPEED_UNIT_OPTIONS`) and `DEFAULT_SETTINGS` (30 min, °C, m/s). | **Exists** (NIT-247) |
 
 ### 3.2 Search-to-Forecast Data Flow
@@ -124,12 +126,10 @@ Search and forecast share one screen, `HomeScreen` (SPEC D-22). It uses two View
 4. The ViewModel sets `success` with the locations, or `error` with the **`AppError`**. HomeScreen renders the result list, an empty state or an error.
 5. **User selects a location:** HomeScreen passes it to `useWeatherViewModel`. No navigation happens; the forecast appears on the same screen.
    - Coordinate search (W-03) skips steps 2–4. `useCoordinateSearchViewModel` validates the input with `validateCoordinates` (`src/utils/coordinateValidation.ts`) and builds a **`Location`** directly; no network request is needed.
-6. **useWeatherViewModel** sets `loading` and calls `weatherRepository`.
-7. **weatherRepository** reads the cache through `keyValueStorage`:
-   - If the entry is fresh (`refreshPolicy`), it returns it. This is a normal result, not an offline state.
-   - Otherwise it calls `weatherService`, parses the response with `weatherParser`, stores the report with `fetchedAtEpochMs`, and returns it.
-   - If that refresh fails and a cached entry exists, it returns the entry and reports the **`AppError`** that occurred. With no cached entry, it throws the error.
-8. **useWeatherViewModel** maps the result to `success`, `refreshFailed` (cached data plus an error) or `error` (**`LoadState<T>`**, §7). HomeScreen renders the current conditions, today's hourly forecast and the seven-day summary and, for `refreshFailed`, a "last updated" notice.
+6. **useWeatherViewModel** sets `loading` and calls `weatherRepository.getReport`.
+7. **weatherRepository** calls `weatherService`, parses the response with `weatherParser` and returns the report with `fetchedAtEpochMs`. Errors pass through unchanged.
+8. **useWeatherViewModel** checks that the answer belongs to its newest request, then maps it to `success` or `error` (**`LoadState<T>`**, §7); a failed refresh of shown weather becomes `refreshFailed` (cached data plus an error; SPEC D-45). After a success it saves the report and its place as the cache entry (`saveLastReport`; a failed save is ignored; SPEC D-47; NIT-257). HomeScreen renders the current conditions, today's hourly forecast and the seven-day summary and, for `refreshFailed`, a "last updated" notice.
+   - **At launch** the ViewModel reads the cache entry (`loadLastReport`) and shows its place and weather before any request (NIT-384); stale data is then fetched again (`isStale`, SPEC D-45; NIT-259).
 9. **User selects a day:** HomeScreen, not the ViewModel, navigates to `DayDetailScreen` with the location's fields, that day's `DailyForecast` and the report's `utcOffsetSeconds` (§3.3, SPEC D-36). The detail screen shows the day from its params and sends no request, so it opens instantly, also offline, and always shows the day that was tapped.
 
 ### 3.3 Navigation Ownership
@@ -156,7 +156,7 @@ Weatherly/
 ├── src/
 │   ├── models/             # AppError.ts, Location.ts, Weather.ts, AppSettings.ts [exist]
 │   ├── services/api/       # httpClient.ts, weatherService.ts, geocodingService.ts [all exist]
-│   ├── parsers/            # weatherParser.ts, geocodingParser.ts, favoritesParser.ts, settingsParser.ts, jsonReaders.ts [all exist]
+│   ├── parsers/            # weatherParser.ts, geocodingParser.ts, weatherCacheParser.ts, favoritesParser.ts, settingsParser.ts, storedLocation.ts, jsonReaders.ts [all exist]
 │   ├── repositories/       # weatherRepository.ts, locationRepository.ts, favoritesRepository.ts, settingsRepository.ts [exist]
 │   ├── storage/            # keyValueStorage.ts [exists]
 │   ├── navigation/         # RootNavigator.tsx, routes.ts (typed route params) [exist]
@@ -177,7 +177,7 @@ Weatherly/
 │   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json, openMeteoForecastDstStockholm.json
 │   ├── helpers/            # fakeFetch.ts (fake fetch), jsonFixtures.ts (copy-with-one-change, parse-error assertion)
 │   ├── models/             # AppError.test.ts
-│   ├── parsers/            # weatherParser.test.ts, geocodingParser.test.ts, favoritesParser.test.ts, settingsParser.test.ts
+│   ├── parsers/            # weatherParser.test.ts, geocodingParser.test.ts, weatherCacheParser.test.ts, favoritesParser.test.ts, settingsParser.test.ts
 │   ├── repositories/       # weatherRepository.test.ts, locationRepository.test.ts, favoritesRepository.test.ts, settingsRepository.test.ts
 │   ├── services/           # weatherService.test.ts, httpClient.test.ts, geocodingService.test.ts
 │   ├── storage/            # keyValueStorage.test.ts (AsyncStorage's own Jest mock)
