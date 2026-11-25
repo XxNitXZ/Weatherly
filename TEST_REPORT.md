@@ -437,7 +437,20 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 | Existing notice texts unchanged | 2026-11-25 | The NIT-383 notice tests only gained a `now` on the same day and the `accessibilityLabel`; every expected text is unchanged | PASS |
 | Mutation checks | 2026-11-25 | 2 deliberate faults, each detected, both reverted (§2.3) | PASS |
 | `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 750 / 750 | PASS |
+| Same-day notice unchanged: pull to refresh with Wi-Fi off gives "No connection. Showing the weather from HH:MM." (iOS Simulator) | 2026-11-25 | Tyrone Asante reported "It works" | PASS (by report) |
 | Notice with a date for data from an earlier day, VoiceOver reads it in full (iOS Simulator, Mac date set one day ahead) | 2026-11-25 | Not run: the student chose not to change the Mac's date; the day boundary is unit-tested | NOT RUN |
+
+**NIT-261 (no cache and no network; checks only, no code) and the US-07.02 wrap-up:**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Offline search "Lund": "No internet connection. Check your connection and search again.", no endless spinner (iOS Simulator, `EXPO_OFFLINE=1 npx expo start --localhost`, Wi-Fi off) | 2026-11-25 | Tyrone Asante reported "Checks 1-4 work" | PASS (by report) |
+| New place offline (coordinates 55.7, 13.19): weather error "No internet connection…" with "Try again", no crash (UX-18) | 2026-11-25 | Reported to work | PASS (by report) |
+| Wi-Fi on, "Try again": weather loads (UX-19); reload with `r`: the new place comes back from the cache | 2026-11-25 | Reported to work | PASS (by report) |
+| True first launch offline with an empty cache (Q15) | 2026-11-25 | Not run: it needs Expo Go removed from the simulator, which also deletes favourites and settings. `loadLastReport` with nothing stored is unit-tested; checks above show the screens | NOT RUN |
+| `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 750 / 750 | PASS |
+| iOS bundle | 2026-11-25 | `npx expo export --platform ios` exported without errors | PASS |
+| Expo Doctor | 2026-11-25 | 20/20 checks passed | PASS |
 | `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 729 / 729 | PASS |
 
 ## 2. Automated Unit Tests
@@ -802,7 +815,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-14 | W-10 | Any screen | Open Settings, change a value, restart the app | Settings screen opens and the change persists |
 | UX-15 | W-11 | Weather shown, refresh interval set (e.g. 15 min) | Return to Home or reopen the app before and after the interval passes | Before the interval nothing reloads; after it the weather is fetched again (spinner, new "Observed" time) while the old weather stays visible. With the cache (Epic 7), the fresh data then also comes from the cache |
 | UX-16 | W-12 | Weather view in °C and m/s | Switch to °F and km/h in Settings and return; open a day | All temperatures are shown in °F and all wind speeds in km/h, on Home and on the day detail screen, also for VoiceOver; nothing reloads |
-| UX-17 | W-16, W-17 | Location loaded once, then device offline | Open that location | Cached data is shown with an offline / last-updated indicator |
+| UX-17 | W-16, W-17 | Location loaded once, then device offline | Reopen the app; then pull to refresh | The cached place and weather are shown without an error; a fresh cache shows no notice (D-20). After the failed refresh: "No connection. Showing the weather from HH:MM." with "Try again" (D-48) |
 | UX-18 | W-17, W-18 | No cache for the location, device offline | Open a new location | An error message with a retry action is shown |
 | UX-19 | W-18 | Error state from UX-18 | Restore the network and tap retry | Data loads successfully |
 | UX-20 | W-20, W-23 | Slow network (emulator network throttling) | Load a location | A loading indicator is shown and the UI stays responsive |
@@ -852,11 +865,11 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-16 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-16 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | °F and km/h on Home and the day detail screen, VoiceOver, no reload, switching back and a restart reported to work (§1.15, NIT-255) | PASS (by report) |
 | UX-17 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-17 | iOS Simulator (macOS) | | | | NOT RUN |
+| UX-17 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Reopened offline: cached Stockholm shown, no error, no notice (§1.17, screenshot); pull to refresh offline: the notice with the time (§1.17, NIT-260, by report). Expected result reworded on 2026-11-25 to match D-20 and D-48 | PASS (screenshot and by report) |
 | UX-18 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-18 | iOS Simulator (macOS) | | | | NOT RUN |
+| UX-18 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Wi-Fi off: search "Lund" gave the no-connection search message; coordinates 55.7, 13.19 gave the weather error "No internet connection…" with "Try again"; no crash (§1.17, NIT-261) | PASS (by report) |
 | UX-19 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-19 | iOS Simulator (macOS) | | | | NOT RUN |
+| UX-19 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Wi-Fi on, "Try again": the weather for 55.7, 13.19 loaded; after a reload it came back from the cache (§1.17, NIT-261) | PASS (by report) |
 | UX-20 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-20 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-21 | Android Emulator (Windows) | | | | NOT RUN |
@@ -880,6 +893,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 27 executed | 7 of 28 executed: UX-09, UX-14, UX-16, UX-27 and UX-28 PASS (by report; UX-28's offline part with a screenshot); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
+| UX scenarios executed / PASS | 0 of 27 executed | 10 of 28 executed: UX-09, UX-14, UX-16, UX-17, UX-18, UX-19, UX-27 and UX-28 PASS (by report; UX-17 and UX-28 offline parts with a screenshot); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
 | Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 697 / 697 (run on macOS, 2026-11-24) |
 | Known open defects | | |

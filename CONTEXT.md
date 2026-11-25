@@ -226,6 +226,9 @@ Update this section when the state changes.
 - 697 unit tests pass; iOS export and Expo Doctor pass.
 
 **In progress on `feat/EPIC-07`** (from `dev`, 2026-11-25): offline support and the cache (NIT-158). The scope was checked against the lab on 2026-11-25: one cache entry, the last viewed place restored at launch, and US-07.03 and US-07.04 reduced to a check of what Epic 2 and Epic 6 already built.
+- US-07.01 (NIT-182) done: one cache entry, saved after each newest load, restored at the start (SPEC D-47); UX-28 reported to work, offline part with a screenshot.
+- US-07.02 (NIT-183) done: a stale cache is refreshed at the start, a failed refresh shows a notice with the data's time or date, and no cache offline gives a message with "Try again" (SPEC D-48); UX-17 – UX-19 reported to work. Offline runs use `EXPO_OFFLINE=1 npx expo start --localhost`.
+- 750 unit tests pass; iOS export and Expo Doctor pass.
 
 **Open checks:** every Android Emulator scenario; the on-screen iOS minus key for coordinates (TEST_REPORT §1.4).
 
