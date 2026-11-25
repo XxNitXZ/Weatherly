@@ -11,16 +11,18 @@ import type { LoadState } from '../../viewmodels/loadState';
 
 /**
  * The user-facing message for a failed weather load (W-18, W-19). Views own
- * the wording (STYLE.md §8); the developer `message` is never shown. Both
- * ways of retrying work: the "Try again" button, or selecting the place
- * again (the ViewModel allows a new load after an error).
+ * the wording (STYLE.md §8); the developer `message` is never shown. The
+ * message names the action the screen offers: the "Try again" button next to
+ * it (selecting the place again also works, since the ViewModel allows a new
+ * load after an error). Server problems (`http`, `parse`) say "later",
+ * because an immediate retry rarely helps there (NIT-264).
  */
 export function weatherErrorMessage(error: AppError): string {
   switch (error.kind) {
     case 'network':
-      return 'No internet connection. Check your connection and select the place again.';
+      return 'No internet connection. Check your connection and try again.';
     case 'timeout':
-      return 'The weather service took too long to answer. Select the place again to retry.';
+      return 'The weather service took too long to answer. Try again.';
     case 'http':
       return 'The weather service is not available right now. Please try again later.';
     case 'parse':
@@ -28,7 +30,7 @@ export function weatherErrorMessage(error: AppError): string {
     case 'validation':
     case 'storage':
     case 'unknown':
-      return 'Something went wrong while loading the weather. Select the place again to retry.';
+      return 'Something went wrong while loading the weather. Try again.';
   }
 }
 

@@ -49,13 +49,13 @@ describe('describeWeatherStatus', () => {
 
 describe('weatherErrorMessage', () => {
   it.each([
-    ['network', 'No internet connection. Check your connection and select the place again.'],
-    ['timeout', 'The weather service took too long to answer. Select the place again to retry.'],
+    ['network', 'No internet connection. Check your connection and try again.'],
+    ['timeout', 'The weather service took too long to answer. Try again.'],
     ['http', 'The weather service is not available right now. Please try again later.'],
     ['parse', 'The weather service sent an unexpected answer. Please try again later.'],
-    ['validation', 'Something went wrong while loading the weather. Select the place again to retry.'],
-    ['storage', 'Something went wrong while loading the weather. Select the place again to retry.'],
-    ['unknown', 'Something went wrong while loading the weather. Select the place again to retry.'],
+    ['validation', 'Something went wrong while loading the weather. Try again.'],
+    ['storage', 'Something went wrong while loading the weather. Try again.'],
+    ['unknown', 'Something went wrong while loading the weather. Try again.'],
   ] as const)('%s → %j', (kind, expected) => {
     expect(weatherErrorMessage(new AppError(kind, 'developer detail'))).toBe(expected);
   });
@@ -64,6 +64,15 @@ describe('weatherErrorMessage', () => {
     const error = new AppError('parse', 'current.temperature_2m: expected a finite number, got undefined');
     expect(weatherErrorMessage(error)).not.toContain('temperature_2m');
   });
+
+  it.each(['network', 'timeout', 'http', 'parse', 'validation', 'storage', 'unknown'] as const)(
+    'names the "Try again" button as the action, never "select the place" (%s)',
+    (kind) => {
+      const text = weatherErrorMessage(new AppError(kind, 'developer detail'));
+      expect(text.toLowerCase()).not.toContain('select the place');
+      expect(text.toLowerCase()).toContain('try again');
+    },
+  );
 });
 
 describe('describeRefreshNotice (W-11, W-18; SPEC D-45, D-48)', () => {

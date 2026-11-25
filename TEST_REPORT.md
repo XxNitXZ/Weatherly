@@ -453,6 +453,29 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 | Expo Doctor | 2026-11-25 | 20/20 checks passed | PASS |
 | `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 729 / 729 | PASS |
 
+### 1.18 Error Texts Against the Lab (US-07.03)
+
+**NIT-264 (error texts name the action the screen offers):** the lab asks that the app "must show a meaningful message" and that "a failed request never causes a crash or a silent blank screen". Audit of every place an `AppError` reaches the user, 2026-11-25. Each function is an exhaustive `switch` over `AppErrorKind`, so a new kind without a text fails `tsc`.
+
+| Kind | Place search (`searchErrorMessage`) | Weather load (`weatherErrorMessage`, with "Try again") | Failed refresh (`describeRefreshNotice`, with "Try again") | Favourites (`favoritesLoadErrorMessage` / `favoritesSaveErrorMessage`) | Settings save (`SETTINGS_SAVE_ERROR_MESSAGE`) |
+|---|---|---|---|---|---|
+| `network` | No internet connection. Check your connection and search again. | No internet connection. Check your connection and try again. | No connection. Showing the weather from HH:MM. | general text (not thrown by storage) | one text for any failure: "Couldn't save. This setting will reset when the app restarts." |
+| `timeout` | The search took too long. Please search again. | The weather service took too long to answer. Try again. | No connection. … | general text (not thrown by storage) | same |
+| `http` | …not available right now. Please try again later. | …not available right now. Please try again later. | Couldn't update the weather. … | general text (not thrown by storage) | same |
+| `parse` | …sent an unexpected answer. Please try again later. | …sent an unexpected answer. Please try again later. | Couldn't update the weather. … | load: "…could not be read. They have been kept unchanged…"; save: general | same |
+| `validation` | Enter a place name to search. | Something went wrong… Try again. | Couldn't update the weather. … | general text | same |
+| `storage` | Something went wrong. Please search again. | Something went wrong… Try again. | Couldn't update the weather. … | load: "…could not be loaded from this device's storage. Please try again."; save: "Your change could not be saved…" | same |
+| `unknown` | Something went wrong. Please search again. | Something went wrong… Try again. | Couldn't update the weather. … | general text | same |
+
+Not shown to the user, by design: reading the settings fails → defaults (D-44); the weather cache cannot be read or saved → treated as no cache, the fetch still succeeds (D-47); invalid coordinates are field errors before any request (W-03), not an `AppError`.
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| No weather error text says "select the place"; all name "try again" | 2026-11-25 | New test over all 7 kinds | PASS |
+| Mutation check | 2026-11-25 | 1 deliberate fault, detected, reverted (§2.3) | PASS |
+| `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 757 / 757 | PASS |
+| Wi-Fi off, coordinates of a place that is not cached: "No internet connection. Check your connection and try again." with "Try again" (iOS Simulator, `EXPO_OFFLINE=1 npx expo start --localhost`) | | | NOT RUN |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -651,6 +674,7 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | refresh state changes (14 tests) | W-11, D-45 | `shouldRefresh` with stale/fresh success, while refreshing, after a failed refresh, idle/loading/error; `startRefresh`; `finishRefresh`; `failRefresh` after a refresh, after an earlier failure, while a new place loads | true/false/false/true/false×3; old report kept with `isRefreshing: true` (earlier error kept); new report, error cleared; `refreshFailed` with old report and the error, the newer error replaces the older, unchanged | as expected (2026-11-24) | PASS |
 | describeRefreshNotice (12 tests) | W-11, W-18, D-45 | idle, loading, success, success while refreshing, error; `refreshFailed` with network, timeout; with http, parse, unknown; while retrying; developer message | `null` ×5; "No connection. Showing the weather from 11:15." (the fixture's observation time in Stockholm); "Couldn't update the weather. Showing the weather from 11:15."; still shown; never contains it | as expected (2026-11-24) | PASS |
 | describeRefreshNotice › not from today (4 tests) | W-17, D-48 | observed Fri 20 Nov 11:15 Stockholm; now the next day; 00:05 the next local day (still 20 Nov in UTC); 23:55 the same day; the day before (clock set back) | "…from Fri 20 Nov, 11:15." with the spoken "Friday 20 November, 11:15"; the date form; time only; the date form | as expected (2026-11-25) | PASS |
+| weatherErrorMessage › names "Try again", never "select the place" (7 tests) | W-18, W-19 | every `AppErrorKind` | no "select the place"; contains "try again" | as expected (2026-11-25) | PASS |
 | isSameLocalDay, formatLocalDateTime (6 tests) | W-17, D-48 | 00:10 and 23:50 the same day; 23:30 and 00:10 the next day; two UTC times on 20 Nov in McMurdo (+13 h); Mon 23 Nov 14:00 Stockholm; 23:30 local; 20 Nov 19:00 UTC in McMurdo | `true`; `false`; `false`; "Mon 23 Nov, 14:00" and "Monday 23 November, 14:00"; "Mon 23 Nov, 23:30"; "Sat 21 Nov, 08:00" | as expected (2026-11-25) | PASS |
 | units (12 tests) | W-12, D-46 | 0, 100, −40, 37, −17.5 °C; 0, 1, 10, 5.6 m/s; metric unchanged; 0.4 °C and 3.1 m/s converted; units from settings | 32, 212, −40, 98.6, 0.5 °F; 0, 3.6, 36, 20.16 km/h; unchanged; 32.72 and 11.16 (not rounded); metric for the defaults, imperial for changed settings | as expected (2026-11-24) | PASS |
 | displayUnits (10 tests) | W-12, D-46 | real Stockholm values in °F and km/h through the formatters, the Home hero, an hour, a day row, the day detail hero and Wind card; every presenter text for both real forecasts in each unit system | "34 °F", "27 °F", 0.4 °C → "33 °F" (rounded after converting), no "-0"; "11 km/h", "55 km/h"; spoken texts in °F and km/h; other detail rows unchanged; with °F/km/h no text contains °C or m/s (over 1000 texts), and the reverse | as expected (2026-11-24) | PASS |
@@ -749,6 +773,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Cache refresh at start (NIT-259) | `stateFromCache` stores fetch time 0 instead of `fetchedAtEpochMs` | 2 of 740 failed (`…sends no request for a fresh cache entry`; `…gives the state of a finished load of the cached place`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | Dated notice (NIT-260) | `isSameLocalDay` ignores the place's UTC offset | 4 of 750 failed (the 3 `isSameLocalDay` tests and `…just after local midnight…`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | Dated notice (NIT-260) | `describeRefreshNotice` always shows the time only | 3 of 750 failed (the day-before, just-after-midnight and clock-set-back tests) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
+| Error texts (NIT-264) | `network` text set back to "…select the place again." | 2 of 757 failed (`network → …try again.` and `…never "select the place" (network)`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -786,6 +811,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` after `43d49ae`, with NIT-257 + NIT-384 | `npm run check` | 737 | 737 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` after `fdd3e8b`, with NIT-259 | `npm run check` | 740 | 740 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` after `fdd3e8b`, with NIT-259 and NIT-260 | `npm run check` | 750 | 750 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-25 | uncommitted, on `feat/EPIC-07` after `101e1c8`, with NIT-264 | `npm run check` | 757 | 757 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
