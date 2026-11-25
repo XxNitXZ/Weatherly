@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toAppError, type AppError } from '../models/AppError';
 import type { RefreshIntervalMinutes } from '../models/AppSettings';
 import type { Location } from '../models/Location';
-import type { FetchedWeatherReport } from '../models/Weather';
-import { getReport } from '../repositories/weatherRepository';
+import type { CachedWeatherReport, FetchedWeatherReport } from '../models/Weather';
+import { getReport, loadLastReport, saveLastReport } from '../repositories/weatherRepository';
 import { selectForecast, type ForecastSelection } from '../utils/forecastSelection';
 import { isStale } from '../utils/refreshPolicy';
 import { isSameLocation } from '../utils/locationFormatting';
@@ -34,6 +34,12 @@ export type WeatherViewModel = {
   readonly refresh: () => void;
   /** `refresh()`, but only when the shown weather is at least `intervalMinutes` old (`isStale`). */
   readonly refreshIfStale: (intervalMinutes: RefreshIntervalMinutes) => void;
+  /**
+   * Shows the cached place and its weather (W-16; SPEC D-47), for the app's
+   * start. Does nothing once a place has been chosen, or when there is no
+   * usable cache entry.
+   */
+  readonly restoreLastReport: () => void;
 };
 
 /**
@@ -98,10 +104,44 @@ export function failRefresh(state: WeatherState, error: AppError): WeatherState 
   return { status: 'refreshFailed', data: state.data, error, isRefreshing: false };
 }
 
-type WeatherScreenState = {
+export type WeatherScreenState = {
   readonly location: Location | null;
   readonly weather: LoadState<FetchedWeatherReport>;
 };
+
+/**
+ * Whether the cached place may be restored (SPEC D-47): only before any
+ * place has been chosen (`idle`). Once the user has loaded a place, even one
+ * that failed, the cache must not replace it.
+ */
+export function shouldRestore(state: WeatherState): boolean {
+  return state.status === 'idle';
+}
+
+/**
+ * The screen state for a cache entry: exactly what a successful load of
+ * that place gives, so the screen needs no special case for restored data.
+ */
+export function stateFromCache(cached: CachedWeatherReport): WeatherScreenState {
+  return {
+    location: cached.location,
+    weather: {
+      status: 'success',
+      data: { report: cached.report, fetchedAtEpochMs: cached.fetchedAtEpochMs },
+      isRefreshing: false,
+    },
+  };
+}
+
+/**
+ * Saves the weather the user now sees as the cache entry (SPEC D-47). Called
+ * only for the newest request, so a slower answer for a place the user has
+ * already left is never saved. Not awaited, and a failed save is ignored:
+ * the weather was fetched, only the copy on the device is missing.
+ */
+function rememberReport(location: Location, data: FetchedWeatherReport): void {
+  saveLastReport({ location, ...data }).catch(() => undefined);
+}
 
 /**
  * ViewModel for the selected location and its weather (W-04; STYLE.md §3.2,
@@ -127,8 +167,13 @@ type WeatherScreenState = {
  * the chosen interval old. A refresh uses the same request guard, so its
  * answer is ignored once another place has been chosen.
  *
- * Caching is added in Epic 7. Navigation and the moments that trigger a
- * refresh stay in the screen (STYLE.md §3.3).
+ * Cache (W-16; SPEC D-47): after every successful load or refresh that is
+ * still the newest, the report and its place are saved as the one cache
+ * entry. `restoreLastReport` shows that entry at the app's start, before any
+ * request; it uses the same request guard, so a place chosen meanwhile wins.
+ *
+ * Navigation and the moments that trigger a refresh or a restore stay in the
+ * screen (STYLE.md §3.3).
  */
 export function useWeatherViewModel(): WeatherViewModel {
   const [screenState, setScreenState] = useState<WeatherScreenState>({
@@ -153,6 +198,7 @@ export function useWeatherViewModel(): WeatherViewModel {
       const weather = await getReport(location.coordinates);
       if (requestGuard.isLatest(requestId)) {
         setScreenState({ location, weather: { status: 'success', data: weather, isRefreshing: false } });
+        rememberReport(location, weather);
       }
     } catch (error) {
       if (requestGuard.isLatest(requestId)) {
@@ -190,6 +236,7 @@ export function useWeatherViewModel(): WeatherViewModel {
       (data) => {
         if (requestGuard.isLatest(requestId)) {
           setScreenState({ location, weather: finishRefresh(data) });
+          rememberReport(location, data);
         }
       },
       (error: unknown) => {
@@ -209,7 +256,29 @@ export function useWeatherViewModel(): WeatherViewModel {
     [refresh],
   );
 
+  const restoreLastReport = useCallback((): void => {
+    if (!shouldRestore(latestState.current.weather)) {
+      return;
+    }
+    const requestId = requestGuard.start();
+    void loadLastReport().then((cached) => {
+      // A place chosen meanwhile started a newer request; null means no cache.
+      if (cached !== null && requestGuard.isLatest(requestId)) {
+        activeLocation.current = cached.location;
+        setScreenState(stateFromCache(cached));
+      }
+    });
+  }, [requestGuard]);
+
   const forecast = useMemo(() => forecastForState(screenState.weather), [screenState.weather]);
 
-  return { location: screenState.location, state: screenState.weather, forecast, load, refresh, refreshIfStale };
+  return {
+    location: screenState.location,
+    state: screenState.weather,
+    forecast,
+    load,
+    refresh,
+    refreshIfStale,
+    restoreLastReport,
+  };
 }

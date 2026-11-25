@@ -53,6 +53,10 @@ import { LocationSearchSheet } from './LocationSearchSheet';
  *   `selectedLocation` route param and goes through `handleSelectLocation`,
  *   the same weather flow as a search result.
  *
+ * Cache (US-07.01; SPEC D-47): when the app starts, Home shows the last
+ * place and its weather from the cache, before any request. Every load that
+ * succeeds replaces that cache entry (in `useWeatherViewModel`).
+ *
  * Refresh (US-06.02; SPEC D-45): when Home comes back into view, or the app
  * returns from the background, the weather is fetched again if it is at
  * least the chosen refresh interval old. There is no timer: these are the
@@ -106,6 +110,14 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
       reloadFavorites();
     }, [reloadFavorites]),
   );
+
+  // At the app's start, show the last place and its weather from the cache
+  // before any request (W-16; SPEC D-47). Runs once: restoreLastReport keeps
+  // its identity, and it does nothing once a place has been chosen.
+  const { restoreLastReport } = weatherViewModel;
+  useEffect(() => {
+    restoreLastReport();
+  }, [restoreLastReport]);
 
   // Refresh stale weather when Home comes back into view (from a day, the
   // favorites or the settings screen) or the app returns from the

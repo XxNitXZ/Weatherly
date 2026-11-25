@@ -1,7 +1,7 @@
 import fixture from '../fixtures/openMeteoForecast.json';
 import { AppError } from '../../src/models/AppError';
 import type { Location } from '../../src/models/Location';
-import type { FetchedWeatherReport } from '../../src/models/Weather';
+import type { CachedWeatherReport, FetchedWeatherReport } from '../../src/models/Weather';
 import { parseWeatherResponse } from '../../src/parsers/weatherParser';
 import type { LoadState } from '../../src/viewmodels/loadState';
 import {
@@ -10,7 +10,9 @@ import {
   forecastForState,
   isRepeatedWeatherLoad,
   shouldRefresh,
+  shouldRestore,
   startRefresh,
+  stateFromCache,
 } from '../../src/viewmodels/useWeatherViewModel';
 
 /**
@@ -171,6 +173,53 @@ describe('refresh state changes (W-11; SPEC D-45)', () => {
 
     it('changes nothing when a new place is loading meanwhile', () => {
       expect(failRefresh({ status: 'loading' }, offline)).toEqual({ status: 'loading' });
+    });
+  });
+});
+
+describe('restoring the cache entry (SPEC D-47)', () => {
+  const cached: CachedWeatherReport = {
+    location: LUND,
+    report: parseWeatherResponse(fixture),
+    fetchedAtEpochMs: fixture.current.time * 1000,
+  };
+
+  describe('shouldRestore', () => {
+    it('is true before any place has been chosen', () => {
+      expect(shouldRestore({ status: 'idle' })).toBe(true);
+    });
+
+    it.each<[string, LoadState<FetchedWeatherReport>]>([
+      ['loading', { status: 'loading' }],
+      ['success', { status: 'success', data: cached, isRefreshing: false }],
+      ['refreshFailed', { status: 'refreshFailed', data: cached, error: new AppError('network', 'offline'), isRefreshing: false }],
+      ['error', { status: 'error', error: new AppError('timeout', 'slow') }],
+    ])('is false once a place was chosen (%s)', (_name, state) => {
+      expect(shouldRestore(state)).toBe(false);
+    });
+  });
+
+  describe('stateFromCache', () => {
+    it('gives the state of a finished load of the cached place', () => {
+      expect(stateFromCache(cached)).toEqual({
+        location: LUND,
+        weather: {
+          status: 'success',
+          data: { report: cached.report, fetchedAtEpochMs: cached.fetchedAtEpochMs },
+          isRefreshing: false,
+        },
+      });
+    });
+
+    it('keeps the place out of the weather data, like a normal load', () => {
+      const { weather } = stateFromCache(cached);
+      expect(weather.status === 'success' && 'location' in weather.data).toBe(false);
+    });
+
+    it('gives a forecast to show, chosen at the time the report was fetched', () => {
+      const forecast = forecastForState(stateFromCache(cached).weather);
+      expect(forecast).not.toBeNull();
+      expect(forecast?.days).toHaveLength(7);
     });
   });
 });

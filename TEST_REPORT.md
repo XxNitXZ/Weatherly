@@ -404,6 +404,17 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 |---|---|---|---|
 | Favourites unchanged after the place format moved to `storedLocation` | 2026-11-25 | `favoritesParser` and `favoritesRepository` tests: 68 / 68, no test changed | PASS |
 | Mutation checks | 2026-11-25 | 2 deliberate faults, each detected, both reverted (§2.3) | PASS |
+
+**NIT-257 + NIT-384 (save after each load; restore the last place at the start), done as one step; US-07.01 wrap-up:**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Mutation checks | 2026-11-25 | 2 deliberate faults, each detected, both reverted (§2.3) | PASS |
+| `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 737 / 737 | PASS |
+| iOS bundle | 2026-11-25 | `npx expo export --platform ios` exported without errors | PASS |
+| Expo Doctor | 2026-11-25 | 20/20 checks passed | PASS |
+| Saving only for the newest request | 2026-11-25 | Not unit-testable without rendering the hook (SPEC Q21): `rememberReport` is called inside the `requestGuard.isLatest` branch; checked by reading the code | NOT RUN (no automated test) |
+| Close and reopen: same place and weather without a search; second place after choosing another; Wi-Fi off and reopen: cached place shown, no error; °F applied to restored weather (iOS Simulator, UX-28) | | | NOT RUN |
 | `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 729 / 729 | PASS |
 
 ## 2. Automated Unit Tests
@@ -610,6 +621,7 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | weatherCacheParser › rejected values (15 tests) | W-16, D-47 | a string; version missing, 2; place missing, latitude 91; fetch time as text; report missing; timezone missing; current temperature as text; `isDay` = 1; `hourly` an object; hour 5 without time; day 3 without max temperature; `uvIndexMax` = `null`; `windSpeedMs` = "calm" | `AppError('parse')` naming the field, e.g. `report.daily[3].temperatureMaxCelsius` | as expected (2026-11-25) | PASS |
 | weatherCacheParser › accepted values (2 tests) | W-16, D-47 | `uvIndexMax` missing; an unknown extra field | not set; ignored, report unchanged | as expected (2026-11-25) | PASS |
 | weatherRepository › the cache entry (7 tests) | W-16, D-47 | the key; nothing stored; save then load; `{ not json` and an invalid entry; a storage read error; a storage write error after an earlier save; two quick saves with the first one slow | `weatherly:lastWeather`; `null`; the saved entry; `null` twice; `null`; `AppError('storage')`, earlier entry kept; the second entry stored | as expected (2026-11-25) | PASS |
+| useWeatherViewModel › restoring the cache entry (8 tests) | W-16, D-47 | `shouldRestore` with idle; with loading, success, refreshFailed, error; `stateFromCache` with Lund and the Stockholm fixture; the place kept out of the data; `forecastForState` on the result | `true`; `false` for each; `success`, not refreshing, place Lund, same fetch time; no `location` in `data`; a forecast with 7 days | as expected (2026-11-25) | PASS |
 
 ### 2.3 Mutation Test Evidence
 
@@ -693,6 +705,8 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Units (NIT-255) | `presentHourlyForecast` ignores the chosen unit (always °C) | 2 of 697 failed, including the consistency test (`…no text on any screen shows °C or m/s`) | yes (file restored, `cmp` equal) | 2026-11-24 | PASS |
 | Weather cache (NIT-256) | `toStoredWeatherCache` leaves out the current `windSpeedMs` | 5 of 25 failed (the 4 round trips and the extra-field test) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | Weather cache (NIT-256) | `loadLastReport` throws a `parse` error instead of giving `null` | 1 of 11 failed (`…gives null for a damaged entry instead of throwing`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
+| Cache restore (NIT-384) | `shouldRestore` also allows `success` | 1 of 737 failed (`…is false once a place was chosen (success)`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
+| Cache restore (NIT-384) | `stateFromCache` sets `isRefreshing: true` | 1 of 737 failed (`…gives the state of a finished load of the cached place`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -727,6 +741,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-383 | `npm run check` | 675 | 675 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-255 | `npm run check` | 697 | 697 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` from `dev`, with NIT-256 | `npm run check` | 729 | 729 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-25 | uncommitted, on `feat/EPIC-07` after `43d49ae`, with NIT-257 + NIT-384 | `npm run check` | 737 | 737 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
@@ -767,6 +782,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-25 | W-09 | No favourites saved | Open the Favourites screen | Empty-state guidance is shown |
 | UX-26 | W-07, W-21, W-22 | Day detail open, on the smallest available iPhone simulator (iPhone 17e on iOS 27.2) or a small Android phone. Landscape part only after W-22 (US-08.02) | Scroll to the bottom; rotate to landscape and back; set the largest text size | All cards scroll into view, nothing is cut off or overlaps, labels and values wrap, the header and back navigation keep working |
 | UX-27 | W-11, W-18 | Weather shown on Home | Pull down on the weather; then pull again with the network off; then tap "Try again" with the network back | A spinner shows and the weather updates; offline, a "No connection. Showing the weather from HH:MM." notice appears and the old weather stays; "Try again" updates the weather and the notice disappears |
+| UX-28 | W-16 | Weather for a place was loaded before | Close the app completely and open it again (also with the network off) | The same place and its weather appear without a search and without an error |
 
 ### 3.2 Execution Log
 
@@ -832,6 +848,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 27 executed | 6 of 27 executed: UX-09, UX-14, UX-16 and UX-27 PASS (by report); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
+| UX scenarios executed / PASS | 0 of 27 executed | 6 of 28 executed: UX-09, UX-14, UX-16 and UX-27 PASS (by report); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
 | Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 697 / 697 (run on macOS, 2026-11-24) |
 | Known open defects | | |
