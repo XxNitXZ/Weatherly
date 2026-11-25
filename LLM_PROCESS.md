@@ -1183,6 +1183,71 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-016 – Epic 7 scope check against the lab; offline support and the weather cache
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-25 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Tyrone Asante (Developer 2) |
+| **Platform** | macOS, iOS Simulator |
+| **Linear user story / task** | NIT-158 (Epic 7); NIT-182 (US-07.01): NIT-256, NIT-257 + NIT-384 (one step), NIT-258 covered; NIT-183 (US-07.02): NIT-259, NIT-260, NIT-261; NIT-184 (US-07.03): NIT-264, NIT-262 and NIT-263 cancelled; NIT-185 (US-07.04): NIT-267, NIT-265 and NIT-266 cancelled |
+| **Requirement IDs** | W-16, W-17, W-18, W-19, W-20, W-23 |
+| **Branch / PR** | `feat/EPIC-07`: `43d49ae`, `fdd3e8b`, `101e1c8`, `b135e46`, `ab41128`; NIT-267 uncommitted; no PR yet |
+| **Task given to AI** | Check Epic 7 in Linear strictly against the lab PDF and report which stories and tasks are too complicated or understated; update Linear; then plan and build the Epic story by story. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "I'm taking Epic 7, check against the lab requirements strictly again and report what User Stories/Tasks are too complicated/understated in Linear compared to the teacher's requirements"; "One question regarding NetInfo, what is it? Would it be useful for our app?" |
+
+**Changes made by AI**
+> - **Scope check:** the AI compared Epic 7 with the lab text and the oral exam questions (Q6, Q10 – Q16) and read the code to see what already existed.
+>   - Understated: Home started empty on every launch, so a cache would never be shown after reopening (Q10, Q16); the cache was only planned as a fallback after a failed request (up to 10 s of waiting offline); damaged caches, failed writes and days-old data were not covered.
+>   - Overbuilt: US-07.03 and US-07.04 were mostly built in Epics 2 and 6; one cache entry per place goes beyond the lab's "last successfully fetched data".
+>   - The student agreed. The AI updated Linear: new acceptance criteria on NIT-182 and NIT-183, new titles for five tasks, NIT-262, NIT-263, NIT-265 and NIT-266 cancelled with comments, new task NIT-384 (restore the last place), a scope comment on NIT-158.
+> - **NetInfo:** on the student's question, the AI explained what `@react-native-community/netinfo` does and recommended not adding it: a connection does not guarantee that the API answers, so the failed request stays the real signal; it would need a SPEC package decision; on the Simulator it reports the Mac's connection.
+> - **NIT-256:**
+>   - New: `src/parsers/storedLocation.ts` (moved unchanged out of `favoritesParser`), `src/parsers/weatherCacheParser.ts` (stores the parsed model, strict reading), `CachedWeatherReport` in `Weather.ts`, `loadLastReport` and `saveLastReport` in `weatherRepository.ts`.
+>   - Tests: `weatherCacheParser.test.ts` (25, including round trips over four real fixtures), `weatherRepository.test.ts` (+7).
+>   - Beyond the brief: `useWeatherViewModel.test.ts` needed the AsyncStorage Jest mock, because the ViewModel now imports a module that loads AsyncStorage.
+>   - Mutation checks: `windSpeedMs` not stored (5 failed); `loadLastReport` throws on damage (1 failed); both restored.
+>   - Docs: SPEC D-47, W-16, Q6, change log; STYLE §3.1 and §3.2 (the old "repository decides between cache and network" flow was rewritten to match D-47); TEST_REPORT §1.16.
+> - **NIT-257 + NIT-384:** `useWeatherViewModel` saves the cache entry only inside the newest-request check (`rememberReport`) and restores it with `restoreLastReport` (`shouldRestore`, `stateFromCache`, 8 tests); `HomeScreen` restores on mount. Mutation checks: 2, each 1 failed, restored. Docs: SPEC W-16, Q10, Q12, Q16; STYLE; TEST_REPORT §1.16, UX-28 added.
+> - **NIT-258:** the student asked about it; the AI had missed it when listing NIT-182's tasks. It was covered by NIT-256 and NIT-384; the AI added a comment to the issue.
+> - **Offline testing:** Expo would not open the app with the Mac's Wi-Fi off. The AI first suggested `--offline`, then `--offline --localhost`, which Expo rejects as a combination; the working command was `EXPO_OFFLINE=1 npx expo start --localhost`.
+> - **NIT-259:** `restoreLastReport(intervalMinutes)` refreshes a stale entry right after showing it; `HomeScreen` waits for the stored settings (`isLoaded`) so the user's interval is used. 3 tests; mutation check 2 failed, restored. Docs: SPEC D-48, W-17, Q6.
+> - **NIT-260:** `isSameLocalDay` and `formatLocalDateTime` in `forecastFormatting.ts`; `describeRefreshNotice(state, nowEpochMs)` adds the date for data not from today at the place, with a spoken label in full. 10 tests. The AI's first McMurdo test case used two times on the same local day; the test values were corrected, the code was right. Mutation checks: 4 and 3 failed, restored.
+> - **NIT-261:** checks only; UX-17 reworded to match D-20 and D-48; UX-17 – UX-19 recorded; US-07.02 wrap-up.
+> - **NIT-264:** weather error texts name "Try again" instead of "select the place again" (search texts unchanged); a test over all 7 error kinds; an audit table of every error kind on every screen (TEST_REPORT §1.18); SPEC Q13 answered and Q18 filled in as a proposal for the students.
+> - **NIT-267:** `useSearchViewModel` uses the shared `createLatestRequestGuard` instead of its own counter, with the same behaviour; mutation check on the guard (3 failed, restored); UX-23 reworded, UX-29 added; Epic 7 wrap-up.
+> - CONTEXT §18: Epic 6 merged; Epic 7 progress.
+
+**Changes reviewed or modified by students**
+- Accepted as is: the Epic 7 scope changes (one cache entry, restore the last place, no NetInfo); the US-07.01, US-07.02 and US-07.03 + US-07.04 plans; D-48 decision 3 (old data keeps the view as of its fetch time).
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The AI's listing of NIT-182's sub-issues missed NIT-258; the student noticed it.
+- The first offline start command suggested (`--offline --localhost`) is rejected by Expo; the AI had not checked that the flags can be combined.
+- One unit test case (McMurdo) was wrong at first and failed; the test, not the code, was fixed.
+- Some behaviour cannot be unit-tested without rendering hooks (saving only for the newest request, the state update before a refresh); it is named as a limit in TEST_REPORT and covered by simulator checks.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-25) |
+| Unit tests (names) | `weatherCacheParser.test.ts` (25), `weatherRepository.test.ts` (+7), `useWeatherViewModel.test.ts` (+11), `forecastFormatting.test.ts` (+6), `weatherStatus.test.ts` (+11); full suite 757 / 757; iOS export and Expo Doctor 20/20 |
+| Android Emulator (what was checked) | |
+| iOS Simulator (what was checked) | Restore after closing and reopening; second place restored; restore with Wi-Fi off (screenshot); fresh cache without a request; same-day offline notice; offline search; new place offline with "Try again"; recovery online; new error text; rapid search; leaving Home while loading (all reported by the student, the offline restore with a screenshot). Not run: refresh of a stale cache (15-minute wait), notice with a date (Mac date change), true first launch offline, slow network |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

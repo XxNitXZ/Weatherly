@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AppError, toAppError } from '../models/AppError';
 import type { Location } from '../models/Location';
 import { searchLocations } from '../repositories/locationRepository';
+import { createLatestRequestGuard } from './latestRequest';
 import type { LoadState } from './loadState';
 
 export type SearchViewModel = {
@@ -43,10 +44,11 @@ export function isRepeatedSearch(preparedQuery: string, activeQuery: string | nu
  *     locations found"; same-named places carry region and country)
  *   - `error` with the AppError (network, timeout, http, parse, unknown)
  *
- * Only the latest search may update the state: each search gets a number,
- * and a result whose number is no longer the latest is ignored. This
- * prevents an older, slower search from overwriting a newer one (Q12), and
- * results that arrive after the screen is gone are ignored too.
+ * Only the latest search may update the state (`createLatestRequestGuard`,
+ * shared with the weather ViewModel): each search gets a number, and a result
+ * whose number is no longer the latest is ignored. This prevents an older,
+ * slower search from overwriting a newer one (Q12), and results that arrive
+ * after the screen is gone are ignored too.
  *
  * Repeating the search that is loading or already shown sends no second
  * request (`isRepeatedSearch`). After an error, the same query can be
@@ -56,25 +58,23 @@ export function isRepeatedSearch(preparedQuery: string, activeQuery: string | nu
  */
 export function useSearchViewModel(): SearchViewModel {
   const [state, setState] = useState<LoadState<ReadonlyArray<Location>>>({ status: 'idle' });
-  const latestSearchId = useRef(0);
+  const [requestGuard] = useState(createLatestRequestGuard);
   // The query whose search is loading or whose results are shown; null otherwise.
   const activeQuery = useRef<string | null>(null);
 
   useEffect(() => {
-    return () => {
-      // The screen is gone: make every running search outdated.
-      latestSearchId.current += 1;
-    };
-  }, []);
+    // The screen is gone: make every running search outdated.
+    return () => requestGuard.cancelAll();
+  }, [requestGuard]);
 
   async function runSearch(query: string, searchId: number): Promise<void> {
     try {
       const locations = await searchLocations(query);
-      if (searchId === latestSearchId.current) {
+      if (requestGuard.isLatest(searchId)) {
         setState({ status: 'success', data: locations, isRefreshing: false });
       }
     } catch (error) {
-      if (searchId === latestSearchId.current) {
+      if (requestGuard.isLatest(searchId)) {
         activeQuery.current = null;
         setState({ status: 'error', error: toAppError(error) });
       }
@@ -88,8 +88,7 @@ export function useSearchViewModel(): SearchViewModel {
     }
 
     // A new search, even an empty one, makes any running search outdated.
-    latestSearchId.current += 1;
-    const searchId = latestSearchId.current;
+    const searchId = requestGuard.start();
 
     if (preparedQuery === null) {
       activeQuery.current = null;

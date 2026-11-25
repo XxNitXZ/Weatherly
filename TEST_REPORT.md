@@ -474,7 +474,22 @@ Not shown to the user, by design: reading the settings fails → defaults (D-44)
 | No weather error text says "select the place"; all name "try again" | 2026-11-25 | New test over all 7 kinds | PASS |
 | Mutation check | 2026-11-25 | 1 deliberate fault, detected, reverted (§2.3) | PASS |
 | `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 757 / 757 | PASS |
-| Wi-Fi off, coordinates of a place that is not cached: "No internet connection. Check your connection and try again." with "Try again" (iOS Simulator, `EXPO_OFFLINE=1 npx expo start --localhost`) | | | NOT RUN |
+| Wi-Fi off, coordinates of a place that is not cached: "No internet connection. Check your connection and try again." with "Try again" (iOS Simulator, `EXPO_OFFLINE=1 npx expo start --localhost`) | 2026-11-25 | Tyrone Asante reported "It works" | PASS (by report) |
+
+### 1.19 Loading States and Fast Requests (US-07.04)
+
+**NIT-267 (search uses the shared request guard; Epic 7 wrap-up):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Same behaviour after the refactor | 2026-11-25 | All existing tests pass unchanged (`useSearchViewModel`, `latestRequest`, every other suite): 757 / 757 | PASS |
+| Mutation check | 2026-11-25 | 1 deliberate fault in the shared guard, detected, reverted (§2.3) | PASS |
+| `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 757 / 757 | PASS |
+| iOS bundle | 2026-11-25 | `npx expo export --platform ios` exported without errors | PASS |
+| Expo Doctor | 2026-11-25 | 20/20 checks passed | PASS |
+| UX-29 rapid search: "Lund" then at once "Kiruna"; Kiruna's results stay (iOS Simulator) | 2026-11-25 | Tyrone Asante reported "Checks 1 and 2 work" | PASS (by report) |
+| UX-23: choose a place, open Settings at once, go back; the place's weather shown, no crash (iOS Simulator) | 2026-11-25 | Reported to work | PASS (by report) |
+| UX-20 slow network with the Network Link Conditioner (iOS Simulator) | 2026-11-25 | Not run: the student skipped this optional check | NOT RUN |
 
 ## 2. Automated Unit Tests
 
@@ -774,6 +789,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Dated notice (NIT-260) | `isSameLocalDay` ignores the place's UTC offset | 4 of 750 failed (the 3 `isSameLocalDay` tests and `…just after local midnight…`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | Dated notice (NIT-260) | `describeRefreshNotice` always shows the time only | 3 of 750 failed (the day-before, just-after-midnight and clock-set-back tests) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | Error texts (NIT-264) | `network` text set back to "…select the place again." | 2 of 757 failed (`network → …try again.` and `…never "select the place" (network)`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
+| Request guard (NIT-267) | `createLatestRequestGuard`: `isLatest` always `true` | 3 of 757 failed (the three `createLatestRequestGuard` tests); search and weather both use it | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -812,6 +828,7 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` after `fdd3e8b`, with NIT-259 | `npm run check` | 740 | 740 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` after `fdd3e8b`, with NIT-259 and NIT-260 | `npm run check` | 750 | 750 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` after `101e1c8`, with NIT-264 | `npm run check` | 757 | 757 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-25 | uncommitted, on `feat/EPIC-07`, with NIT-267 | `npm run check` | 757 | 757 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
@@ -847,12 +864,13 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-20 | W-20, W-23 | Slow network (emulator network throttling) | Load a location | A loading indicator is shown and the UI stays responsive |
 | UX-21 | W-22 | Weather view, portrait | Rotate to landscape and back | The layout adapts, nothing is cut off and the data stays |
 | UX-22 | W-22 | Search and Settings screens | Rotate to landscape | Layouts are usable and all content is reachable |
-| UX-23 | W-23 | A location is loading | Navigate away before loading finishes | No crash and no stale update on the new screen |
+| UX-23 | W-23 | A place is loading on Home | Open Settings before loading finishes, then go back | No crash; Home stays mounted underneath (D-35), so back on Home the place's weather is shown |
 | UX-24 | W-08, W-30 | Location already a favourite | Try to add it again (e.g. via search) | No duplicate favourite is created |
 | UX-25 | W-09 | No favourites saved | Open the Favourites screen | Empty-state guidance is shown |
 | UX-26 | W-07, W-21, W-22 | Day detail open, on the smallest available iPhone simulator (iPhone 17e on iOS 27.2) or a small Android phone. Landscape part only after W-22 (US-08.02) | Scroll to the bottom; rotate to landscape and back; set the largest text size | All cards scroll into view, nothing is cut off or overlaps, labels and values wrap, the header and back navigation keep working |
 | UX-27 | W-11, W-18 | Weather shown on Home | Pull down on the weather; then pull again with the network off; then tap "Try again" with the network back | A spinner shows and the weather updates; offline, a "No connection. Showing the weather from HH:MM." notice appears and the old weather stays; "Try again" updates the weather and the notice disappears |
 | UX-28 | W-16 | Weather for a place was loaded before | Close the app completely and open it again (also with the network off) | The same place and its weather appear without a search and without an error |
+| UX-29 | W-23, W-30 | Search sheet open | Search "Lund", then at once "Kiruna" | Kiruna's results show and stay; Lund's never replace them (Q12) |
 
 ### 3.2 Execution Log
 
@@ -903,7 +921,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-22 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-22 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-23 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-23 | iOS Simulator (macOS) | | | | NOT RUN |
+| UX-23 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Settings opened while a place loaded; back on Home the weather was shown, no crash (§1.19, NIT-267) | PASS (by report) |
 | UX-24 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-24 | iOS Simulator (macOS) | | | | NOT RUN |
 | UX-25 | Android Emulator (Windows) | | | | NOT RUN |
@@ -912,6 +930,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-26 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Smallest screen (iPhone 17e) and largest text size reported to work (TEST_REPORT §1.9). Landscape not run: the app is portrait-only until W-22 (US-08.02) | PARTIAL (by report; landscape NOT RUN) |
 | UX-27 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Pull, offline notice, "Try again" back online reported to work (§1.14, NIT-383) | PASS (by report) |
 | UX-28 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Close and reopen restores the last place and its weather (§1.16, NIT-384); also with Wi-Fi off, started with `EXPO_OFFLINE=1 npx expo start --localhost` (§1.17, screenshot) | PASS (by report; offline part screenshot) |
+| UX-29 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | "Lund" then at once "Kiruna": Kiruna's results shown and kept (§1.19, NIT-267). The answers were likely too fast to overlap; the overlap itself is covered by the `createLatestRequestGuard` unit tests | PASS (by report) |
 
 ## 4. Summary
 
@@ -919,6 +938,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 27 executed | 10 of 28 executed: UX-09, UX-14, UX-16, UX-17, UX-18, UX-19, UX-27 and UX-28 PASS (by report; UX-17 and UX-28 offline parts with a screenshot); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
+| UX scenarios executed / PASS | 0 of 27 executed | 12 of 29 executed: UX-09, UX-14, UX-16, UX-17, UX-18, UX-19, UX-23, UX-27, UX-28 and UX-29 PASS (by report; UX-17 and UX-28 offline parts with a screenshot); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
 | Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 697 / 697 (run on macOS, 2026-11-24) |
 | Known open defects | | |
