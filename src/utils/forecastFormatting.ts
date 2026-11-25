@@ -54,6 +54,42 @@ export type DayLabel = {
   readonly dateLong: string;
 };
 
+/** True when both times fall on the same calendar date at the place (fixed UTC offset). */
+export function isSameLocalDay(aEpochMs: number, bEpochMs: number, utcOffsetSeconds: number): boolean {
+  const a = new Date(aEpochMs + utcOffsetSeconds * 1000);
+  const b = new Date(bEpochMs + utcOffsetSeconds * 1000);
+  return (
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
+  );
+}
+
+/** A moment as weekday, date and time at the place: shown and spoken forms. */
+export type LocalDateTimeText = {
+  /** E.g. "Mon 23 Nov, 14:00". */
+  readonly text: string;
+  /** E.g. "Monday 23 November, 14:00", for screen readers. */
+  readonly spoken: string;
+};
+
+/**
+ * Weekday, date and time of any moment at the place, e.g. an observation
+ * time. Unlike `formatDayLabel`, which expects a day's local midnight, this
+ * reads the moment itself, so 14:00 stays on its own date.
+ */
+export function formatLocalDateTime(epochMs: number, utcOffsetSeconds: number): LocalDateTimeText {
+  const local = new Date(epochMs + utcOffsetSeconds * 1000);
+  const weekdayLong = WEEKDAYS[local.getUTCDay()];
+  const month = MONTHS[local.getUTCMonth()];
+  const day = local.getUTCDate();
+  const time = formatLocalTime(epochMs, utcOffsetSeconds);
+  return {
+    text: `${weekdayLong.slice(0, 3)} ${day} ${month.slice(0, 3)}, ${time}`,
+    spoken: `${weekdayLong} ${day} ${month}, ${time}`,
+  };
+}
+
 /**
  * The weekday and date of a forecast day at the location.
  *

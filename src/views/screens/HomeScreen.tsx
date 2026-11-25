@@ -53,8 +53,10 @@ import { LocationSearchSheet } from './LocationSearchSheet';
  *   `selectedLocation` route param and goes through `handleSelectLocation`,
  *   the same weather flow as a search result.
  *
- * Cache (US-07.01; SPEC D-47): when the app starts, Home shows the last
- * place and its weather from the cache, before any request. Every load that
+ * Cache (US-07.01, US-07.02; SPEC D-47, D-48): when the app starts, Home
+ * shows the last place and its weather from the cache, before any request,
+ * and fetches it again if it is stale; offline, the cached weather stays
+ * with the failed-refresh notice. Every load that
  * succeeds replaces that cache entry (in `useWeatherViewModel`).
  *
  * Refresh (US-06.02; SPEC D-45): when Home comes back into view, or the app
@@ -70,7 +72,7 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
   const coordinateViewModel = useCoordinateSearchViewModel();
   const weatherViewModel = useWeatherViewModel();
   const favoritesViewModel = useFavoritesViewModel();
-  const { settings } = useSettingsViewModel();
+  const { settings, isLoaded: areSettingsLoaded } = useSettingsViewModel();
   const { refreshIntervalMinutes } = settings;
   // Temperature and wind follow the user's units on every section (W-12, SPEC D-46).
   const units = displayUnitsOf(settings);
@@ -111,13 +113,17 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
     }, [reloadFavorites]),
   );
 
-  // At the app's start, show the last place and its weather from the cache
-  // before any request (W-16; SPEC D-47). Runs once: restoreLastReport keeps
-  // its identity, and it does nothing once a place has been chosen.
+  // At the app's start, show the last place and its weather from the cache,
+  // then fetch it again if it is stale (W-16, W-17; SPEC D-47, D-48). Waits
+  // for the stored settings, so staleness is judged with the user's interval,
+  // not the default. Running again changes nothing: restoreLastReport does
+  // nothing once a place is shown or chosen.
   const { restoreLastReport } = weatherViewModel;
   useEffect(() => {
-    restoreLastReport();
-  }, [restoreLastReport]);
+    if (areSettingsLoaded) {
+      restoreLastReport(refreshIntervalMinutes);
+    }
+  }, [areSettingsLoaded, refreshIntervalMinutes, restoreLastReport]);
 
   // Refresh stale weather when Home comes back into view (from a day, the
   // favorites or the settings screen) or the app returns from the

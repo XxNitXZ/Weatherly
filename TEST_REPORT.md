@@ -414,7 +414,30 @@ Code uncommitted on `feat/NIT-178-favorites-screen` after `9d90de1` (`dev` with 
 | iOS bundle | 2026-11-25 | `npx expo export --platform ios` exported without errors | PASS |
 | Expo Doctor | 2026-11-25 | 20/20 checks passed | PASS |
 | Saving only for the newest request | 2026-11-25 | Not unit-testable without rendering the hook (SPEC Q21): `rememberReport` is called inside the `requestGuard.isLatest` branch; checked by reading the code | NOT RUN (no automated test) |
-| Close and reopen: same place and weather without a search; second place after choosing another; Wi-Fi off and reopen: cached place shown, no error; °F applied to restored weather (iOS Simulator, UX-28) | | | NOT RUN |
+| Close and reopen: same place and weather without a search, no welcome panel flash; second place after choosing another (iOS Simulator, UX-28) | 2026-11-25 | Tyrone Asante reported "The checks pass" and no flash of the welcome panel at the start | PASS (by report) |
+| Wi-Fi off and reopen: cached place shown, no error (iOS Simulator, UX-28) | 2026-11-25 | First attempt: Expo showed an error before the app opened (the Mac's network address disappears with Wi-Fi off). Run again in §1.17 with `EXPO_OFFLINE=1 npx expo start --localhost`: Stockholm and its weather shown with Wi-Fi off, no error (screenshot) | PASS (screenshot) |
+
+### 1.17 Offline Display of the Cache (US-07.02)
+
+**NIT-259 (restore, then refresh if stale):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Mutation check | 2026-11-25 | 1 deliberate fault, detected, reverted (§2.3) | PASS |
+| `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 740 / 740 | PASS |
+| Restored weather is refreshed only after `latestState` is updated | 2026-11-25 | Not unit-testable without rendering the hook (SPEC Q21); shown by the simulator check below, where a stale cache must start a refresh | NOT RUN (no automated test) |
+| Fresh cache (interval 60 min), reload with `r`: place shown, no spinner, "Observed" time unchanged (iOS Simulator, `EXPO_OFFLINE=1 npx expo start --localhost`) | 2026-11-25 | Tyrone Asante reported "Check 1 works" | PASS (by report) |
+| Fresh cache, Mac Wi-Fi off, reload with `r`: cached place and weather shown, no error and correctly no notice (D-20) (iOS Simulator, iPhone 18 Pro Max, iOS 27.2) | 2026-11-25 | Screenshot at 10:12: Stockholm, "Observed 10:00 local time", rest of today and the seven days shown, no error, no notice | PASS (screenshot) |
+| Stale cache: refresh after the cached weather appears; stale and offline: "No connection. Showing the weather from HH:MM." with "Try again" | 2026-11-25 | Not run: the 15-minute wait was skipped; the stale rule is unit-tested (`shouldRefresh` on `stateFromCache`) | NOT RUN |
+
+**NIT-260 (the notice gets a date for old data):**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Existing notice texts unchanged | 2026-11-25 | The NIT-383 notice tests only gained a `now` on the same day and the `accessibilityLabel`; every expected text is unchanged | PASS |
+| Mutation checks | 2026-11-25 | 2 deliberate faults, each detected, both reverted (§2.3) | PASS |
+| `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 750 / 750 | PASS |
+| Notice with a date for data from an earlier day, VoiceOver reads it in full (iOS Simulator, Mac date set one day ahead) | 2026-11-25 | Not run: the student chose not to change the Mac's date; the day boundary is unit-tested | NOT RUN |
 | `npm run check` | 2026-11-25 | `tsc --noEmit` without errors; Jest 729 / 729 | PASS |
 
 ## 2. Automated Unit Tests
@@ -614,6 +637,8 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | refreshPolicy › other cases (7 tests) | W-11, D-45 | 1 ms before 15 min; fetched this moment; fetch time 1 ms in the future; each interval 15/30/60 at one minute before and at the interval; 20 min old with 15 and with 30 min | `false`; `false`; `true`; `false` then `true` for each; `true`, `false` | as expected (2026-11-24) | PASS |
 | refresh state changes (14 tests) | W-11, D-45 | `shouldRefresh` with stale/fresh success, while refreshing, after a failed refresh, idle/loading/error; `startRefresh`; `finishRefresh`; `failRefresh` after a refresh, after an earlier failure, while a new place loads | true/false/false/true/false×3; old report kept with `isRefreshing: true` (earlier error kept); new report, error cleared; `refreshFailed` with old report and the error, the newer error replaces the older, unchanged | as expected (2026-11-24) | PASS |
 | describeRefreshNotice (12 tests) | W-11, W-18, D-45 | idle, loading, success, success while refreshing, error; `refreshFailed` with network, timeout; with http, parse, unknown; while retrying; developer message | `null` ×5; "No connection. Showing the weather from 11:15." (the fixture's observation time in Stockholm); "Couldn't update the weather. Showing the weather from 11:15."; still shown; never contains it | as expected (2026-11-24) | PASS |
+| describeRefreshNotice › not from today (4 tests) | W-17, D-48 | observed Fri 20 Nov 11:15 Stockholm; now the next day; 00:05 the next local day (still 20 Nov in UTC); 23:55 the same day; the day before (clock set back) | "…from Fri 20 Nov, 11:15." with the spoken "Friday 20 November, 11:15"; the date form; time only; the date form | as expected (2026-11-25) | PASS |
+| isSameLocalDay, formatLocalDateTime (6 tests) | W-17, D-48 | 00:10 and 23:50 the same day; 23:30 and 00:10 the next day; two UTC times on 20 Nov in McMurdo (+13 h); Mon 23 Nov 14:00 Stockholm; 23:30 local; 20 Nov 19:00 UTC in McMurdo | `true`; `false`; `false`; "Mon 23 Nov, 14:00" and "Monday 23 November, 14:00"; "Mon 23 Nov, 23:30"; "Sat 21 Nov, 08:00" | as expected (2026-11-25) | PASS |
 | units (12 tests) | W-12, D-46 | 0, 100, −40, 37, −17.5 °C; 0, 1, 10, 5.6 m/s; metric unchanged; 0.4 °C and 3.1 m/s converted; units from settings | 32, 212, −40, 98.6, 0.5 °F; 0, 3.6, 36, 20.16 km/h; unchanged; 32.72 and 11.16 (not rounded); metric for the defaults, imperial for changed settings | as expected (2026-11-24) | PASS |
 | displayUnits (10 tests) | W-12, D-46 | real Stockholm values in °F and km/h through the formatters, the Home hero, an hour, a day row, the day detail hero and Wind card; every presenter text for both real forecasts in each unit system | "34 °F", "27 °F", 0.4 °C → "33 °F" (rounded after converting), no "-0"; "11 km/h", "55 km/h"; spoken texts in °F and km/h; other detail rows unchanged; with °F/km/h no text contains °C or m/s (over 1000 texts), and the reverse | as expected (2026-11-24) | PASS |
 | weatherCacheParser › round trip (5 tests) | W-16, D-47 | reports parsed from the Stockholm, Stockholm details, Longyearbyen and McMurdo fixtures, stored and read back through JSON text | exactly the cached report (`toEqual`); place and fetch time kept | as expected (2026-11-25) | PASS |
@@ -622,6 +647,7 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | weatherCacheParser › accepted values (2 tests) | W-16, D-47 | `uvIndexMax` missing; an unknown extra field | not set; ignored, report unchanged | as expected (2026-11-25) | PASS |
 | weatherRepository › the cache entry (7 tests) | W-16, D-47 | the key; nothing stored; save then load; `{ not json` and an invalid entry; a storage read error; a storage write error after an earlier save; two quick saves with the first one slow | `weatherly:lastWeather`; `null`; the saved entry; `null` twice; `null`; `AppError('storage')`, earlier entry kept; the second entry stored | as expected (2026-11-25) | PASS |
 | useWeatherViewModel › restoring the cache entry (8 tests) | W-16, D-47 | `shouldRestore` with idle; with loading, success, refreshFailed, error; `stateFromCache` with Lund and the Stockholm fixture; the place kept out of the data; `forecastForState` on the result | `true`; `false` for each; `success`, not refreshing, place Lund, same fetch time; no `location` in `data`; a forecast with 7 days | as expected (2026-11-25) | PASS |
+| useWeatherViewModel › refreshing restored weather when it is stale (3 tests) | W-17, D-48 | `shouldRefresh` on `stateFromCache` fetched 31 min ago, 5 min ago, 1 min in the future; interval 30 min | `true`; `false`; `true` | as expected (2026-11-25) | PASS |
 
 ### 2.3 Mutation Test Evidence
 
@@ -707,6 +733,9 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Weather cache (NIT-256) | `loadLastReport` throws a `parse` error instead of giving `null` | 1 of 11 failed (`…gives null for a damaged entry instead of throwing`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | Cache restore (NIT-384) | `shouldRestore` also allows `success` | 1 of 737 failed (`…is false once a place was chosen (success)`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | Cache restore (NIT-384) | `stateFromCache` sets `isRefreshing: true` | 1 of 737 failed (`…gives the state of a finished load of the cached place`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
+| Cache refresh at start (NIT-259) | `stateFromCache` stores fetch time 0 instead of `fetchedAtEpochMs` | 2 of 740 failed (`…sends no request for a fresh cache entry`; `…gives the state of a finished load of the cached place`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
+| Dated notice (NIT-260) | `isSameLocalDay` ignores the place's UTC offset | 4 of 750 failed (the 3 `isSameLocalDay` tests and `…just after local midnight…`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
+| Dated notice (NIT-260) | `describeRefreshNotice` always shows the time only | 3 of 750 failed (the day-before, just-after-midnight and clock-set-back tests) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -742,6 +771,8 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-24 | uncommitted, on `feat/EPIC-06`, with NIT-255 | `npm run check` | 697 | 697 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` from `dev`, with NIT-256 | `npm run check` | 729 | 729 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` after `43d49ae`, with NIT-257 + NIT-384 | `npm run check` | 737 | 737 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-25 | uncommitted, on `feat/EPIC-07` after `fdd3e8b`, with NIT-259 | `npm run check` | 740 | 740 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-25 | uncommitted, on `feat/EPIC-07` after `fdd3e8b`, with NIT-259 and NIT-260 | `npm run check` | 750 | 750 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
@@ -841,6 +872,7 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-26 | Android Emulator (Windows) | | | | NOT RUN |
 | UX-26 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Smallest screen (iPhone 17e) and largest text size reported to work (TEST_REPORT §1.9). Landscape not run: the app is portrait-only until W-22 (US-08.02) | PARTIAL (by report; landscape NOT RUN) |
 | UX-27 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Pull, offline notice, "Try again" back online reported to work (§1.14, NIT-383) | PASS (by report) |
+| UX-28 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Close and reopen restores the last place and its weather (§1.16, NIT-384); also with Wi-Fi off, started with `EXPO_OFFLINE=1 npx expo start --localhost` (§1.17, screenshot) | PASS (by report; offline part screenshot) |
 
 ## 4. Summary
 
@@ -848,6 +880,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 27 executed | 6 of 28 executed: UX-09, UX-14, UX-16 and UX-27 PASS (by report); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
+| UX scenarios executed / PASS | 0 of 27 executed | 7 of 28 executed: UX-09, UX-14, UX-16, UX-27 and UX-28 PASS (by report; UX-28's offline part with a screenshot); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
 | Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 697 / 697 (run on macOS, 2026-11-24) |
 | Known open defects | | |

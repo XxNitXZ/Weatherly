@@ -223,3 +223,24 @@ describe('restoring the cache entry (SPEC D-47)', () => {
     });
   });
 });
+
+describe('refreshing restored weather when it is stale (SPEC D-48)', () => {
+  const MINUTE_MS = 60_000;
+  const NOW_EPOCH_MS = 1_795_170_000_000;
+
+  function restoredFetchedAt(fetchedAtEpochMs: number): LoadState<FetchedWeatherReport> {
+    return stateFromCache({ location: LUND, report: parseWeatherResponse(fixture), fetchedAtEpochMs }).weather;
+  }
+
+  it('refreshes a cache entry that is older than the interval', () => {
+    expect(shouldRefresh(restoredFetchedAt(NOW_EPOCH_MS - 31 * MINUTE_MS), NOW_EPOCH_MS, 30)).toBe(true);
+  });
+
+  it('sends no request for a fresh cache entry', () => {
+    expect(shouldRefresh(restoredFetchedAt(NOW_EPOCH_MS - 5 * MINUTE_MS), NOW_EPOCH_MS, 30)).toBe(false);
+  });
+
+  it('refreshes a cache entry whose fetch time lies in the future (clock set back)', () => {
+    expect(shouldRefresh(restoredFetchedAt(NOW_EPOCH_MS + MINUTE_MS), NOW_EPOCH_MS, 30)).toBe(true);
+  });
+});

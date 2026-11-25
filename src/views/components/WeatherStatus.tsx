@@ -5,6 +5,7 @@ import type { FetchedWeatherReport } from '../../models/Weather';
 import { skyColors } from '../../theme/sky';
 import { MIN_TOUCH_TARGET, iconSize, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { formatLocalDateTime, isSameLocalDay } from '../../utils/forecastFormatting';
 import { formatLocalTime } from '../../utils/weatherFormatting';
 import type { LoadState } from '../../viewmodels/loadState';
 
@@ -113,6 +114,8 @@ export function WeatherStatus({ state, onRetry }: WeatherStatusProps) {
 /** What the notice above the weather says after a failed refresh. */
 export type RefreshNoticeContent = {
   readonly text: string;
+  /** The same message with the weekday and month in full, for screen readers. */
+  readonly accessibilityLabel: string;
 };
 
 /**
@@ -120,20 +123,33 @@ export type RefreshNoticeContent = {
  * there is none. Only `refreshFailed` has one: the old weather is still on
  * screen, and the notice says that it could not be updated and how old it
  * is. The time is the observation time the hero shows ("Observed 10:42"),
- * in the place's local time, so the two always match. Offline errors
- * (`network`, `timeout`) say so; every other error gets the general text.
+ * in the place's local time, so the two always match. When that time is not
+ * from today at the place (`nowEpochMs`), e.g. cached weather from yesterday,
+ * the date is added: "Showing the weather from Mon 23 Nov, 14:00" (SPEC
+ * D-48). Offline errors (`network`, `timeout`) say so; every other error gets
+ * the general text.
  */
 export function describeRefreshNotice(
   state: LoadState<FetchedWeatherReport>,
+  nowEpochMs: number,
 ): RefreshNoticeContent | null {
   if (state.status !== 'refreshFailed') {
     return null;
   }
   const { report } = state.data;
-  const shownTime = formatLocalTime(report.current.timeEpochMs, report.utcOffsetSeconds);
+  const observedEpochMs = report.current.timeEpochMs;
   const isOffline = state.error.kind === 'network' || state.error.kind === 'timeout';
   const reason = isOffline ? 'No connection.' : "Couldn't update the weather.";
-  return { text: `${reason} Showing the weather from ${shownTime}.` };
+
+  if (isSameLocalDay(observedEpochMs, nowEpochMs, report.utcOffsetSeconds)) {
+    const text = `${reason} Showing the weather from ${formatLocalTime(observedEpochMs, report.utcOffsetSeconds)}.`;
+    return { text, accessibilityLabel: text };
+  }
+  const shown = formatLocalDateTime(observedEpochMs, report.utcOffsetSeconds);
+  return {
+    text: `${reason} Showing the weather from ${shown.text}.`,
+    accessibilityLabel: `${reason} Showing the weather from ${shown.spoken}.`,
+  };
 }
 
 export type RefreshNoticeProps = {
@@ -148,7 +164,7 @@ export type RefreshNoticeProps = {
  * to do with VoiceOver. Disabled while the retry runs.
  */
 export function RefreshNotice({ state, onRetry }: RefreshNoticeProps) {
-  const content = describeRefreshNotice(state);
+  const content = describeRefreshNotice(state, Date.now());
   if (content === null) {
     return null;
   }
@@ -164,7 +180,12 @@ export function RefreshNotice({ state, onRetry }: RefreshNoticeProps) {
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         />
-        <Text style={styles.noticeText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+        <Text
+          style={styles.noticeText}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={content.accessibilityLabel}
+        >
           {content.text}
         </Text>
       </View>

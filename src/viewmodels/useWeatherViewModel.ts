@@ -35,11 +35,13 @@ export type WeatherViewModel = {
   /** `refresh()`, but only when the shown weather is at least `intervalMinutes` old (`isStale`). */
   readonly refreshIfStale: (intervalMinutes: RefreshIntervalMinutes) => void;
   /**
-   * Shows the cached place and its weather (W-16; SPEC D-47), for the app's
-   * start. Does nothing once a place has been chosen, or when there is no
+   * For the app's start: shows the cached place and its weather (W-16; SPEC
+   * D-47), then fetches it again if it is at least `intervalMinutes` old
+   * (`shouldRefresh`; SPEC D-48), keeping the cached weather on screen while
+   * that runs. Does nothing once a place has been chosen, or when there is no
    * usable cache entry.
    */
-  readonly restoreLastReport: () => void;
+  readonly restoreLastReport: (intervalMinutes: RefreshIntervalMinutes) => void;
 };
 
 /**
@@ -171,6 +173,8 @@ function rememberReport(location: Location, data: FetchedWeatherReport): void {
  * still the newest, the report and its place are saved as the one cache
  * entry. `restoreLastReport` shows that entry at the app's start, before any
  * request; it uses the same request guard, so a place chosen meanwhile wins.
+ * If the entry is stale, it then refreshes like any shown weather, so a
+ * failure offline keeps the cached weather as `refreshFailed` (SPEC D-48).
  *
  * Navigation and the moments that trigger a refresh or a restore stay in the
  * screen (STYLE.md §3.3).
@@ -256,19 +260,30 @@ export function useWeatherViewModel(): WeatherViewModel {
     [refresh],
   );
 
-  const restoreLastReport = useCallback((): void => {
-    if (!shouldRestore(latestState.current.weather)) {
-      return;
-    }
-    const requestId = requestGuard.start();
-    void loadLastReport().then((cached) => {
-      // A place chosen meanwhile started a newer request; null means no cache.
-      if (cached !== null && requestGuard.isLatest(requestId)) {
-        activeLocation.current = cached.location;
-        setScreenState(stateFromCache(cached));
+  const restoreLastReport = useCallback(
+    (intervalMinutes: RefreshIntervalMinutes): void => {
+      if (!shouldRestore(latestState.current.weather)) {
+        return;
       }
-    });
-  }, [requestGuard]);
+      const requestId = requestGuard.start();
+      void loadLastReport().then((cached) => {
+        // A place chosen meanwhile started a newer request; null means no cache.
+        if (cached === null || !requestGuard.isLatest(requestId)) {
+          return;
+        }
+        const restored = stateFromCache(cached);
+        activeLocation.current = cached.location;
+        // Updated at once, so `refresh` below sees the restored weather
+        // before React has rendered it.
+        latestState.current = restored;
+        setScreenState(restored);
+        if (shouldRefresh(restored.weather, Date.now(), intervalMinutes)) {
+          refresh();
+        }
+      });
+    },
+    [requestGuard, refresh],
+  );
 
   const forecast = useMemo(() => forecastForState(screenState.weather), [screenState.weather]);
 

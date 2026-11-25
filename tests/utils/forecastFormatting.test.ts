@@ -9,6 +9,8 @@ import { REMOVE, copyWith } from '../helpers/jsonFixtures';
 import { weatherIconName } from '../../src/utils/weatherIcon';
 import {
   formatDayLabel,
+  formatLocalDateTime,
+  isSameLocalDay,
   presentDailyForecast,
   presentDayConditions,
   presentDayDetail,
@@ -447,5 +449,44 @@ describe('day detail from the API response (missing values end to end, NIT-237)'
     expect(rows.rain).toBe(`0.0${NBSP}mm`);
     expect(rows.snowfall).toBe(`0.0${NBSP}cm`);
     expect(rows.precipitationHours).toBe(`0${NBSP}h`);
+  });
+});
+
+describe('isSameLocalDay (SPEC D-48)', () => {
+  const STOCKHOLM_WINTER = 3600;
+  const MCMURDO_SUMMER = 13 * 3600;
+
+  it('is true for 00:10 and 23:50 on the same day at the place', () => {
+    // 00:10 and 23:50 on 20 Nov in Stockholm (UTC+1).
+    expect(isSameLocalDay(Date.UTC(2026, 10, 19, 23, 10), Date.UTC(2026, 10, 20, 22, 50), STOCKHOLM_WINTER)).toBe(true);
+  });
+
+  it('is false for 23:30 and 00:10 the next day at the place', () => {
+    expect(isSameLocalDay(Date.UTC(2026, 10, 20, 22, 30), Date.UTC(2026, 10, 20, 23, 10), STOCKHOLM_WINTER)).toBe(false);
+  });
+
+  it("uses the place's date, not the UTC date (McMurdo, UTC+13)", () => {
+    // Both on 20 Nov in UTC, but 20 Nov 23:00 and 21 Nov 01:00 in McMurdo.
+    expect(isSameLocalDay(Date.UTC(2026, 10, 20, 10, 0), Date.UTC(2026, 10, 20, 12, 0), MCMURDO_SUMMER)).toBe(false);
+  });
+});
+
+describe('formatLocalDateTime (SPEC D-48)', () => {
+  it('gives the weekday, date and time at the place, short and spoken', () => {
+    // 14:00 on Mon 23 Nov 2026 in Stockholm (UTC+1).
+    expect(formatLocalDateTime(Date.UTC(2026, 10, 23, 13, 0), 3600)).toEqual({
+      text: 'Mon 23 Nov, 14:00',
+      spoken: 'Monday 23 November, 14:00',
+    });
+  });
+
+  it('keeps an afternoon time on its own date', () => {
+    // 23:30 local: reading it at "noon + 12 h" would move it to the next day.
+    expect(formatLocalDateTime(Date.UTC(2026, 10, 23, 22, 30), 3600).text).toBe('Mon 23 Nov, 23:30');
+  });
+
+  it("uses the place's date when it is a day ahead of UTC", () => {
+    // 20 Nov 19:00 UTC is Sat 21 Nov 08:00 in McMurdo (UTC+13).
+    expect(formatLocalDateTime(Date.UTC(2026, 10, 20, 19, 0), 13 * 3600).text).toBe('Sat 21 Nov, 08:00');
   });
 });

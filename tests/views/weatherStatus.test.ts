@@ -66,9 +66,13 @@ describe('weatherErrorMessage', () => {
   });
 });
 
-describe('describeRefreshNotice (W-11, W-18; SPEC D-45)', () => {
-  // The fixture's current weather was observed at 11:15 in Stockholm (UTC+1),
-  // the time the hero shows as "Observed 11:15".
+describe('describeRefreshNotice (W-11, W-18; SPEC D-45, D-48)', () => {
+  // The fixture's current weather was observed on Fri 20 Nov 2026 at 11:15 in
+  // Stockholm (UTC+1), the time the hero shows as "Observed 11:15".
+  const HOUR_MS = 60 * 60 * 1000;
+  const OBSERVED_EPOCH_MS = FETCHED.report.current.timeEpochMs;
+  // 13:15 the same day in Stockholm.
+  const SAME_DAY = OBSERVED_EPOCH_MS + 2 * HOUR_MS;
   function refreshFailed(kind: AppErrorKind, isRefreshing = false): LoadState<FetchedWeatherReport> {
     return {
       status: 'refreshFailed',
@@ -85,26 +89,61 @@ describe('describeRefreshNotice (W-11, W-18; SPEC D-45)', () => {
     ['success while refreshing', { status: 'success', data: FETCHED, isRefreshing: true }],
     ['error', { status: 'error', error: new AppError('network', 'offline') }],
   ] as const)('shows no notice unless a refresh failed (%s)', (_label, state) => {
-    expect(describeRefreshNotice(state)).toBeNull();
+    expect(describeRefreshNotice(state, SAME_DAY)).toBeNull();
   });
 
   it.each(['network', 'timeout'] as const)('says there is no connection after a %s error, with the time of the shown weather', (kind) => {
-    expect(describeRefreshNotice(refreshFailed(kind))).toEqual({
+    expect(describeRefreshNotice(refreshFailed(kind), SAME_DAY)).toEqual({
       text: 'No connection. Showing the weather from 11:15.',
+      accessibilityLabel: 'No connection. Showing the weather from 11:15.',
     });
   });
 
   it.each(['http', 'parse', 'unknown'] as const)('says the weather could not be updated after a %s error', (kind) => {
-    expect(describeRefreshNotice(refreshFailed(kind))).toEqual({
+    expect(describeRefreshNotice(refreshFailed(kind), SAME_DAY)).toEqual({
       text: "Couldn't update the weather. Showing the weather from 11:15.",
+      accessibilityLabel: "Couldn't update the weather. Showing the weather from 11:15.",
     });
   });
 
   it('keeps the notice while "Try again" runs', () => {
-    expect(describeRefreshNotice(refreshFailed('network', true))).not.toBeNull();
+    expect(describeRefreshNotice(refreshFailed('network', true), SAME_DAY)).not.toBeNull();
   });
 
   it('never shows the developer message', () => {
-    expect(describeRefreshNotice(refreshFailed('http'))?.text).not.toContain('developer detail');
+    expect(describeRefreshNotice(refreshFailed('http'), SAME_DAY)?.text).not.toContain('developer detail');
+  });
+
+  describe('weather that is not from today at the place', () => {
+    it('adds the date for weather from the day before, and speaks it in full', () => {
+      const nextDay = OBSERVED_EPOCH_MS + 24 * HOUR_MS;
+      expect(describeRefreshNotice(refreshFailed('network'), nextDay)).toEqual({
+        text: 'No connection. Showing the weather from Fri 20 Nov, 11:15.',
+        accessibilityLabel: 'No connection. Showing the weather from Friday 20 November, 11:15.',
+      });
+    });
+
+    it('adds the date just after local midnight, although it is still the same day in UTC', () => {
+      // 00:05 on Sat 21 Nov in Stockholm is 23:05 on Fri 20 Nov in UTC.
+      const justAfterLocalMidnight = OBSERVED_EPOCH_MS + 12 * HOUR_MS + 50 * 60 * 1000;
+      expect(describeRefreshNotice(refreshFailed('timeout'), justAfterLocalMidnight)?.text).toBe(
+        'No connection. Showing the weather from Fri 20 Nov, 11:15.',
+      );
+    });
+
+    it('shows only the time just before local midnight', () => {
+      // 23:55 on Fri 20 Nov in Stockholm.
+      const justBeforeLocalMidnight = OBSERVED_EPOCH_MS + 12 * HOUR_MS + 40 * 60 * 1000;
+      expect(describeRefreshNotice(refreshFailed('network'), justBeforeLocalMidnight)?.text).toBe(
+        'No connection. Showing the weather from 11:15.',
+      );
+    });
+
+    it('adds the date when the observation lies on a later day (clock set back)', () => {
+      const dayBefore = OBSERVED_EPOCH_MS - 24 * HOUR_MS;
+      expect(describeRefreshNotice(refreshFailed('http'), dayBefore)?.text).toBe(
+        "Couldn't update the weather. Showing the weather from Fri 20 Nov, 11:15.",
+      );
+    });
   });
 });
