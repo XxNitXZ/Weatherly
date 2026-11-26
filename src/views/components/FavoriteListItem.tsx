@@ -4,6 +4,7 @@ import type { Location } from '../../models/Location';
 import { colors } from '../../theme/colors';
 import { MIN_TOUCH_TARGET, iconSize, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { interaction } from '../../theme/interaction';
 import { formatCoordinates, formatLocationDetails } from '../../utils/locationFormatting';
 
 /** The texts of one favorite row. */
@@ -109,9 +110,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
   },
   disabled: {
-    opacity: 0.4,
+    opacity: interaction.disabledOpacity,
   },
 });

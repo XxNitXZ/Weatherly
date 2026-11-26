@@ -11,6 +11,7 @@ import {
 import { colors } from '../../theme/colors';
 import { MIN_TOUCH_TARGET, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { interaction } from '../../theme/interaction';
 import {
   MAX_LATITUDE,
   MAX_LONGITUDE,
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.m,
   },
   buttonPressed: {
-    opacity: 0.8,
+    opacity: interaction.pressedOpacity,
   },
   buttonText: {
     color: colors.onPrimary,

@@ -17,6 +17,7 @@ import type { Location } from '../../models/Location';
 import { colors } from '../../theme/colors';
 import { CONTENT_MAX_WIDTH, MIN_TOUCH_TARGET, iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { interaction } from '../../theme/interaction';
 import { isSameLocation } from '../../utils/locationFormatting';
 import type { LoadState } from '../../viewmodels/loadState';
 import type { CoordinateSearchViewModel } from '../../viewmodels/useCoordinateSearchViewModel';
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   closeButtonPressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
   },
   content: {
     width: '100%',

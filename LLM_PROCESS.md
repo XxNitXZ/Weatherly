@@ -1248,6 +1248,141 @@ Record actual outcomes only. Write `not run` where applicable.
 
 ---
 
+### LLM-017 – Epic 8 UI/UX and responsive design; Epic 9 testing and documentation preparation
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-26 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows (no Android SDK, `ANDROID_HOME` not set, no `adb`) |
+| **Linear user story / task** | EPIC 8 (NIT-159): US-08.01 (NIT-268 – NIT-270), US-08.02 (NIT-271 – NIT-273), US-08.03 (NIT-274 – NIT-276); EPIC 9 (NIT-160): US-09.01 – US-09.04 (NIT-189 – NIT-192), the parts that can be done without devices or students |
+| **Requirement IDs** | W-20, W-22, W-24, W-25, W-29, W-31 – W-33 |
+| **Branch / PR** | `feat/NIT-159-160-ui-testing` (= `dev` at `9890934` at the start), uncommitted, no PR |
+| **Task given to AI** | Complete the remaining code, tests, UX documentation and technical preparation for Epics 8 and 9, after a safety check and gap analysis; do not write the reflection, invent results or claim device checks. Earlier the same day: find why the app failed in Expo; the cause was four dependencies missing from the local `node_modules`, fixed with `npm ci`. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "Complete the remaining code, automated tests, UX documentation, and technical preparation for: NIT-159 … NIT-160 …" |
+
+**Changes made by AI**
+> - **Discovery:**
+>   - Checked the branch, HEAD and status.
+>   - Ran a baseline (757 tests, Expo Doctor 20/20).
+>   - Found the lab instructions outside the repository (`Downloads/Lab-B2-Weather.pdf`), extracted the text with `pdftotext`, and read the submission, appendix and reflection rules from it.
+> - **Gap analysis:**
+>   - `app.json` was still `portrait`, and no screen used `useWindowDimensions`.
+>   - The four header buttons left little room for the title on narrow phones.
+>   - Opacity values were inconsistent (0.7/0.8, 0.4/0.5).
+>   - Settings had no loading indication.
+>   - The other empty, loading and error states already existed.
+> - **Code:**
+>   - `src/theme/interaction.ts` (D-50); 12 opacity literals replaced in 9 view files.
+>   - `src/theme/layout.ts`, `src/utils/screenLayout.ts` (D-49).
+>   - `app.json` `orientation: "default"`.
+>   - `isCompact` for `HomeHeader`, `WeatherHero` and `DayDetailHero`; two-column Home in wide landscape; wrapping card grid on Day detail.
+>   - Loading line on Settings.
+>   - New tokens: `fontSize.heroCompact`, `iconSize.heroCompact`.
+> - **Tests:** `tests/utils/screenLayout.test.ts` (18) and 4 mutation checks. One survived at first; the test gap was closed with an infinite-width case.
+> - **Docs:**
+>   - TEST_REPORT §1.20, §2, and §3: UX-30 – UX-34, the missing Android rows for UX-27 – UX-29, and the §3.3 matrix.
+>   - SPEC §11 statuses for W-22, W-25 and W-32; the §11.1 audit; §11.3; D-49 – D-51; OQ-09; change log.
+>   - STYLE §3.1, §4, §12, §14; CONTEXT §14 and §18.
+>   - README.md rewritten as Appendix B; new `PRESENTATION_PREP.md`.
+>   - `REFLECTION.md` was not touched.
+
+**Changes reviewed or modified by students**
+- Accepted as is:
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The first version of the layout tests let one mutation survive (an infinite height gives the same layout with or without the finiteness check). Running the mutation checks found the gap, and a case was added.
+- A doc-comment edit to `HomeScreen` first failed because the text did not match the file; it was redone after reading the file.
+- SPEC §11.3 was first inserted above §11.2 and then moved.
+- Two README sentences first claimed more than the evidence ("tested on … devices"; Epic 8 "on `dev`") and were corrected before hand-over.
+- A first draft of PRESENTATION_PREP.md said no decision covered NetInfo; the team had decided against it in Epic 7 (D-48, LLM-016). It was corrected.
+- The lab says the AI must never write this file and recommends that the AI never writes test results. This entry and the AI-recorded automated results follow the project's own rule (D-21), which conflicts with the lab; see SPEC OQ-09.
+- No Android Emulator or iOS Simulator was available in this session, so nothing visual was checked.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-26) |
+| Unit tests (names) | `npm run check`: 757 / 757 before, 775 / 775 after (41 suites); new: `screenLayoutFor` (18) |
+| Mutation checks | 5 runs on `screenLayoutFor`: 4 detected at first, 1 survivor detected after the new test case (TEST_REPORT §2.3) |
+| `npx expo-doctor` | 20/20 checks passed |
+| Bundle build | Android (985 modules) and iOS (990 modules) without errors; `orientation: 'default'` in the resolved config |
+| Android Emulator (what was checked) | not run (no Android SDK on the Windows machine) |
+| iOS Simulator (what was checked) | not run (Windows machine) |
+
+**Lessons learned**
+-
+
+---
+
+### LLM-018 – Review and completion of the Epic 8 and Epic 9 repository work
+
+| Field | Entry |
+|---|---|
+| **Session date** | 2026-11-26 |
+| **AI assistant** | Claude Code in VS Code (Claude Opus 5.5) |
+| **Operated by** | Developer 1 |
+| **Platform** | Windows (no Android SDK, `ANDROID_HOME` not set, no `adb`) |
+| **Linear user story / task** | EPIC 8 (NIT-159) and EPIC 9 (NIT-160): US-08.01 – US-08.03, US-09.01 – US-09.04, the work that can be done in the repository |
+| **Requirement IDs** | W-22, W-24, W-25, W-29, W-31 – W-33 |
+| **Branch / PR** | `feat/NIT-159-160-ui-testing`, uncommitted (continues LLM-017), no PR |
+| **Task given to AI** | Review the whole uncommitted diff against every acceptance criterion of both epics, fix remaining code problems, finish the documentation that can be finished, run the checks, and report per story without labelling unexecuted tests as passed. |
+| **Agent file loaded at start?** | yes (`CLAUDE.md`, loaded automatically by Claude Code) |
+| **Prompt or prompt reference** | "Complete all remaining work that can be performed in the repository for: NIT-159 … NIT-160 … Do not label unexecuted tests as PASS." |
+
+**Changes made by AI**
+> - **Review:** read the full diff.
+>   - Confirmed that the 8 view files touched for opacity tokens contain nothing else.
+>   - Ran `npx jest --coverage` (report outside the repository): 100 % lines for every pure layer; only the ViewModel hook bodies are uncovered, as the team decided.
+> - **Two layout defects fixed** (found by reading the code; not seen on a device):
+>   - `HomeHeader` compact title `flex: 0` (it had `flex: 1` inside a column without a height).
+>   - Day detail card cells may shrink (`flexShrink: 1`).
+> - **Docs:**
+>   - TEST_REPORT §0, a short Appendix A summary.
+>   - TEST_REPORT §3.0, how to run the scenarios on the Android Emulator and iOS Simulator; UX-26 definition updated; the review and coverage rows in §1.20; a run-history row.
+>   - SPEC: Q23 and Q26 code pointers; change log.
+>   - STYLE §6: the `flex: 1` rule.
+>   - PRESENTATION_PREP: reflection outline (prompts only) and §4.1 oral exam question index.
+>   - `REFLECTION.md` not touched.
+
+**Changes reviewed or modified by students**
+- Accepted as is:
+- Modified (what and why):
+- Rejected (what and why):
+- Reviewed by (the other developer, in the PR):
+
+**AI mistakes or limitations observed**
+- The two layout defects were introduced in LLM-017 and found only in this review. Neither has been seen on a device, so the fixes are also unverified there (UX-33, UX-34).
+- No linter is configured in the project (no ESLint config or script). Adding one would need new dependencies, so none was run.
+- No Android Emulator or iOS Simulator was available, so no scenario could be executed.
+
+**Verification results**
+Record actual outcomes only. Write `not run` where applicable.
+
+| Check | Result |
+|---|---|
+| Read and understood line by line | |
+| `npx tsc --noEmit` | PASS (part of `npm run check`, 2026-11-26) |
+| Unit tests (names) | `npm run check`: 775 / 775 in 41 suites, 0 skipped (no new tests; the review found no untested pure logic) |
+| `npx expo-doctor` | 20/20 checks passed |
+| Bundle build | Android (985 modules) and iOS (990 modules) without errors |
+| Markdown links | 0 broken links or anchors in the root documents |
+| Android Emulator (what was checked) | not run |
+| iOS Simulator (what was checked) | not run |
+
+**Lessons learned**
+-
+
+---
+
 ## 4. Summary
 
 Fill this in near submission, based on the entries above.

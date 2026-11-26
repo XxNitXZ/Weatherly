@@ -95,6 +95,9 @@ The dependency direction is **View → ViewModel → Repository → Service/Pars
 | `src/views/screens/LocationSearchSheet.tsx` | Modal search sheet with both modes (place name, coordinates), results and status; receives `searchViewModel` and `coordinateViewModel` from `HomeScreen`, so results survive closing it. Choosing a place calls `onSelectLocation`. | **Exists** (redesign) |
 | `src/utils/weatherIcon.ts` | `weatherIconName(code, isDay): WeatherIconName` (MaterialCommunityIcons glyph names) and `isDaytimeAt(timeEpochMs, daily)` from the real sunrise/sunset (SPEC D-34). | **Exists** (redesign) |
 | `src/theme/sky.ts` | Sky gradients (day/night), base colours, text and glass-card colours with computed WCAG contrast, card shadow, `skyVariantFor(isDay)`. | **Exists** (redesign) |
+| `src/theme/interaction.ts` | `interaction.pressedOpacity`, `interaction.disabledOpacity` for all touchable elements (SPEC D-50). | **Exists** (NIT-268) |
+| `src/theme/layout.ts` | `layoutBreakpoints` (compact width, short height, two-column width), `WIDE_CONTENT_MAX_WIDTH`, `DETAIL_CARD_MIN_WIDTH` (SPEC D-49). | **Exists** (NIT-271) |
+| `src/utils/screenLayout.ts` | `screenLayoutFor({ width, height }): ScreenLayout` (`orientation`, `isCompactWidth`, `isShortHeight`, `columns`, `contentMaxWidth`); invalid sizes → single-column portrait. Pure and tested. | **Exists** (NIT-271) |
 | `src/views/components/WeatherStatus.tsx` | Loading indicator, or error message with a "Try again" button (`onRetry`), on the sky. Also `RefreshNotice` (NIT-383): after a failed refresh, a card under the header with the text from the pure `describeRefreshNotice(state, nowEpochMs)` ("No connection. / Couldn't update the weather. Showing the weather from HH:MM.", with the weekday and date when the data is not from today at the place, and a spoken label in full; SPEC D-48) and a "Try again" button, disabled while retrying (SPEC D-45). `describeWeatherStatus(state)` (pure) and `weatherErrorMessage(error)` own the decision and the wording. | **Exists** (NIT-170, redesign) |
 | `src/views/components/CitySearchForm.tsx` | Presentational place-name field and "Search" button. Props: `onSubmit(query)` with the raw text. | **Exists** (NIT-217) |
 | `src/views/components/SearchModeSwitch.tsx` | `SearchMode` (`'city' \| 'coordinates'`) and two tabs. Props: `mode`, `onChangeMode(mode)`. | **Exists** (NIT-217) |
@@ -170,8 +173,8 @@ Weatherly/
 │   │                       # Day detail: DayDetailHero, DetailRow [.tsx, exist]
 │   │                       # Favourites: FavoriteListItem, FavoritesStatus [.tsx, exist]
 │   │                       # Settings: SettingOptionRow [.tsx, exists]
-│   ├── theme/              # colors.ts, spacing.ts, typography.ts, sky.ts [exist; US-08.01 extends them]
-│   └── utils/              # coordinateValidation.ts, locationFormatting.ts, weatherCode.ts, weatherIcon.ts, weatherFormatting.ts,
+│   ├── theme/              # colors.ts, spacing.ts, typography.ts, sky.ts, interaction.ts, layout.ts [exist]
+│   └── utils/              # coordinateValidation.ts, locationFormatting.ts, screenLayout.ts, weatherCode.ts, weatherIcon.ts, weatherFormatting.ts,
 │                           #   forecastSelection.ts, forecastFormatting.ts, favorites.ts, settingsPresentation.ts, refreshPolicy.ts, units.ts [exist]
 ├── tests/                  # All unit tests, mirroring src/ (SPEC D-23)
 │   ├── fixtures/           # Saved real API responses, e.g. openMeteoForecast.json, openMeteoForecastDstStockholm.json
@@ -181,7 +184,7 @@ Weatherly/
 │   ├── repositories/       # weatherRepository.test.ts, locationRepository.test.ts, favoritesRepository.test.ts, settingsRepository.test.ts
 │   ├── services/           # weatherService.test.ts, httpClient.test.ts, geocodingService.test.ts
 │   ├── storage/            # keyValueStorage.test.ts (AsyncStorage's own Jest mock)
-│   ├── utils/              # coordinateValidation, locationFormatting, weatherCode, weatherIcon, weatherFormatting,
+│   ├── utils/              # coordinateValidation, locationFormatting, screenLayout, weatherCode, weatherIcon, weatherFormatting,
 │   │                       #   forecastSelection, forecastFormatting, homePresentation, favorites, settingsPresentation, refreshPolicy, units, displayUnits tests
 │   ├── viewmodels/         # useSearchViewModel, useWeatherViewModel, useFavoritesViewModel, useSettingsViewModel (pure helpers only), latestRequest tests
 │   ├── navigation/         # favoriteRoutes.test.ts (Home params for a chosen favourite)
@@ -228,6 +231,7 @@ Tests live in the root `tests/` folder, separate from the app code, in the same 
 - Use `FlatList` for any list that can grow (forecast rows, search results, favourites).
 - **A screen scrolls as one.** Never nest a vertical `FlatList` inside a vertical `ScrollView`. Put the content above a list in `ListHeaderComponent` (as `LocationSearchSheet` does), or map short, fixed-length lists inside the `ScrollView` (as `HomeScreen` does with the seven days). Horizontal lists inside a vertical scroll are fine.
 - A modal (`Modal`) is a separate native window: wrap its content in its own `SafeAreaProvider` and set its own status-bar style.
+- `flex: 1` means "share the free space" (flexBasis 0). Do not give it to a child of a container whose size along that axis comes from its content (a column without a height, a scroll view's content), or the child can get no size at all. Use `flex: 0` or no flex there; `HomeHeader`'s compact layout is the example (US-08.02 review).
 - Screens with text input set `keyboardShouldPersistTaps="handled"` on their scroll container, so a tap on a result works while the keyboard is open, and wrap content in `KeyboardAvoidingView` (`behavior="padding"` on iOS).
 
 ## 7. Hooks & State Management
@@ -304,6 +308,7 @@ Tests live in the root `tests/` folder, separate from the app code, in the same 
 ## 12. UI Styling Principles
 
 - All colours, spacing and font sizes come from `src/theme/`. No magic numbers or hex values in components.
+- **Interaction (SPEC D-50):** pressed and disabled feedback use `interaction.pressedOpacity` and `interaction.disabledOpacity` from `src/theme/interaction.ts`, on every screen. A disabled control also sets `disabled` and `accessibilityState.disabled`; opacity alone is not enough.
 - **Weather-first home screen (SPEC D-33):**
   - Content sits on the sky gradient from `src/theme/sky.ts` (day or night, from `current.isDay`), using `skyColors` for text and glass cards and `WeatherCard` for every section.
   - The sky colours were chosen by computed WCAG contrast. A new colour on the sky must keep small text at 4.5:1 or more.
@@ -332,8 +337,13 @@ Tests live in the root `tests/` folder, separate from the app code, in the same 
 
 ## 14. Responsive Layout (Portrait & Landscape)
 
-- `app.json` `orientation` is changed from `"portrait"` to `"default"` when W-22 is implemented. Until then the app is portrait-only.
-- Use `useWindowDimensions()` to adapt layouts, e.g. stack sections vertically in portrait and place them side by side in landscape.
+- `app.json` `orientation` is `"default"` since US-08.02 (2026-11-26): the app follows the device in portrait and landscape. Never lock or force an orientation in code.
+- Screens get their layout from the pure `screenLayoutFor(useWindowDimensions())` (`src/utils/screenLayout.ts`, SPEC D-49) and never compare window sizes themselves. The breakpoints live once in `src/theme/layout.ts`:
+  - width < 360: the home header puts its buttons under the title (`HomeHeader` `isCompact`)
+  - height < 500, i.e. a phone in landscape: `WeatherHero` and `DayDetailHero` use their compact size
+  - landscape and width ≥ 700: Home shows the hero beside the forecast cards, content up to `WIDE_CONTENT_MAX_WIDTH`
+- Prefer flexbox wrapping over column counts where it is enough: the day detail cards wrap side by side with `flexBasis: DETAIL_CARD_MIN_WIDTH`.
+- Keep one vertical scroll container per screen in every layout; the two-column layout is two plain `View`s inside it (§6).
 - Use flexbox and percentage or `flex` sizing. Avoid fixed widths derived from one device.
 - All content must stay reachable by scrolling in landscape on small phones.
 - Rotation must not lose screen state or restart requests. State lives in ViewModels, not in layout-dependent components.

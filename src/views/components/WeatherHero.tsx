@@ -15,6 +15,11 @@ export type WeatherHeroProps = {
   readonly today: DailyForecast | undefined;
   /** The user's display units (W-12; SPEC D-46). */
   readonly units: DisplayUnits;
+  /**
+   * Smaller icon and temperature for short windows (a phone in landscape;
+   * `ScreenLayout.isShortHeight`, SPEC D-49), so the forecasts stay in view.
+   */
+  readonly isCompact?: boolean;
 };
 
 /**
@@ -23,7 +28,7 @@ export type WeatherHeroProps = {
  * feels-like temperature, humidity and wind when the API provided them.
  * Presentational: all texts come from `presentWeatherHero`.
  */
-export function WeatherHero({ current, utcOffsetSeconds, today, units }: WeatherHeroProps) {
+export function WeatherHero({ current, utcOffsetSeconds, today, units, isCompact = false }: WeatherHeroProps) {
   const weather = presentWeatherHero(current, utcOffsetSeconds, today, units);
   const details = [
     weather.feelsLike === undefined ? undefined : `Feels like ${weather.feelsLike}`,
@@ -32,9 +37,9 @@ export function WeatherHero({ current, utcOffsetSeconds, today, units }: Weather
   ].filter((detail): detail is string => detail !== undefined);
 
   return (
-    <View style={styles.hero} accessible accessibilityLabel={weather.accessibilityLabel}>
-      <WeatherIcon name={weather.icon} size={iconSize.hero} />
-      <Text style={styles.temperature} numberOfLines={1} adjustsFontSizeToFit>
+    <View style={[styles.hero, isCompact && styles.heroCompact]} accessible accessibilityLabel={weather.accessibilityLabel}>
+      <WeatherIcon name={weather.icon} size={isCompact ? iconSize.heroCompact : iconSize.hero} />
+      <Text style={[styles.temperature, isCompact && styles.temperatureCompact]} numberOfLines={1} adjustsFontSizeToFit>
         {weather.temperatureShort}
       </Text>
       <Text style={styles.condition}>{weather.condition}</Text>
@@ -55,10 +60,16 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.l,
   },
+  heroCompact: {
+    paddingVertical: spacing.s,
+  },
   temperature: {
     color: skyColors.onSky,
     fontSize: fontSize.hero,
     fontWeight: fontWeight.light,
+  },
+  temperatureCompact: {
+    fontSize: fontSize.heroCompact,
   },
   condition: {
     color: skyColors.onSky,

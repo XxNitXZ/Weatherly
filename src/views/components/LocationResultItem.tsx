@@ -3,6 +3,7 @@ import type { Location } from '../../models/Location';
 import { colors } from '../../theme/colors';
 import { MIN_TOUCH_TARGET, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { interaction } from '../../theme/interaction';
 import { formatLocationDetails } from '../../utils/locationFormatting';
 
 export type LocationResultItemProps = {
@@ -59,7 +60,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySubtle,
   },
   itemPressed: {
-    opacity: 0.8,
+    opacity: interaction.pressedOpacity,
   },
   texts: {
     flex: 1,

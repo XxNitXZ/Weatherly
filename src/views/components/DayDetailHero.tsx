@@ -13,6 +13,8 @@ export type DayDetailHeroProps = {
   readonly utcOffsetSeconds: number;
   /** The user's display units (W-12; SPEC D-46). */
   readonly units: DisplayUnits;
+  /** Smaller icon and less space for short windows (a phone in landscape; SPEC D-49). */
+  readonly isCompact?: boolean;
 };
 
 /**
@@ -22,12 +24,12 @@ export type DayDetailHeroProps = {
  * Built like the home screen's `WeatherHero`. Presentational: all texts come
  * from `presentDayDetail`, and screen readers hear the block as one sentence.
  */
-export function DayDetailHero({ day, utcOffsetSeconds, units }: DayDetailHeroProps) {
+export function DayDetailHero({ day, utcOffsetSeconds, units, isCompact = false }: DayDetailHeroProps) {
   const detail = presentDayDetail(day, utcOffsetSeconds, units);
 
   return (
     <View
-      style={styles.hero}
+      style={[styles.hero, isCompact && styles.heroCompact]}
       accessible
       accessibilityRole="header"
       accessibilityLabel={detail.accessibilityLabel}
@@ -35,7 +37,7 @@ export function DayDetailHero({ day, utcOffsetSeconds, units }: DayDetailHeroPro
       <Text style={styles.weekday}>{detail.weekday}</Text>
       <Text style={styles.date}>{detail.date}</Text>
       <View style={styles.icon}>
-        <WeatherIcon name={detail.icon} size={iconSize.hero} />
+        <WeatherIcon name={detail.icon} size={isCompact ? iconSize.heroCompact : iconSize.hero} />
       </View>
       <Text style={styles.condition}>{detail.condition}</Text>
       <Text style={styles.highLow}>
@@ -51,6 +53,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     paddingVertical: spacing.l,
+  },
+  heroCompact: {
+    paddingVertical: spacing.s,
   },
   weekday: {
     color: skyColors.onSky,

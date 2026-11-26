@@ -6,6 +6,7 @@ import { colors } from '../../theme/colors';
 import { skyColors } from '../../theme/sky';
 import { MIN_TOUCH_TARGET, iconSize, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { interaction } from '../../theme/interaction';
 import type { LoadState } from '../../viewmodels/loadState';
 
 /**
@@ -262,10 +263,10 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
   },
   pressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: interaction.disabledOpacity,
   },
   notice: {
     flexDirection: 'row',

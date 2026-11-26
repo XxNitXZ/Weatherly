@@ -5,6 +5,7 @@ import type { FetchedWeatherReport } from '../../models/Weather';
 import { skyColors } from '../../theme/sky';
 import { MIN_TOUCH_TARGET, iconSize, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { interaction } from '../../theme/interaction';
 import { formatLocalDateTime, isSameLocalDay } from '../../utils/forecastFormatting';
 import { formatLocalTime } from '../../utils/weatherFormatting';
 import type { LoadState } from '../../viewmodels/loadState';
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
     borderColor: skyColors.cardBorder,
   },
   retryPressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
   },
   retryText: {
     color: skyColors.onSky,

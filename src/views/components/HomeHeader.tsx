@@ -4,6 +4,7 @@ import type { Location } from '../../models/Location';
 import { skyColors } from '../../theme/sky';
 import { MIN_TOUCH_TARGET, iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { interaction } from '../../theme/interaction';
 import { formatCoordinates, formatLocationDetails } from '../../utils/locationFormatting';
 
 /** The favorite star for the selected place. The screen gets every value from `useFavoritesViewModel`. */
@@ -22,6 +23,12 @@ export type HomeHeaderProps = {
   readonly onPressFavorites: () => void;
   readonly onPressSearch: () => void;
   readonly onPressSettings: () => void;
+  /**
+   * Narrow window (`ScreenLayout.isCompactWidth`, SPEC D-49): the buttons go
+   * on a row under the title, so a long place name is not squeezed beside
+   * four 44-point buttons.
+   */
+  readonly isCompact?: boolean;
 };
 
 /** The icon and screen-reader texts of the favorite star. */
@@ -55,7 +62,14 @@ export function presentFavoriteToggle(
  * the favorites list, search and settings. Before a place is chosen, the app name is
  * shown. Presentational: the screen and its ViewModels decide what a tap does.
  */
-export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch, onPressSettings }: HomeHeaderProps) {
+export function HomeHeader({
+  location,
+  favorite,
+  onPressFavorites,
+  onPressSearch,
+  onPressSettings,
+  isCompact = false,
+}: HomeHeaderProps) {
   const subtitle =
     location === null
       ? undefined
@@ -66,8 +80,8 @@ export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch
       : undefined;
 
   return (
-    <View style={styles.header}>
-      <View style={styles.titles} accessible accessibilityRole="header">
+    <View style={[styles.header, isCompact && styles.headerCompact]}>
+      <View style={[styles.titles, isCompact && styles.titlesCompact]} accessible accessibilityRole="header">
         <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
           {location === null ? 'Weatherly' : location.name}
         </Text>
@@ -77,7 +91,7 @@ export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch
           </Text>
         )}
       </View>
-      <View style={styles.buttons}>
+      <View style={[styles.buttons, isCompact && styles.buttonsCompact]}>
         {star !== undefined && favorite !== undefined && (
           <Pressable
             accessibilityRole="button"
@@ -140,6 +154,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing.s,
     paddingBottom: spacing.s,
   },
+  headerCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: spacing.s,
+  },
+  // In the compact column layout the titles must not use `flex: 1`: that
+  // sets flexBasis 0, and a column without a fixed height would then give
+  // the title no height at all.
+  titlesCompact: {
+    flex: 0,
+  },
   titles: {
     flex: 1,
     gap: spacing.xs,
@@ -158,6 +183,9 @@ const styles = StyleSheet.create({
     // Wide enough apart that the buttons' enlarged touch areas (hitSlop) do not overlap.
     gap: spacing.s,
   },
+  buttonsCompact: {
+    alignSelf: 'flex-end',
+  },
   iconButton: {
     width: MIN_TOUCH_TARGET,
     height: MIN_TOUCH_TARGET,
@@ -169,9 +197,9 @@ const styles = StyleSheet.create({
     borderColor: skyColors.cardBorder,
   },
   iconButtonPressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
   },
   iconButtonDisabled: {
-    opacity: 0.5,
+    opacity: interaction.disabledOpacity,
   },
 });

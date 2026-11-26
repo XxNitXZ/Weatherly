@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Fragment } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 import { CONTENT_MAX_WIDTH, radius, spacing } from '../../theme/spacing';
@@ -18,7 +18,8 @@ import { SettingOptionRow } from '../components/SettingOptionRow';
  * The current settings come from the shared `useSettingsViewModel` (SPEC
  * D-44). A tap applies a choice at once and saves it in the background. The
  * options stay disabled until the stored settings have been read, so a
- * choice cannot be overwritten by the read finishing later.
+ * choice cannot be overwritten by the read finishing later. Meanwhile a
+ * loading line says why they cannot be chosen yet (US-08.03, NIT-275).
  */
 export function SettingsScreen() {
   const { settings: current, isLoaded, saveError, updateSettings } = useSettingsViewModel();
@@ -29,6 +30,12 @@ export function SettingsScreen() {
     <SafeAreaView style={styles.root} edges={['bottom', 'left', 'right']}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
+        {!isLoaded && (
+          <View style={styles.loading} accessible accessibilityLabel={SETTINGS_LOADING_MESSAGE} accessibilityLiveRegion="polite">
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.loadingText}>{SETTINGS_LOADING_MESSAGE}</Text>
+          </View>
+        )}
         {saveError !== null && (
           <Text style={styles.saveError} accessibilityRole="alert">
             {SETTINGS_SAVE_ERROR_MESSAGE}
@@ -50,6 +57,9 @@ export function SettingsScreen() {
     </SafeAreaView>
   );
 }
+
+/** Shown while the stored settings are read; the options are disabled until then. */
+export const SETTINGS_LOADING_MESSAGE = 'Loading your settings…';
 
 type SettingGroupProps<Value> = {
   readonly group: SettingGroupPresentation<Value>;
@@ -89,6 +99,15 @@ const styles = StyleSheet.create({
   },
   group: {
     gap: spacing.s,
+  },
+  loading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontSize: fontSize.body,
   },
   saveError: {
     color: colors.error,

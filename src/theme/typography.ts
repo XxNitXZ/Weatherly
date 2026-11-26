@@ -10,6 +10,8 @@ export const fontSize = {
   title: 28,
   /** The current temperature in the weather hero, the largest text on the screen. */
   hero: 96,
+  /** The hero temperature when the window is short (a phone in landscape, SPEC D-49). */
+  heroCompact: 64,
 } as const;
 
 export const fontWeight = {

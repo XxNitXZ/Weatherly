@@ -40,4 +40,6 @@ export const iconSize = {
   s: 24,
   m: 28,
   hero: 72,
+  /** Hero icon when the window is short (a phone in landscape, SPEC D-49). */
+  heroCompact: 48,
 } as const;

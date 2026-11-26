@@ -156,10 +156,11 @@ All persisted values are re-validated when read (STYLE.md §11).
 
 ## 14. Submission Requirements
 
-> Copy the exact submission requirements and deadlines from the course page here. They are intentionally not guessed.
+> From the Lab B:2 instructions (`Lab-B2-Weather.pdf`, p. 1 "General", read 2026-11-26). Dates are not in the PDF and are intentionally not guessed. The full checklist is in [PRESENTATION_PREP.md](PRESENTATION_PREP.md).
 
-- [ ] Submission format and deadline: *TBD (from course page)*
-- [ ] Oral examination date and format: *TBD (from course page)*
+- [ ] Submission format: **one document**, the reflection report (about half a page: one thing that surprised you when building a networked app with AI assistance, and one thing you would do differently next time) with **Appendices A–D**: A test report (TEST_REPORT.md and the test files; tests on a physical device or the official simulator/emulator, not a browser), B README.md (the architecture), C SPEC.md, D LLM_PROCESS.md. The code is not submitted separately.
+- [ ] Deadline: **at least one day before** the scheduled presentation. Presentation date: *TBD (students fill in)*
+- [ ] Oral examination: demonstrate the running app, then questions from the 30-question list (SPEC §12); the opening question is always Q26
 - [ ] Public GitHub repository link: https://github.com/XxNitXZ/Weatherly
 - [ ] Root documentation is up to date (SPEC, TEST_REPORT, LLM_PROCESS, REFLECTION)
 - [ ] Both students can demonstrate the app on Android Emulator and iOS Simulator
@@ -225,22 +226,24 @@ Update this section when the state changes.
 - US-06.03 (NIT-181): temperature (°C/°F) and wind (m/s, km/h) units on every screen (D-46); UX-16 reported to work.
 - 697 unit tests pass; iOS export and Expo Doctor pass.
 
-**In progress on `feat/EPIC-07`** (from `dev`, 2026-11-25): offline support and the cache (NIT-158). The scope was checked against the lab on 2026-11-25: one cache entry, the last viewed place restored at launch, and US-07.03 and US-07.04 reduced to a check of what Epic 2 and Epic 6 already built.
+**Epic 7** (offline support and the cache) is on `dev` (`9890934`, 2026-11-25; `feat/EPIC-07` is contained in `dev`): offline support and the cache (NIT-158). The scope was checked against the lab on 2026-11-25: one cache entry, the last viewed place restored at launch, and US-07.03 and US-07.04 reduced to a check of what Epic 2 and Epic 6 already built.
 - US-07.01 (NIT-182) done: one cache entry, saved after each newest load, restored at the start (SPEC D-47); UX-28 reported to work, offline part with a screenshot.
 - US-07.02 (NIT-183) done: a stale cache is refreshed at the start, a failed refresh shows a notice with the data's time or date, and no cache offline gives a message with "Try again" (SPEC D-48); UX-17 – UX-19 reported to work. Offline runs use `EXPO_OFFLINE=1 npx expo start --localhost`.
 - US-07.03 (NIT-184) done: weather error texts name "Try again"; error-text audit in TEST_REPORT §1.18.
 - US-07.04 (NIT-185) done: search and weather share `createLatestRequestGuard`; UX-23 and UX-29 reported to work.
-- 757 unit tests pass; iOS export and Expo Doctor pass. PR into `dev` pending.
+- 757 unit tests pass; iOS export and Expo Doctor pass.
 
 **Open checks:** every Android Emulator scenario; the on-screen iOS minus key for coordinates (TEST_REPORT §1.4).
 
 **Epic 5 phase 1** (favourites logic and persistence, US-05.01 without the star and US-05.02; SPEC D-37 – D-39) is on `dev` through PR #3 (`9d90de1`).
 
-**In progress on `feat/NIT-178-favorites-screen`** (from `dev` at `9d90de1`, uncommitted, 2026-11-23):
+**Epic 5 phase 2** (now on `dev`; `feat/NIT-178-favorites-screen` is contained in `dev`):
 - the star and a favourites button in the home header (NIT-239);
 - `FavoritesScreen`, the `Favorites` route and the return of a chosen place to Home (US-05.03);
 - reading the favourites again on focus, and storage reads and writes in order (SPEC D-40).
 
-Automated checks pass; nothing has been run on a device yet. Developer 2's NIT-230 commit (`1bdc00b` on `feat/Epic-04`) is not merged into `dev`; both change the `HomeScreen` signature, so expect a small conflict there. On 2026-11-23 `ANDROID_HOME` was still not set on the Windows machine.
+**In progress on `feat/NIT-159-160-ui-testing`** (from `dev` at `9890934`, uncommitted, 2026-11-26): Epic 8 (design tokens D-50, portrait and landscape D-49, Settings loading line) and the documentation parts of Epic 9 (TEST_REPORT §3 with 34 scenarios, README as Appendix B, `PRESENTATION_PREP.md`, SPEC traceability). 775 unit tests pass; Android and iOS bundles and Expo Doctor pass. Nothing of Epic 8 has been seen on a device.
+
+On 2026-11-26 `ANDROID_HOME` was still not set and `adb` was not on the PATH on the Windows machine, so no Android Emulator check has been possible there.
 
 Which modules exist is tracked in STYLE §3.1; requirement status in SPEC §11.

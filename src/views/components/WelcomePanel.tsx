@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { skyColors } from '../../theme/sky';
 import { MIN_TOUCH_TARGET, iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
+import { interaction } from '../../theme/interaction';
 
 export type WelcomePanelProps = {
   readonly onPressSearch: () => void;
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.s,
   },
   buttonPressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
   },
   buttonText: {
     color: skyColors.onSky,

@@ -1,14 +1,24 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  AppState,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  type ScrollViewInstance,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Location } from '../../models/Location';
 import type { DailyForecast } from '../../models/Weather';
 import type { RootStackScreenProps } from '../../navigation/routes';
 import { skyBaseColor, skyColors, skyGradient, skyVariantFor } from '../../theme/sky';
+import { WIDE_CONTENT_MAX_WIDTH } from '../../theme/layout';
 import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { selectTodayForecast } from '../../utils/forecastSelection';
+import { screenLayoutFor } from '../../utils/screenLayout';
 import { displayUnitsOf } from '../../utils/units';
 import { useCoordinateSearchViewModel } from '../../viewmodels/useCoordinateSearchViewModel';
 import { useFavoritesViewModel } from '../../viewmodels/useFavoritesViewModel';
@@ -66,6 +76,12 @@ import { LocationSearchSheet } from './LocationSearchSheet';
  * until the new one arrives. Pulling down on the weather always fetches
  * again; the spinner shows during every refresh. A failed refresh shows
  * `RefreshNotice` with "Try again" under the header (NIT-383).
+ *
+ * Portrait and landscape (US-08.02; SPEC D-49): the layout follows
+ * `screenLayoutFor(useWindowDimensions())`. A narrow phone puts the header
+ * buttons under the title; a short window (a phone in landscape) uses the
+ * compact hero; a wide landscape window shows the hero beside the hourly
+ * and seven-day forecasts. It is still one vertical `ScrollView`.
  */
 export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) {
   const searchViewModel = useSearchViewModel();
@@ -78,6 +94,8 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
   const units = displayUnitsOf(settings);
   const [isSearchOpen, setSearchOpen] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const layout = screenLayoutFor(useWindowDimensions());
+  const widthStyle = layout.columns === 2 ? styles.wide : styles.narrow;
 
   const { location, state, forecast } = weatherViewModel;
   const fetched = state.status === 'success' || state.status === 'refreshFailed' ? state.data : undefined;
@@ -159,8 +177,9 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
     <View style={[styles.root, sky === 'night' ? styles.skyNight : styles.skyDay]}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.column}>
+        <View style={[styles.column, widthStyle]}>
           <HomeHeader
+            isCompact={layout.isCompactWidth}
             location={location}
             favorite={
               location === null
@@ -188,7 +207,7 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
         </View>
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, widthStyle]}
           refreshControl={
             // Only with weather on screen: before a place is chosen or while it
             // loads, there is nothing to refresh.
@@ -207,28 +226,36 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
           {location === null ? (
             <WelcomePanel onPressSearch={() => setSearchOpen(true)} />
           ) : report !== undefined && fetched !== undefined && forecast !== null ? (
-            <>
-              <WeatherHero
-                current={report.current}
-                utcOffsetSeconds={report.utcOffsetSeconds}
-                today={selectTodayForecast(forecast)}
-                units={units}
-              />
-              <HourlyForecastList
-                hours={forecast.todayHours}
-                utcOffsetSeconds={report.utcOffsetSeconds}
-                daily={report.daily}
-                nowEpochMs={fetched.fetchedAtEpochMs}
-                units={units}
-              />
-              <DailyForecastList
-                days={forecast.days}
-                todayDateEpochMs={forecast.todayDateEpochMs}
-                utcOffsetSeconds={report.utcOffsetSeconds}
-                onSelectDay={handleSelectDay}
-                units={units}
-              />
-            </>
+            <WeatherSections
+              columns={layout.columns}
+              hero={
+                <WeatherHero
+                  current={report.current}
+                  utcOffsetSeconds={report.utcOffsetSeconds}
+                  today={selectTodayForecast(forecast)}
+                  units={units}
+                  isCompact={layout.isShortHeight}
+                />
+              }
+              forecasts={
+                <>
+                  <HourlyForecastList
+                    hours={forecast.todayHours}
+                    utcOffsetSeconds={report.utcOffsetSeconds}
+                    daily={report.daily}
+                    nowEpochMs={fetched.fetchedAtEpochMs}
+                    units={units}
+                  />
+                  <DailyForecastList
+                    days={forecast.days}
+                    todayDateEpochMs={forecast.todayDateEpochMs}
+                    utcOffsetSeconds={report.utcOffsetSeconds}
+                    onSelectDay={handleSelectDay}
+                    units={units}
+                  />
+                </>
+              }
+            />
           ) : (
             <WeatherStatus state={state} onRetry={handleRetry} />
           )}
@@ -242,6 +269,34 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
         searchViewModel={searchViewModel}
         coordinateViewModel={coordinateViewModel}
       />
+    </View>
+  );
+}
+
+type WeatherSectionsProps = {
+  readonly columns: 1 | 2;
+  readonly hero: ReactNode;
+  readonly forecasts: ReactNode;
+};
+
+/**
+ * The hero and the two forecast cards, stacked (one column) or side by side
+ * (two columns, wide landscape). Plain views inside the screen's one
+ * `ScrollView`, so no vertical list is nested.
+ */
+function WeatherSections({ columns, hero, forecasts }: WeatherSectionsProps) {
+  if (columns === 1) {
+    return (
+      <>
+        {hero}
+        {forecasts}
+      </>
+    );
+  }
+  return (
+    <View style={styles.twoColumns}>
+      <View style={styles.heroColumn}>{hero}</View>
+      <View style={styles.forecastColumn}>{forecasts}</View>
     </View>
   );
 }
@@ -263,8 +318,25 @@ const styles = StyleSheet.create({
   },
   column: {
     width: '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
+  },
+  narrow: {
+    maxWidth: CONTENT_MAX_WIDTH,
+  },
+  wide: {
+    maxWidth: WIDE_CONTENT_MAX_WIDTH,
+  },
+  twoColumns: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.m,
+  },
+  heroColumn: {
+    flex: 2,
+  },
+  forecastColumn: {
+    flex: 3,
+    gap: spacing.m,
   },
   notice: {
     paddingHorizontal: spacing.m,
@@ -272,7 +344,6 @@ const styles = StyleSheet.create({
   },
   content: {
     width: '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
     gap: spacing.m,
     paddingHorizontal: spacing.m,
