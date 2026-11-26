@@ -24,6 +24,13 @@ export type WeatherViewModel = {
    * weather; `null` while there is no report.
    */
   readonly forecast: ForecastSelection | null;
+  /**
+   * False until the start-up check of the cache has finished, whether it
+   * found an entry or not, or until a place is chosen (NIT-274; SPEC D-51).
+   * Until then the screen cannot know if this is a first launch, so it shows
+   * a neutral loading view instead of the welcome panel.
+   */
+  readonly isCacheChecked: boolean;
   /** Selects a location and loads its weather (W-04). */
   readonly load: (location: Location) => void;
   /**
@@ -136,6 +143,21 @@ export function stateFromCache(cached: CachedWeatherReport): WeatherScreenState 
 }
 
 /**
+ * Reads the cache entry for the app's start and turns it into a screen
+ * state: `stateFromCache` of the entry, or `null` when there is nothing
+ * usable (first launch, a damaged or outdated entry, a storage that cannot be
+ * read). Never rejects: `loadLastReport` already turns every failure into
+ * `null`, and anything unexpected counts as "no cache" too, so the start can
+ * never get stuck on the loading view.
+ */
+export function readRestoredState(): Promise<WeatherScreenState | null> {
+  return loadLastReport().then(
+    (cached) => (cached === null ? null : stateFromCache(cached)),
+    () => null,
+  );
+}
+
+/**
  * Saves the weather the user now sees as the cache entry (SPEC D-47). Called
  * only for the newest request, so a slower answer for a place the user has
  * already left is never saved. Not awaited, and a failed save is ignored:
@@ -175,6 +197,9 @@ function rememberReport(location: Location, data: FetchedWeatherReport): void {
  * request; it uses the same request guard, so a place chosen meanwhile wins.
  * If the entry is stale, it then refreshes like any shown weather, so a
  * failure offline keeps the cached weather as `refreshFailed` (SPEC D-48).
+ * `isCacheChecked` turns true in the same render as the restored weather, so
+ * the screen never shows the first-launch welcome panel in between (SPEC
+ * D-51).
  *
  * Navigation and the moments that trigger a refresh or a restore stay in the
  * screen (STYLE.md §3.3).
@@ -184,6 +209,7 @@ export function useWeatherViewModel(): WeatherViewModel {
     location: null,
     weather: { status: 'idle' },
   });
+  const [isCacheChecked, setCacheChecked] = useState(false);
   const [requestGuard] = useState(createLatestRequestGuard);
   // The location whose weather is loading or shown; null after an error.
   const activeLocation = useRef<Location | null>(null);
@@ -218,6 +244,8 @@ export function useWeatherViewModel(): WeatherViewModel {
     }
     const requestId = requestGuard.start();
     activeLocation.current = location;
+    // A chosen place replaces whatever the cache check would have found.
+    setCacheChecked(true);
     setScreenState({ location, weather: { status: 'loading' } });
     void runLoad(location, requestId);
   }
@@ -263,16 +291,24 @@ export function useWeatherViewModel(): WeatherViewModel {
   const restoreLastReport = useCallback(
     (intervalMinutes: RefreshIntervalMinutes): void => {
       if (!shouldRestore(latestState.current.weather)) {
+        // A place is already shown or loading: there is nothing to check.
+        setCacheChecked(true);
         return;
       }
       const requestId = requestGuard.start();
-      void loadLastReport().then((cached) => {
-        // A place chosen meanwhile started a newer request; null means no cache.
-        if (cached === null || !requestGuard.isLatest(requestId)) {
+      void readRestoredState().then((restored) => {
+        // Outdated: a place chosen meanwhile, or a newer restore, owns the
+        // screen and marks the check as finished itself.
+        if (!requestGuard.isLatest(requestId)) {
           return;
         }
-        const restored = stateFromCache(cached);
-        activeLocation.current = cached.location;
+        // Set together with the restored state below: React renders both at
+        // once, so the welcome panel never flashes before the cached weather.
+        setCacheChecked(true);
+        if (restored === null) {
+          return;
+        }
+        activeLocation.current = restored.location;
         // Updated at once, so `refresh` below sees the restored weather
         // before React has rendered it.
         latestState.current = restored;
@@ -291,6 +327,7 @@ export function useWeatherViewModel(): WeatherViewModel {
     location: screenState.location,
     state: screenState.weather,
     forecast,
+    isCacheChecked,
     load,
     refresh,
     refreshIfStale,

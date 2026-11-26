@@ -15,6 +15,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Location } from '../../models/Location';
 import { colors } from '../../theme/colors';
+import { interaction } from '../../theme/interaction';
 import { CONTENT_MAX_WIDTH, MIN_TOUCH_TARGET, iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { isSameLocation } from '../../utils/locationFormatting';
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   closeButtonPressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
   },
   content: {
     width: '100%',

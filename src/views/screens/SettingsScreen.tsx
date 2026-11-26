@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Fragment } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 import { CONTENT_MAX_WIDTH, radius, spacing } from '../../theme/spacing';
@@ -18,7 +18,10 @@ import { SettingOptionRow } from '../components/SettingOptionRow';
  * The current settings come from the shared `useSettingsViewModel` (SPEC
  * D-44). A tap applies a choice at once and saves it in the background. The
  * options stay disabled until the stored settings have been read, so a
- * choice cannot be overwritten by the read finishing later.
+ * choice cannot be overwritten by the read finishing later. Meanwhile a
+ * loading line explains why, and the options are dimmed (NIT-275). The read
+ * usually takes a fraction of a second; when it fails, the defaults are used
+ * and the options become available as well (SPEC D-44).
  */
 export function SettingsScreen() {
   const { settings: current, isLoaded, saveError, updateSettings } = useSettingsViewModel();
@@ -29,6 +32,12 @@ export function SettingsScreen() {
     <SafeAreaView style={styles.root} edges={['bottom', 'left', 'right']}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
+        {!isLoaded && (
+          <View style={styles.loading} accessible accessibilityLabel="Loading your settings" accessibilityLiveRegion="polite">
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.loadingText}>Loading your settings…</Text>
+          </View>
+        )}
         {saveError !== null && (
           <Text style={styles.saveError} accessibilityRole="alert">
             {SETTINGS_SAVE_ERROR_MESSAGE}
@@ -89,6 +98,16 @@ const styles = StyleSheet.create({
   },
   group: {
     gap: spacing.s,
+  },
+  loading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+    paddingHorizontal: spacing.xs,
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontSize: fontSize.body,
   },
   saveError: {
     color: colors.error,

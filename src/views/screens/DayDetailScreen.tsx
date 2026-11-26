@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackScreenProps } from '../../navigation/routes';
 import { skyBaseColor, skyColors, skyGradient } from '../../theme/sky';
@@ -7,6 +7,7 @@ import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { fontSize } from '../../theme/typography';
 import { presentDayConditions, presentSunTimes } from '../../utils/forecastFormatting';
 import { formatLocationDetails } from '../../utils/locationFormatting';
+import { screenLayoutFor } from '../../utils/screenLayout';
 import { displayUnitsOf } from '../../utils/units';
 import { useSettingsViewModel } from '../../viewmodels/useSettingsViewModel';
 import { DayDetailHero } from '../components/DayDetailHero';
@@ -31,6 +32,11 @@ import { WeatherCard } from '../components/WeatherCard';
  * place below it (NIT-233), then the Precipitation, Wind and Sun cards
  * (NIT-234, NIT-236; SPEC D-42, D-43). Precipitation and wind come first,
  * because they are what the story is about and why most people open a day.
+ *
+ * Landscape (US-08.02; SPEC D-50): the same single column; in a short window
+ * the hero uses its compact size (`screenLayoutFor`), and everything else
+ * stays reachable by scrolling. The left and right safe areas keep the
+ * content clear of the notch.
  */
 export function DayDetailScreen({ route }: RootStackScreenProps<'DayDetail'>) {
   const { location, day, utcOffsetSeconds } = route.params;
@@ -38,12 +44,13 @@ export function DayDetailScreen({ route }: RootStackScreenProps<'DayDetail'>) {
   const sun = presentSunTimes(day, utcOffsetSeconds);
   const units = displayUnitsOf(useSettingsViewModel().settings);
   const conditions = presentDayConditions(day, units);
+  const layout = screenLayoutFor(useWindowDimensions());
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom', 'left', 'right']}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content}>
-        <DayDetailHero day={day} utcOffsetSeconds={utcOffsetSeconds} units={units} />
+        <DayDetailHero day={day} utcOffsetSeconds={utcOffsetSeconds} units={units} isCompact={layout.isShortHeight} />
         {locationDetails !== undefined && <Text style={styles.details}>{locationDetails}</Text>}
         <View style={styles.cards}>
           <WeatherCard title="Precipitation">

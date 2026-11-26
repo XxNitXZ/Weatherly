@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Location } from '../../models/Location';
 import { colors } from '../../theme/colors';
+import { interaction } from '../../theme/interaction';
 import { MIN_TOUCH_TARGET, iconSize, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { formatCoordinates, formatLocationDetails } from '../../utils/locationFormatting';
@@ -109,9 +110,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
   },
   disabled: {
-    opacity: 0.4,
+    opacity: interaction.disabledOpacity,
   },
 });

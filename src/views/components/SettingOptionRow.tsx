@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
+import { interaction } from '../../theme/interaction';
 import { MIN_TOUCH_TARGET, iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { DEFAULT_SUFFIX, type SettingOptionPresentation } from '../../utils/settingsPresentation';
@@ -16,6 +17,10 @@ export type SettingOptionRowProps<Value> = {
  * muted "default" note on the default option, and a checkmark on the
  * selected one. Screen readers hear a radio button with its state, e.g.
  * "Celsius, default, radio button, selected".
+ *
+ * Without `onSelect` (while the stored settings are read) the row is dimmed
+ * and disabled, so it does not look tappable (NIT-270), and screen readers
+ * hear "dimmed" or "disabled".
  */
 export function SettingOptionRow<Value>({ option, onSelect }: SettingOptionRowProps<Value>) {
   const isDisabled = onSelect === undefined;
@@ -27,7 +32,7 @@ export function SettingOptionRow<Value>({ option, onSelect }: SettingOptionRowPr
       accessibilityState={{ checked: option.isSelected, disabled: isDisabled }}
       disabled={isDisabled}
       onPress={() => onSelect?.(option.value)}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed, isDisabled && styles.rowDisabled]}
     >
       <View style={styles.texts}>
         <Text style={[styles.label, option.isSelected && styles.labelSelected]}>{option.label}</Text>
@@ -51,6 +56,9 @@ const styles = StyleSheet.create({
   },
   rowPressed: {
     backgroundColor: colors.primarySubtle,
+  },
+  rowDisabled: {
+    opacity: interaction.disabledOpacity,
   },
   texts: {
     flex: 1,

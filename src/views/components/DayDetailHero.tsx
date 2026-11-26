@@ -13,6 +13,8 @@ export type DayDetailHeroProps = {
   readonly utcOffsetSeconds: number;
   /** The user's display units (W-12; SPEC D-46). */
   readonly units: DisplayUnits;
+  /** A short window, e.g. a phone in landscape (`screenLayoutFor`): the compact size. */
+  readonly isCompact: boolean;
 };
 
 /**
@@ -21,21 +23,24 @@ export type DayDetailHeroProps = {
  * then the feels-like high and low when the API sent both (SPEC D-43).
  * Built like the home screen's `WeatherHero`. Presentational: all texts come
  * from `presentDayDetail`, and screen readers hear the block as one sentence.
+ *
+ * Compact (US-08.02; SPEC D-50): a smaller icon and less padding, so in
+ * landscape on a phone the first card starts on the first screen.
  */
-export function DayDetailHero({ day, utcOffsetSeconds, units }: DayDetailHeroProps) {
+export function DayDetailHero({ day, utcOffsetSeconds, units, isCompact }: DayDetailHeroProps) {
   const detail = presentDayDetail(day, utcOffsetSeconds, units);
 
   return (
     <View
-      style={styles.hero}
+      style={[styles.hero, isCompact && styles.heroCompact]}
       accessible
       accessibilityRole="header"
       accessibilityLabel={detail.accessibilityLabel}
     >
       <Text style={styles.weekday}>{detail.weekday}</Text>
       <Text style={styles.date}>{detail.date}</Text>
-      <View style={styles.icon}>
-        <WeatherIcon name={detail.icon} size={iconSize.hero} />
+      <View style={isCompact ? undefined : styles.icon}>
+        <WeatherIcon name={detail.icon} size={isCompact ? iconSize.heroCompact : iconSize.hero} />
       </View>
       <Text style={styles.condition}>{detail.condition}</Text>
       <Text style={styles.highLow}>
@@ -51,6 +56,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     paddingVertical: spacing.l,
+  },
+  heroCompact: {
+    paddingVertical: spacing.s,
   },
   weekday: {
     color: skyColors.onSky,
