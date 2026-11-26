@@ -40,4 +40,24 @@ export const iconSize = {
   s: 24,
   m: 28,
   hero: 72,
+  /** The hero icon in a short window, e.g. a phone in landscape (SPEC D-50). */
+  heroCompact: 48,
+} as const;
+
+/**
+ * Window sizes in points where layouts change (STYLE.md §14; SPEC D-50).
+ * Read only by `screenLayoutFor`, so every screen switches at the same size.
+ */
+export const layoutBreakpoints = {
+  /**
+   * Below this width (at the normal text size) the home header puts its
+   * buttons under the title: next to four 44-point buttons, a 360-point
+   * phone leaves the place name only about 110 points.
+   */
+  compactWidth: 375,
+  /**
+   * Below this height the heroes use their compact size, so on a phone in
+   * landscape the forecasts start on the first screen.
+   */
+  shortHeight: 500,
 } as const;

@@ -7,6 +7,21 @@
 > - The status is one of `NOT RUN`, `PASS` or `FAIL`. A `FAIL` is never deleted: fix the code, re-run, and add the new result with its date.
 > - Every UX scenario is executed on **both** platforms before the requirement it covers can be set to `VERIFIED` in SPEC.md.
 
+## 0. Summary for Appendix A
+
+This file is Appendix A of the submission. The lab asks which parts of the logic were tested, which test cases were written, the results, the test files, and testing on the official simulator/emulator.
+
+| What | Where | State on 2026-11-26 |
+|---|---|---|
+| Logic tested | §2.1: JSON parsing (weather, geocoding, stored favourites, settings, cache), error-state logic (HTTP outcome → `AppError`, `AppError` → `LoadState` and on-screen texts), data transformation (forecast grouping, formatting, units), plus validation, refresh rule, request order and layout decisions | 800 tests in 42 files, all passing (`npm run check`, §2.4) |
+| Test cases | §2.2 (by group, with input and expected result) | Results as recorded there |
+| Mutation evidence | §2.3: one deliberate fault per area, detected, reverted | All recorded mutations detected |
+| Test files to attach | `tests/` (mirrors `src/`, SPEC D-23), fixtures in `tests/fixtures/` | — |
+| UX scenarios | §3: 35 scenarios with prerequisites, action, expected result; how to run them in §3.0 | Android Emulator: 0 run. iOS Simulator: 12 run by report (§3.3) |
+| Device checks per story | §1.1 – §1.20 | Only what was actually observed; everything else `NOT RUN` |
+
+Jest runs in Node, not on a device, so the unit tests are the same on both machines. The lab's device requirement applies to the app itself (§1 and §3): a browser preview does not count.
+
 ## 1. Test Environment
 
 | | Android | iOS |
@@ -491,6 +506,25 @@ Not shown to the user, by design: reading the settings fails → defaults (D-44)
 | UX-23: choose a place, open Settings at once, go back; the place's weather shown, no crash (iOS Simulator) | 2026-11-25 | Reported to work | PASS (by report) |
 | UX-20 slow network with the Network Link Conditioner (iOS Simulator) | 2026-11-25 | Not run: the student skipped this optional check | NOT RUN |
 
+### 1.20 UI/UX and Responsive Layout: Automated and Code-Review Checks (Epic 8: US-08.01 – US-08.03)
+
+Uncommitted on `feat/NIT-159-160-rework` after `4cb3328`, Windows, Claude Code (session with Developer 1), 2026-11-26. **Nothing in this section was run on a device or simulator.**
+
+| Check | Date | Actual result | Status |
+|---|---|---|---|
+| Baseline before the changes (`4cb3328`) | 2026-11-26 | `npm run check`: `tsc` without errors, Jest 757 / 757 in 40 files; Expo Doctor 20/20; orientation read with `@expo/config`: `portrait` | PASS |
+| `npm run check` after the changes | 2026-11-26 | `tsc --noEmit` without errors; Jest 800 / 800 in 42 files (757 earlier tests unchanged + 30 `screenLayout` + 13 `homeContent`) | PASS |
+| Orientation | 2026-11-26 | `app.json` `"orientation": "default"`; read back with `@expo/config` as `default` | PASS |
+| Android bundle | 2026-11-26 | `npx expo export --platform android` (output outside the repository): `Android Bundled … index.ts (984 modules)`, exported without errors | PASS |
+| iOS bundle | 2026-11-26 | `npx expo export --platform ios`: `iOS Bundled … index.ts (989 modules)`, exported without errors | PASS |
+| Expo Doctor | 2026-11-26 | 20/20 checks passed | PASS |
+| Mutation checks | 2026-11-26 | 8 deliberate faults (5 in `screenLayoutFor`, 2 in `homeContentFor`, 1 in `readRestoredState`), each detected and reverted (§2.3) | PASS |
+| Code review: safe areas in landscape | 2026-11-26 | Every screen root is a `SafeAreaView` with `left` and `right` edges (Home: all edges; day detail, favourites, settings: bottom, left, right under the native header; search sheet: all but the top on iOS) | Review only |
+| Code review: keyboard in the search sheet | 2026-11-26 | iOS: `KeyboardAvoidingView` with `padding`. Android: no behaviour set; the fields sit at the top of the list, results scroll, and dragging hides the keyboard (`keyboardDismissMode="on-drag"`). Whether the last results can be reached in landscape with the keyboard open on Android's edge-to-edge modal is **not known** until UX-31 is run | Review only; NOT RUN on a device |
+| Code review: overflow | 2026-11-26 | Home, day detail, favourites, settings and search all scroll vertically; the hourly list scrolls horizontally; the header title has two lines when stacked; `adjustsFontSizeToFit` only works on iOS, so on Android a very long name or temperature at the largest text size may still end in "…" (UX-30) | Review only; NOT RUN on a device |
+| Portrait and landscape on both platforms (UX-21, UX-22, UX-26, UX-30, UX-31) | | | NOT RUN |
+| Start-up without the welcome-panel flash (UX-32, UX-34) | | | NOT RUN |
+
 ## 2. Automated Unit Tests
 
 **Test framework:** Jest + `jest-expo` (SPEC D-09), installed in US-02.01 (NIT-216). Test files live in the root `tests/` folder (SPEC D-23).
@@ -532,6 +566,8 @@ W-24 requires at least two of the lab's three areas: **JSON parsing**, **error-s
 | °C/m/s → °F/km/h, rounded once after converting; consistency across all presenters | Data transformation | `units.ts`; the `unit` argument of the formatters and presenters (NIT-255) | W-12 | |
 | Stored weather cache ↔ `CachedWeatherReport` (round trip over real reports; damaged entries) | JSON parsing | `parseStoredWeatherCache`, `toStoredWeatherCache` in `src/parsers/weatherCacheParser.ts`; `loadLastReport`, `saveLastReport` in `weatherRepository` (NIT-256) | W-16 | |
 | Read/write order across screens | (extra) | `favoritesRepository` (US-05.03, SPEC D-40) | W-08, W-09 | |
+| Start-up body: cache entry → what Home shows (first launch, valid, damaged, unreadable storage) | Error-state logic (View) | `homeContentFor` in `src/views/components/WeatherStatus.tsx`; `readRestoredState` in `useWeatherViewModel` (NIT-274) | W-16, W-20, W-30 | |
+| Window size → layout (breakpoints, text size, unusable sizes) | (extra) | `screenLayoutFor` in `src/utils/screenLayout.ts` (NIT-271) | W-22 | |
 | Unit conversion | Data transformation | `src/utils/units.ts` | W-12 | |
 | Coordinate validation | (extra) | `src/utils/coordinateValidation.ts` | W-03, W-30 | yes |
 | Refresh / staleness policy | (extra) | `src/utils/refreshPolicy.ts` | W-11, W-16 | |
@@ -700,6 +736,12 @@ Planned cases are listed as a starting point. Adjust the names to match the real
 | weatherRepository › the cache entry (7 tests) | W-16, D-47 | the key; nothing stored; save then load; `{ not json` and an invalid entry; a storage read error; a storage write error after an earlier save; two quick saves with the first one slow | `weatherly:lastWeather`; `null`; the saved entry; `null` twice; `null`; `AppError('storage')`, earlier entry kept; the second entry stored | as expected (2026-11-25) | PASS |
 | useWeatherViewModel › restoring the cache entry (8 tests) | W-16, D-47 | `shouldRestore` with idle; with loading, success, refreshFailed, error; `stateFromCache` with Lund and the Stockholm fixture; the place kept out of the data; `forecastForState` on the result | `true`; `false` for each; `success`, not refreshing, place Lund, same fetch time; no `location` in `data`; a forecast with 7 days | as expected (2026-11-25) | PASS |
 | useWeatherViewModel › refreshing restored weather when it is stale (3 tests) | W-17, D-48 | `shouldRefresh` on `stateFromCache` fetched 31 min ago, 5 min ago, 1 min in the future; interval 30 min | `true`; `false`; `true` | as expected (2026-11-25) | PASS |
+| screenLayout › real windows (8 tests) | W-22, D-50 | iPhone 16 393×852 and 852×393; iPhone SE 375×667 and 667×375; 360×780; 320×568; Pixel landscape 915×412; iPad landscape 1180×820; text size 1 | normal; short; normal; short; narrow; narrow; short; normal | as expected (2026-11-26) | PASS |
+| screenLayout › breakpoints (3 tests) | W-22, D-50 | width 374 and 375; height 499 and 500; a 400×400 square | narrow, not narrow; short, not short; short only | as expected (2026-11-26) | PASS |
+| screenLayout › text size (8 tests) | W-22, D-50 | 393 wide at 1.3; 562 and 563 wide at 1.5; 360 wide at 0.85; landscape and portrait at 2; text size 0, −1, NaN, ∞ | narrow; narrow, not narrow; still narrow; height decision unchanged; counted as 1 | as expected (2026-11-26) | PASS |
+| screenLayout › unusable window sizes (11 tests) | W-22, W-30 | width 0, −10, NaN, ∞, −∞ with height 300; height 0, −10, NaN, ∞, −∞ with width 320; 0×0 | the normal portrait layout (neither narrow nor short) | as expected (2026-11-26) | PASS |
+| homeContent › the app start (7 tests) | W-16, W-20, D-51 | before the check; nothing stored; a saved entry; `{ not json`; version 99; storage read rejected; `loadLastReport` rejected | `checkingCache`; `null` → `welcome`; the cached state → `weather`; `null` → `welcome` (×3); `null` | as expected (2026-11-26) | PASS |
+| homeContent › homeContentFor (6 tests) | W-20, D-51 | a place chosen during the check; loading; failed first load; success; refreshing; failed refresh | `status`; `status`; `status`; `weather`; `weather`; `weather` | as expected (2026-11-26) | PASS |
 
 ### 2.3 Mutation Test Evidence
 
@@ -790,6 +832,14 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | Dated notice (NIT-260) | `describeRefreshNotice` always shows the time only | 3 of 750 failed (the day-before, just-after-midnight and clock-set-back tests) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | Error texts (NIT-264) | `network` text set back to "…select the place again." | 2 of 757 failed (`network → …try again.` and `…never "select the place" (network)`) | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
 | Request guard (NIT-267) | `createLatestRequestGuard`: `isLatest` always `true` | 3 of 757 failed (the three `createLatestRequestGuard` tests); search and weather both use it | yes (file restored, `cmp` equal) | 2026-11-25 | PASS |
+| Layout width (NIT-271) | `screenLayoutFor`: `width < compactWidth` changed to `<=` | 2 of 43 failed (`iPhone SE portrait (375 × 667)`, `is compact just below the width limit and not at it`) | yes (file restored, `diff` equal) | 2026-11-26 | PASS |
+| Layout text size (NIT-271) | `Math.max(1, fontScale)` changed to `fontScale` | 1 of 43 failed (`never makes a narrow window wide with smaller text`) | yes | 2026-11-26 | PASS |
+| Layout unusable height (NIT-271) | the height check removed from the guard | 5 of 43 failed (every unusable height: 0, −10, NaN, ∞, −∞) | yes | 2026-11-26 | PASS |
+| Layout non-finite sizes (NIT-271) | `Number.isFinite` removed from `isPositiveSize` | 3 of 43 failed (infinite width, height and text size) | yes | 2026-11-26 | PASS |
+| Layout height (NIT-271) | `height < shortHeight` changed to `<=` | 1 of 43 failed (`is short just below the height limit and not at it`) | yes | 2026-11-26 | PASS |
+| Start-up body (NIT-274) | `homeContentFor` gives `welcome` before the cache check | 1 of 43 failed (`shows the neutral loading view, not the welcome panel, before the cache is checked`) | yes | 2026-11-26 | PASS |
+| Start-up body (NIT-274) | `refreshFailed` no longer counted as weather | 1 of 43 failed (`shows a failed refresh (cached weather offline) for a chosen place`) | yes | 2026-11-26 | PASS |
+| Restore never rejects (NIT-274) | `readRestoredState` without its rejection handler | 1 of 43 failed (`never stays on the loading view, even if reading the cache fails unexpectedly`) | yes | 2026-11-26 | PASS |
 | | | | | | NOT RUN |
 
 ### 2.4 Run History
@@ -829,6 +879,8 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` after `fdd3e8b`, with NIT-259 and NIT-260 | `npm run check` | 750 | 750 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-25 | uncommitted, on `feat/EPIC-07` after `101e1c8`, with NIT-264 | `npm run check` | 757 | 757 | 0 | Claude Code (session with Tyrone Asante) |
 | 2026-11-25 | uncommitted, on `feat/EPIC-07`, with NIT-267 | `npm run check` | 757 | 757 | 0 | Claude Code (session with Tyrone Asante) |
+| 2026-11-26 | `4cb3328` on `feat/NIT-159-160-rework`, before changes (Windows) | `npm run check` | 757 | 757 | 0 | Claude Code (session with Developer 1) |
+| 2026-11-26 | uncommitted, on `feat/NIT-159-160-rework` after `4cb3328`, with Epic 8 (Windows) | `npm run check` | 800 | 800 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | `8150846` on `feat/NIT-156-favorites`, before changes (Windows) | `npm run check` | 348 | 348 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-156-favorites` after `8150846`, with US-05.01/US-05.02 logic (Windows) | `npm run check` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
 | 2026-11-23 | uncommitted, on `feat/NIT-178-favorites-screen` after `9d90de1`, source changed, no new tests yet (Windows) | `npx tsc --noEmit`, `npx jest` | 480 | 480 | 0 | Claude Code (session with Developer 1) |
@@ -836,11 +888,42 @@ For each tested category: deliberately introduce one fault, run the tests, confi
 
 ## 3. UX Interaction Scenarios
 
-At least 20 distinct scenarios are required (W-25). Each scenario must be run on both platforms (W-32).
+At least 20 distinct scenarios are required (W-25). Each scenario must be run on both platforms (W-32). 35 are defined. A scenario that has not been run stays `NOT RUN`.
+
+### 3.0 How to Run the Scenarios
+
+**Before every run**
+1. `npm ci` (after a pull or a dependency change), then `npm run check`.
+2. Note the commit: `git rev-parse --short HEAD`. Put it, the date and your name in the log row (§3.2).
+3. Fill in the device row of §1 (AVD name and API level, or simulator model and iOS version).
+
+**Android Emulator (Windows, Developer 1)**
+1. `ANDROID_HOME` must point to the Android SDK (it was not set on 2026-11-23). In Android Studio, open the Device Manager and start a phone AVD.
+2. `npm run android`: Expo starts and opens the app in Expo Go on the running emulator.
+3. **Rotate:** the rotate buttons in the emulator's side toolbar. If the screen does not turn, switch on Auto-rotate in the quick settings, or tap the rotate icon that appears in the navigation bar.
+4. **Offline:** turn on Airplane mode in the quick settings (Wi-Fi and mobile data off). To start the app while offline, start Metro with `$env:EXPO_OFFLINE=1; npx expo start --localhost --android` in PowerShell (the iOS runs used `EXPO_OFFLINE=1 npx expo start --localhost`; not yet tried on Android).
+5. **Large text / narrow width:** Settings › Display › Font size and Display size, both to the largest. Either one also brings the stacked home header (UX-30).
+6. **Screen reader:** Settings › Accessibility › TalkBack (needs an emulator image with Google Play).
+7. **No stored data (first launch):** Settings › Apps › Expo Go › Storage › Clear storage. This deletes the cached weather, favourites and settings of every project opened in Expo Go.
+8. **Screenshot:** the camera button in the emulator's side toolbar.
+
+**iOS Simulator (macOS, Developer 2)**
+1. `npm run ios`: the app opens in Expo Go on the simulator.
+2. **Rotate:** Device › Rotate Left / Rotate Right (⌘← / ⌘→).
+3. **Offline:** turn off the Mac's Wi-Fi (the simulator uses the Mac's network) and start Metro with `EXPO_OFFLINE=1 npx expo start --localhost` (as for UX-17 and UX-28).
+4. **Large text:** Settings › Accessibility › Display & Text Size › Larger Text, with the larger accessibility sizes on. On iPhones this is how to see the stacked header: even the smallest current iPhones are 375 points wide, which keeps the one-row header at the normal text size.
+5. **Screen reader:** VoiceOver, where the simulator offers it, or Xcode › Open Developer Tool › Accessibility Inspector to read each element's label and role.
+6. **No stored data:** delete Expo Go from the simulator (long press › Remove App) or use Device › Erase All Content and Settings; `npm run ios` installs it again.
+7. **Screenshot:** File › Save Screen (⌘S).
+
+**Recording a result**
+- Write what you saw in "Actual result / observations", not the expected result copied over.
+- "Evidence": where the proof is, e.g. "screenshot UX-21-android.png (submission folder)" or "report by the tester". Screenshots are not committed to the repository.
+- A failure is recorded as `FAIL` and never deleted (rules at the top).
 
 ### 3.1 Scenario Definitions
 
-| ID | Req. | Starting state | User action | Expected result |
+| ID | Req. | Prerequisites (starting state) | User action | Expected result |
 |---|---|---|---|---|
 | UX-01 | W-01, W-02 | Search screen, online | Search for "Stockholm" | Matching locations are listed with region/country |
 | UX-02 | W-01 | Search screen, online | Search for a nonsense name, e.g. "xqzvbn" | A "no locations found" message is shown and the app does not crash |
@@ -862,75 +945,138 @@ At least 20 distinct scenarios are required (W-25). Each scenario must be run on
 | UX-18 | W-17, W-18 | No cache for the location, device offline | Open a new location | An error message with a retry action is shown |
 | UX-19 | W-18 | Error state from UX-18 | Restore the network and tap retry | Data loads successfully |
 | UX-20 | W-20, W-23 | Slow network (emulator network throttling) | Load a location | A loading indicator is shown and the UI stays responsive |
-| UX-21 | W-22 | Weather view, portrait | Rotate to landscape and back | The layout adapts, nothing is cut off and the data stays |
+| UX-21 | W-22 | Weather view, portrait | Rotate to landscape and back | The layout adapts, nothing is cut off and the data stays. On a phone in landscape the hero is compact (icon beside the temperature) and the forecasts start on the first screen; the "Observed" time does not change, so no new request was made (D-50) |
 | UX-22 | W-22 | Search and Settings screens | Rotate to landscape | Layouts are usable and all content is reachable |
 | UX-23 | W-23 | A place is loading on Home | Open Settings before loading finishes, then go back | No crash; Home stays mounted underneath (D-35), so back on Home the place's weather is shown |
 | UX-24 | W-08, W-30 | Location already a favourite | Try to add it again (e.g. via search) | No duplicate favourite is created |
 | UX-25 | W-09 | No favourites saved | Open the Favourites screen | Empty-state guidance is shown |
-| UX-26 | W-07, W-21, W-22 | Day detail open, on the smallest available iPhone simulator (iPhone 17e on iOS 27.2) or a small Android phone. Landscape part only after W-22 (US-08.02) | Scroll to the bottom; rotate to landscape and back; set the largest text size | All cards scroll into view, nothing is cut off or overlaps, labels and values wrap, the header and back navigation keep working |
+| UX-26 | W-07, W-21, W-22 | Day detail open, on the smallest available iPhone simulator (iPhone 17e on iOS 27.2) or a small Android phone. Landscape is possible since US-08.02 | Scroll to the bottom; rotate to landscape and back; set the largest text size | All cards scroll into view, nothing is cut off or overlaps, labels and values wrap, the header and back navigation keep working |
 | UX-27 | W-11, W-18 | Weather shown on Home | Pull down on the weather; then pull again with the network off; then tap "Try again" with the network back | A spinner shows and the weather updates; offline, a "No connection. Showing the weather from HH:MM." notice appears and the old weather stays; "Try again" updates the weather and the notice disappears |
 | UX-28 | W-16 | Weather for a place was loaded before | Close the app completely and open it again (also with the network off) | The same place and its weather appear without a search and without an error |
 | UX-29 | W-23, W-30 | Search sheet open | Search "Lund", then at once "Kiruna" | Kiruna's results show and stay; Lund's never replace them (Q12) |
+| UX-30 | W-22, W-29 | A place shown on Home. Android: the largest font size, or a phone about 360 dp wide. iOS: the largest Larger Text size (§3.0) | Look at the header; tap the star, Favourites, Search and Settings one after the other; then set the text size back to the default | With large text or a narrow screen: the place name uses the full width (up to two lines), the four round buttons sit on one row below it on the right, and each one works. At the default size on a normal phone: the one-row header, as before (D-50) |
+| UX-31 | W-22, W-30 | Home in landscape on a phone, online | Open search; type "Stockholm" and search; scroll the results; choose one. Then open search again, switch to coordinates and type `59.33`, `18.07` | The field and its Search button stay visible above the keyboard; every result can be reached by scrolling, or by dragging, which hides the keyboard; choosing a result closes the sheet and loads the weather; nothing is hidden under the notch or camera cut-out |
+| UX-32 | W-16, W-20 | No stored data (§3.0), online | Open the app | A spinner for a moment, then the welcome panel "Weather for any place" with "Search for a place"; the header shows "Weatherly" without a star; no error (D-51) |
+| UX-33 | W-17, W-18, W-30 | No stored data (§3.0), device offline | Open the app; tap "Search for a place" and search "Lund"; then switch to coordinates and submit `59.33`, `18.07` | The welcome panel, not an error; the place search shows its no-connection message; the coordinates give "No internet connection…" with "Try again"; no crash and no blank screen (Q15) |
+| UX-34 | W-16, W-20 | A place was loaded earlier; the app is fully closed | Open the app and watch the first second; then repeat with the device offline | Only a short spinner, then the cached place and its weather; the welcome panel never appears in between (D-51). Offline, the same; a stale entry then shows the failed-refresh notice (as in UX-17) |
+| UX-35 | W-29 (STYLE §15) | Screen reader on: TalkBack (Android) or VoiceOver / Accessibility Inspector (iOS); weather shown on Home | Move through the header buttons, the hero, one hour and one day; open a day; open Settings and move through one group | Every button is announced with its name and role (e.g. "Add Stockholm to favourites, button"); the hero is read as one sentence with the condition and units; icons are never read on their own; Settings options are read as radio buttons with their selected state |
 
 ### 3.2 Execution Log
 
-| ID | Platform | Date | Tester | Actual result | Status |
-|---|---|---|---|---|---|
-| UX-01 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-01 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-02 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-02 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-03 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-03 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-04 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-04 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-05 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-05 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-06 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-06 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-07 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-07 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-08 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-08 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-09 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-09 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Navigation reported to work for N-1 – N-7 (§1.10). The day's data (date, condition, high/low, feels-like, sun, precipitation and wind cards) reported to work after NIT-232 – NIT-236 (§1.9) | PASS (by report) |
-| UX-10 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-10 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-11 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-11 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-12 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-12 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-13 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-13 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-14 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-14 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Chose 60 min, °F, km/h; still selected after reopening Settings and after fully closing and restarting the app (§1.13, NIT-248) | PASS (by report) |
-| UX-15 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-15 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Before the interval: returning to Home causes no reload (reported, §1.14). After the interval: not run (the 15 minutes were not waited out) | PARTIAL (by report; after-interval part NOT RUN) |
-| UX-16 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-16 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | °F and km/h on Home and the day detail screen, VoiceOver, no reload, switching back and a restart reported to work (§1.15, NIT-255) | PASS (by report) |
-| UX-17 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-17 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Reopened offline: cached Stockholm shown, no error, no notice (§1.17, screenshot); pull to refresh offline: the notice with the time (§1.17, NIT-260, by report). Expected result reworded on 2026-11-25 to match D-20 and D-48 | PASS (screenshot and by report) |
-| UX-18 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-18 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Wi-Fi off: search "Lund" gave the no-connection search message; coordinates 55.7, 13.19 gave the weather error "No internet connection…" with "Try again"; no crash (§1.17, NIT-261) | PASS (by report) |
-| UX-19 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-19 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Wi-Fi on, "Try again": the weather for 55.7, 13.19 loaded; after a reload it came back from the cache (§1.17, NIT-261) | PASS (by report) |
-| UX-20 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-20 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-21 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-21 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-22 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-22 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-23 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-23 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Settings opened while a place loaded; back on Home the weather was shown, no crash (§1.19, NIT-267) | PASS (by report) |
-| UX-24 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-24 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-25 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-25 | iOS Simulator (macOS) | | | | NOT RUN |
-| UX-26 | Android Emulator (Windows) | | | | NOT RUN |
-| UX-26 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Smallest screen (iPhone 17e) and largest text size reported to work (TEST_REPORT §1.9). Landscape not run: the app is portrait-only until W-22 (US-08.02) | PARTIAL (by report; landscape NOT RUN) |
-| UX-27 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Pull, offline notice, "Try again" back online reported to work (§1.14, NIT-383) | PASS (by report) |
-| UX-28 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Close and reopen restores the last place and its weather (§1.16, NIT-384); also with Wi-Fi off, started with `EXPO_OFFLINE=1 npx expo start --localhost` (§1.17, screenshot) | PASS (by report; offline part screenshot) |
-| UX-29 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | "Lund" then at once "Kiruna": Kiruna's results shown and kept (§1.19, NIT-267). The answers were likely too fast to overlap; the overlap itself is covered by the `createLatestRequestGuard` unit tests | PASS (by report) |
+| ID | Platform | Date | Tester | Actual result / observations | Evidence | Status |
+|---|---|---|---|---|---|---|
+| UX-01 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-01 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-02 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-02 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-03 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-03 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-04 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-04 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-05 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-05 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-06 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-06 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-07 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-07 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-08 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-08 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-09 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-09 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Navigation reported to work for N-1 – N-7 (§1.10). The day's data (date, condition, high/low, feels-like, sun, precipitation and wind cards) reported to work after NIT-232 – NIT-236 (§1.9) | Report by the tester (§1.9, §1.10) | PASS (by report) |
+| UX-10 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-10 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-11 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-11 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-12 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-12 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-13 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-13 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-14 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-14 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Chose 60 min, °F, km/h; still selected after reopening Settings and after fully closing and restarting the app (§1.13, NIT-248) | Report by the tester (§1.13) | PASS (by report) |
+| UX-15 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-15 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Before the interval: returning to Home causes no reload (reported, §1.14). After the interval: not run (the 15 minutes were not waited out) | Report by the tester (§1.14) | PARTIAL (by report; after-interval part NOT RUN) |
+| UX-16 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-16 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | °F and km/h on Home and the day detail screen, VoiceOver, no reload, switching back and a restart reported to work (§1.15, NIT-255) | Report by the tester (§1.15) | PASS (by report) |
+| UX-17 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-17 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Reopened offline: cached Stockholm shown, no error, no notice (§1.17, screenshot); pull to refresh offline: the notice with the time (§1.17, NIT-260, by report). Expected result reworded on 2026-11-25 to match D-20 and D-48 | Screenshot and report by the tester (§1.17) | PASS (screenshot and by report) |
+| UX-18 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-18 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Wi-Fi off: search "Lund" gave the no-connection search message; coordinates 55.7, 13.19 gave the weather error "No internet connection…" with "Try again"; no crash (§1.17, NIT-261) | Report by the tester (§1.17) | PASS (by report) |
+| UX-19 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-19 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Wi-Fi on, "Try again": the weather for 55.7, 13.19 loaded; after a reload it came back from the cache (§1.17, NIT-261) | Report by the tester (§1.17) | PASS (by report) |
+| UX-20 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-20 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-21 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-21 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-22 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-22 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-23 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-23 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Settings opened while a place loaded; back on Home the weather was shown, no crash (§1.19, NIT-267) | Report by the tester (§1.19) | PASS (by report) |
+| UX-24 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-24 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-25 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-25 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-26 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-26 | iOS Simulator (macOS) | 2026-11-23 | Tyrone Asante | Smallest screen (iPhone 17e) and largest text size reported to work (TEST_REPORT §1.9). Landscape not run: the app is portrait-only until W-22 (US-08.02) | Report by the tester (§1.9) | PARTIAL (by report; landscape NOT RUN) |
+| UX-27 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-27 | iOS Simulator (macOS) | 2026-11-24 | Tyrone Asante | Pull, offline notice, "Try again" back online reported to work (§1.14, NIT-383) | Report by the tester (§1.14) | PASS (by report) |
+| UX-28 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-28 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | Close and reopen restores the last place and its weather (§1.16, NIT-384); also with Wi-Fi off, started with `EXPO_OFFLINE=1 npx expo start --localhost` (§1.17, screenshot) | Report by the tester (§1.16); offline part screenshot (§1.17) | PASS (by report; offline part screenshot) |
+| UX-29 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-29 | iOS Simulator (macOS) | 2026-11-25 | Tyrone Asante | "Lund" then at once "Kiruna": Kiruna's results shown and kept (§1.19, NIT-267). The answers were likely too fast to overlap; the overlap itself is covered by the `createLatestRequestGuard` unit tests | Report by the tester (§1.19) | PASS (by report) |
+| UX-30 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-30 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-31 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-31 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-32 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-32 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-33 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-33 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-34 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-34 | iOS Simulator (macOS) | | | | | NOT RUN |
+| UX-35 | Android Emulator (Windows) | | | | | NOT RUN |
+| UX-35 | iOS Simulator (macOS) | | | | | NOT RUN |
+
+### 3.3 Status Overview
+
+Taken from §3.2; update both tables together.
+
+| ID | Android Emulator | iOS Simulator |
+|---|---|---|
+| UX-01 | NOT RUN | NOT RUN |
+| UX-02 | NOT RUN | NOT RUN |
+| UX-03 | NOT RUN | NOT RUN |
+| UX-04 | NOT RUN | NOT RUN |
+| UX-05 | NOT RUN | NOT RUN |
+| UX-06 | NOT RUN | NOT RUN |
+| UX-07 | NOT RUN | NOT RUN |
+| UX-08 | NOT RUN | NOT RUN |
+| UX-09 | NOT RUN | PASS (by report) |
+| UX-10 | NOT RUN | NOT RUN |
+| UX-11 | NOT RUN | NOT RUN |
+| UX-12 | NOT RUN | NOT RUN |
+| UX-13 | NOT RUN | NOT RUN |
+| UX-14 | NOT RUN | PASS (by report) |
+| UX-15 | NOT RUN | PARTIAL (by report; after-interval part NOT RUN) |
+| UX-16 | NOT RUN | PASS (by report) |
+| UX-17 | NOT RUN | PASS (screenshot and by report) |
+| UX-18 | NOT RUN | PASS (by report) |
+| UX-19 | NOT RUN | PASS (by report) |
+| UX-20 | NOT RUN | NOT RUN |
+| UX-21 | NOT RUN | NOT RUN |
+| UX-22 | NOT RUN | NOT RUN |
+| UX-23 | NOT RUN | PASS (by report) |
+| UX-24 | NOT RUN | NOT RUN |
+| UX-25 | NOT RUN | NOT RUN |
+| UX-26 | NOT RUN | PARTIAL (by report; landscape NOT RUN) |
+| UX-27 | NOT RUN | PASS (by report) |
+| UX-28 | NOT RUN | PASS (by report; offline part screenshot) |
+| UX-29 | NOT RUN | PASS (by report) |
+| UX-30 | NOT RUN | NOT RUN |
+| UX-31 | NOT RUN | NOT RUN |
+| UX-32 | NOT RUN | NOT RUN |
+| UX-33 | NOT RUN | NOT RUN |
+| UX-34 | NOT RUN | NOT RUN |
+| UX-35 | NOT RUN | NOT RUN |
 
 ## 4. Summary
 
@@ -938,6 +1084,6 @@ Fill this in from the tables above. Do not estimate.
 
 | | Android Emulator | iOS Simulator |
 |---|---|---|
-| UX scenarios executed / PASS | 0 of 27 executed | 12 of 29 executed: UX-09, UX-14, UX-16, UX-17, UX-18, UX-19, UX-23, UX-27, UX-28 and UX-29 PASS (by report; UX-17 and UX-28 offline parts with a screenshot); UX-15 and UX-26 partial (by report; landscape NOT RUN until W-22) |
-| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator | 697 / 697 (run on macOS, 2026-11-24) |
-| Known open defects | | |
+| UX scenarios executed / PASS | 0 of 35 executed | 12 of 35 executed: UX-09, UX-14, UX-16, UX-17, UX-18, UX-19, UX-23, UX-27, UX-28 and UX-29 PASS (by report; UX-17 and UX-28 offline parts with a screenshot); UX-15 and UX-26 partial (by report; landscape not run, possible since US-08.02). UX-30 – UX-35 not run |
+| Unit tests PASS / total | One shared suite: Jest runs in Node, not on a device or emulator. 800 / 800 (run on Windows, 2026-11-26) | 697 / 697 (last run on macOS, 2026-11-24) |
+| Known open defects | None observed. Not yet checked on a device: the Epic 8 changes (§1.20) | None observed. Not yet checked on a device: the Epic 8 changes (§1.20) |

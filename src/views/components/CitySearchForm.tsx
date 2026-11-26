@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors } from '../../theme/colors';
+import { interaction } from '../../theme/interaction';
 import { MIN_TOUCH_TARGET, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.m,
   },
   buttonPressed: {
-    opacity: 0.8,
+    opacity: interaction.pressedOpacity,
   },
   buttonText: {
     color: colors.onPrimary,

@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Location } from '../../models/Location';
+import { interaction } from '../../theme/interaction';
 import { skyColors } from '../../theme/sky';
 import { MIN_TOUCH_TARGET, iconSize, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
@@ -22,6 +23,11 @@ export type HomeHeaderProps = {
   readonly onPressFavorites: () => void;
   readonly onPressSearch: () => void;
   readonly onPressSettings: () => void;
+  /**
+   * A narrow window or large text (`screenLayoutFor`): the buttons go on a
+   * row under the title, so the place name keeps the full width.
+   */
+  readonly isCompact: boolean;
 };
 
 /** The icon and screen-reader texts of the favorite star. */
@@ -54,8 +60,20 @@ export function presentFavoriteToggle(
  * the favorite star for the selected place (only when a place is selected),
  * the favorites list, search and settings. Before a place is chosen, the app name is
  * shown. Presentational: the screen and its ViewModels decide what a tap does.
+ *
+ * Layout (US-08.02; SPEC D-50): normally the title and the buttons share one
+ * row. When `isCompact`, the header is a column: the title on top over the
+ * full width (with room for two lines), the buttons right-aligned below, in
+ * the same place as in the one-row layout.
  */
-export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch, onPressSettings }: HomeHeaderProps) {
+export function HomeHeader({
+  location,
+  favorite,
+  onPressFavorites,
+  onPressSearch,
+  onPressSettings,
+  isCompact,
+}: HomeHeaderProps) {
   const subtitle =
     location === null
       ? undefined
@@ -66,9 +84,9 @@ export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch
       : undefined;
 
   return (
-    <View style={styles.header}>
-      <View style={styles.titles} accessible accessibilityRole="header">
-        <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
+    <View style={[styles.header, isCompact ? styles.headerStacked : styles.headerRow]}>
+      <View style={[styles.titles, !isCompact && styles.titlesBeside]} accessible accessibilityRole="header">
+        <Text style={styles.title} numberOfLines={isCompact ? 2 : 1} adjustsFontSizeToFit>
           {location === null ? 'Weatherly' : location.name}
         </Text>
         {subtitle !== undefined && (
@@ -77,7 +95,7 @@ export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch
           </Text>
         )}
       </View>
-      <View style={styles.buttons}>
+      <View style={[styles.buttons, isCompact && styles.buttonsStacked]}>
         {star !== undefined && favorite !== undefined && (
           <Pressable
             accessibilityRole="button"
@@ -133,16 +151,26 @@ export function HomeHeader({ location, favorite, onPressFavorites, onPressSearch
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.m,
     paddingHorizontal: spacing.m,
     paddingTop: spacing.s,
     paddingBottom: spacing.s,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.m,
+  },
+  headerStacked: {
+    gap: spacing.s,
+  },
   titles: {
-    flex: 1,
     gap: spacing.xs,
+  },
+  titlesBeside: {
+    // Takes the width the buttons leave, and shrinks the title instead of the
+    // buttons. Only in the row: in the stacked column, which has no fixed
+    // height, flex: 1 (flex basis 0) could shrink the titles to nothing.
+    flex: 1,
   },
   title: {
     color: skyColors.onSky,
@@ -158,6 +186,9 @@ const styles = StyleSheet.create({
     // Wide enough apart that the buttons' enlarged touch areas (hitSlop) do not overlap.
     gap: spacing.s,
   },
+  buttonsStacked: {
+    alignSelf: 'flex-end',
+  },
   iconButton: {
     width: MIN_TOUCH_TARGET,
     height: MIN_TOUCH_TARGET,
@@ -169,9 +200,9 @@ const styles = StyleSheet.create({
     borderColor: skyColors.cardBorder,
   },
   iconButtonPressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
   },
   iconButtonDisabled: {
-    opacity: 0.5,
+    opacity: interaction.disabledOpacity,
   },
 });

@@ -1,7 +1,15 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
+import {
+  AppState,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  type ScrollViewInstance,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Location } from '../../models/Location';
 import type { DailyForecast } from '../../models/Weather';
@@ -9,6 +17,7 @@ import type { RootStackScreenProps } from '../../navigation/routes';
 import { skyBaseColor, skyColors, skyGradient, skyVariantFor } from '../../theme/sky';
 import { CONTENT_MAX_WIDTH, spacing } from '../../theme/spacing';
 import { selectTodayForecast } from '../../utils/forecastSelection';
+import { screenLayoutFor } from '../../utils/screenLayout';
 import { displayUnitsOf } from '../../utils/units';
 import { useCoordinateSearchViewModel } from '../../viewmodels/useCoordinateSearchViewModel';
 import { useFavoritesViewModel } from '../../viewmodels/useFavoritesViewModel';
@@ -20,7 +29,7 @@ import { FavoritesSaveNotice } from '../components/FavoritesStatus';
 import { HomeHeader } from '../components/HomeHeader';
 import { HourlyForecastList } from '../components/HourlyForecastList';
 import { WeatherHero } from '../components/WeatherHero';
-import { RefreshNotice, WeatherStatus } from '../components/WeatherStatus';
+import { CacheCheckStatus, RefreshNotice, WeatherStatus, homeContentFor } from '../components/WeatherStatus';
 import { WelcomePanel } from '../components/WelcomePanel';
 import { LocationSearchSheet } from './LocationSearchSheet';
 
@@ -66,6 +75,17 @@ import { LocationSearchSheet } from './LocationSearchSheet';
  * until the new one arrives. Pulling down on the weather always fetches
  * again; the spinner shows during every refresh. A failed refresh shows
  * `RefreshNotice` with "Try again" under the header (NIT-383).
+ *
+ * Start-up (NIT-274; SPEC D-51): until the cache has been checked, the body
+ * shows a neutral spinner (`homeContentFor`), so a returning user never sees
+ * the first-launch welcome panel flash before the cached weather.
+ *
+ * Layout (US-08.02; SPEC D-50): one scrolling column in both orientations.
+ * `screenLayoutFor(useWindowDimensions())` only switches the header to its
+ * stacked form on narrow windows and the hero to its compact size on short
+ * ones. All state lives in the ViewModels, so a rotation keeps it and starts
+ * no request. The root `SafeAreaView` keeps every edge clear, including the
+ * notch side in landscape.
  */
 export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) {
   const searchViewModel = useSearchViewModel();
@@ -78,8 +98,10 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
   const units = displayUnitsOf(settings);
   const [isSearchOpen, setSearchOpen] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const layout = screenLayoutFor(useWindowDimensions());
 
-  const { location, state, forecast } = weatherViewModel;
+  const { location, state, forecast, isCacheChecked } = weatherViewModel;
+  const content = homeContentFor(location, state, isCacheChecked);
   const fetched = state.status === 'success' || state.status === 'refreshFailed' ? state.data : undefined;
   const report = fetched?.report;
   const isRefreshing = (state.status === 'success' || state.status === 'refreshFailed') && state.isRefreshing;
@@ -174,6 +196,7 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
             onPressFavorites={() => navigation.navigate('Favorites')}
             onPressSearch={() => setSearchOpen(true)}
             onPressSettings={() => navigation.navigate('Settings')}
+            isCompact={layout.isCompactWidth}
           />
           {favoritesViewModel.saveError !== null && (
             <View style={styles.notice}>
@@ -204,15 +227,18 @@ export function HomeScreen({ navigation, route }: RootStackScreenProps<'Home'>) 
             )
           }
         >
-          {location === null ? (
+          {content === 'checkingCache' ? (
+            <CacheCheckStatus />
+          ) : content === 'welcome' ? (
             <WelcomePanel onPressSearch={() => setSearchOpen(true)} />
-          ) : report !== undefined && fetched !== undefined && forecast !== null ? (
+          ) : content === 'weather' && report !== undefined && fetched !== undefined && forecast !== null ? (
             <>
               <WeatherHero
                 current={report.current}
                 utcOffsetSeconds={report.utcOffsetSeconds}
                 today={selectTodayForecast(forecast)}
                 units={units}
+                isCompact={layout.isShortHeight}
               />
               <HourlyForecastList
                 hours={forecast.todayHours}

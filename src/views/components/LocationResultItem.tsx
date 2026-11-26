@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Location } from '../../models/Location';
 import { colors } from '../../theme/colors';
+import { interaction } from '../../theme/interaction';
 import { MIN_TOUCH_TARGET, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
 import { formatLocationDetails } from '../../utils/locationFormatting';
@@ -59,7 +60,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySubtle,
   },
   itemPressed: {
-    opacity: 0.8,
+    opacity: interaction.pressedOpacity,
   },
   texts: {
     flex: 1,

@@ -156,13 +156,79 @@ All persisted values are re-validated when read (STYLE.md §11).
 
 ## 14. Submission Requirements
 
-> Copy the exact submission requirements and deadlines from the course page here. They are intentionally not guessed.
+**From the Lab B:2 instructions** (`Lab-B2-Weather.pdf`, read 2026-11-26). The dates are not in the PDF; copy them from the course page.
 
-- [ ] Submission format and deadline: *TBD (from course page)*
-- [ ] Oral examination date and format: *TBD (from course page)*
-- [ ] Public GitHub repository link: https://github.com/XxNitXZ/Weatherly
-- [ ] Root documentation is up to date (SPEC, TEST_REPORT, LLM_PROCESS, REFLECTION)
-- [ ] Both students can demonstrate the app on Android Emulator and iOS Simulator
+- **When:** at least one day before the scheduled presentation. Presentation date: *TBD (course page)*. Submission date: *TBD*.
+- **What:** one document: a reflection report (about half a page: one thing that surprised you when building a networked app with AI assistance, and one thing you would do differently next time) that includes Appendices A – D. The code is not submitted separately; it is reviewed and discussed at the presentation.
+  - **Appendix A – Test report** ([TEST_REPORT.md](TEST_REPORT.md)): which parts of the logic were tested, the test cases and their results, with the test files attached. Testing on a physical device or the official simulator/emulator; a browser preview does not count. At least 20 UX scenarios, each with starting state, action and expected result.
+  - **Appendix B – README** ([README.md](README.md)): how the code is structured, so a reader understands the architecture before opening the project.
+  - **Appendix C – SPEC** ([SPEC.md](SPEC.md)): requirement IDs, AI meta-instructions at the top, an end-of-session update log.
+  - **Appendix D – LLM process log** ([LLM_PROCESS.md](LLM_PROCESS.md)): per session, the task given to the AI, what it produced, what was kept or changed, and where it helped or fell short. The lab's appendix adds: tools and context files used, a who-wrote-what table, 3 – 5 representative prompts with why each was chosen, AI mistakes and how they were handled, and a one-line-per-session work log. It also says the AI must never write this file for the student (SPEC OQ-09).
+- **Presentation:** a demo of the running app, then questions from the 30-question list (SPEC §12); the first question is always Q26.
+- **The final submission uses the real API**, not a test server.
+- Public GitHub repository: https://github.com/XxNitXZ/Weatherly
+
+### 14.1 Submission Checklist
+
+Only the students tick these boxes.
+
+**Reflection** (students only; the AI must not write it, SPEC §0 rule 9)
+- [ ] About half a page in [REFLECTION.md](REFLECTION.md): one surprise, one thing to do differently. Private running notes deleted.
+
+**Appendix A – [TEST_REPORT.md](TEST_REPORT.md) and `tests/`**
+- [ ] At least 20 scenarios run on **both** the Android Emulator and the iOS Simulator (§3.2), with observations and evidence; everything else left as `NOT RUN`.
+- [ ] Android rows: 0 of 35 run so far. iOS rows: 12 of 35 run so far (2026-11-26).
+- [ ] §1: the AVD name and API level, the simulator model and iOS version, and the commit tested.
+- [ ] `npm run check` run by a student on the submitted commit and added to §2.4.
+- [ ] §0, §3.3 and §4 summaries agree with the tables.
+- [ ] The `tests/` folder (with `fixtures/` and `helpers/`) attached.
+
+**Appendix B – [README.md](README.md)**
+- [ ] Still matches the code after the last merge (screens, layers, file names, test count).
+
+**Appendix C – [SPEC.md](SPEC.md)**
+- [ ] §0 at the top, requirement IDs, §14 change log up to date.
+- [ ] §11 statuses set by the students; `VERIFIED` only after both platforms (§11, W-32).
+- [ ] §12 answers and §12.1 tests: each student can open every code location and test.
+- [ ] Open questions OQ-04, OQ-06, OQ-08, OQ-09 resolved or explained.
+
+**Appendix D – [LLM_PROCESS.md](LLM_PROCESS.md)** (students; see SPEC OQ-09). Missing on 2026-11-26:
+- [ ] §2 who-wrote-what table: empty (one row per module or document).
+- [ ] 3 – 5 representative prompts, each with why it was chosen: no section yet.
+- [ ] Work log, one line per session with date, what was done and approximate time: no section yet, and no session records its time.
+- [ ] Context files loaded per session: only the agent-file field exists; SPEC, STYLE and CONTEXT are read at the start of every session (CLAUDE.md).
+- [ ] Sessions without an entry: the 2026-11-26 Epic 8/9 session on `feat/NIT-159-160-rework` (no entry written, OQ-09), and any session after LLM-016.
+- [ ] "Read and understood line by line" and the review fields in each entry, which only the students can fill in.
+- [ ] §4 summary: empty.
+
+**Repository and demo**
+- [ ] Every Epic merged into `dev` through a pull request reviewed by the other student; `main` updated if the team releases.
+- [ ] A clean `npm ci` and `npm start` on the submitted commit open the app on both platforms.
+- [ ] No secrets or local config in the repository.
+- [ ] Both students have practised the demo (§14.2) on their own platform.
+- [ ] Submitted at least one day before the presentation.
+
+### 14.2 Oral Demonstration Walkthrough
+
+A suggested order for the demo (about 5 minutes), then Q26. Each step names the requirement, so a question can lead straight to the code.
+
+**Before the presentation**
+- Start the app on both platforms beforehand (§7; TEST_REPORT §3.0). Load a place once, so the start shows the cache.
+- Know where to switch the network off (Airplane mode on Android; the Mac's Wi-Fi for the iOS Simulator) and how to rotate (emulator toolbar; ⌘← / ⌘→).
+- Open in VS Code: SPEC.md at §0 and §11, and a terminal where `npm run check` can be run.
+
+**Demo**
+1. **Start (W-16, D-51):** close and reopen the app: a short spinner, then the last place and its weather without a search. Code: `restoreLastReport` in `useWeatherViewModel.ts`.
+2. **Search by name (W-01, W-02):** search "Lund": places with region and country; choose one. Show the hero, "Rest of today" and the seven days, all from one request (W-04 – W-06).
+3. **Coordinates (W-03, W-30):** enter latitude `95`: an inline error, no request. Then `59.33`, `18.07`: the weather loads.
+4. **A day (W-07):** tap a day: the detail screen with precipitation, wind and sun; back.
+5. **Favourites (W-08, W-09):** tap the star; open Favourites; choose the place. Restart the app: it is still saved.
+6. **Settings (W-10 – W-12):** switch to °F and km/h: every temperature and wind speed changes, also on the day screen, without a reload.
+7. **Rotation (W-22, D-50):** rotate Home and a day to landscape: the compact hero, everything reachable by scrolling, nothing reloads.
+8. **Offline (W-17, W-18):** network off, pull to refresh: "No connection. Showing the weather from HH:MM." with "Try again"; network on, "Try again" updates it.
+9. Optional, **race condition (W-23, Q12):** search "Lund" and at once "Kiruna": Kiruna's results stay.
+
+**Then Q26 (always first):** SPEC §0 (the meta-instructions), then one requirement end to end, e.g. W-16: §6 → §7 "W-16 – Local caching" → §11 row → `weatherRepository.loadLastReport` → `tests/repositories/weatherRepository.test.ts` › "gives back the saved entry, as after a restart of the app" (SPEC §12, §12.1).
 
 ## 15. AI Collaboration Workflow
 
@@ -233,6 +299,13 @@ Update this section when the state changes.
 - 757 unit tests pass; iOS export and Expo Doctor pass. PR into `dev` pending.
 
 **Open checks:** every Android Emulator scenario; the on-screen iOS minus key for coordinates (TEST_REPORT §1.4).
+
+**In progress on `feat/NIT-159-160-rework`** (from `dev` at `4cb3328`, uncommitted, Windows, 2026-11-26): Epic 8 (NIT-159) and the documentation part of Epic 9 (NIT-160). The earlier attempt on `feat/NIT-159-160-ui-testing` is left untouched and is not to be merged.
+- US-08.01 (NIT-186): one pressed and one disabled opacity (`src/theme/interaction.ts`, SPEC D-49); disabled settings options are dimmed.
+- US-08.02 (NIT-187): `"orientation": "default"`; `screenLayoutFor` (D-50); a stacked home header on narrow windows or with large text; compact heroes in short windows. One scrolling column everywhere, no two-column layout.
+- US-08.03 (NIT-188): no welcome-panel flash at the start (`isCacheChecked`, `homeContentFor`, D-51); a loading line on Settings.
+- Epic 9: README rewritten as Appendix B; TEST_REPORT with an Appendix A summary, run instructions, 35 scenarios and a status overview; SPEC traceability corrected, §12.1 tests per question, OQ-09; the checklist and demo walkthrough in §14.
+- 800 unit tests pass; Android and iOS exports and Expo Doctor (20/20) pass. Nothing has been run on a device yet (TEST_REPORT §1.20).
 
 **Epic 5 phase 1** (favourites logic and persistence, US-05.01 without the star and US-05.02; SPEC D-37 – D-39) is on `dev` through PR #3 (`9d90de1`).
 

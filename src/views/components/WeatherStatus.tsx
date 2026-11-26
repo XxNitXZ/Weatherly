@@ -1,7 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { AppError } from '../../models/AppError';
+import type { Location } from '../../models/Location';
 import type { FetchedWeatherReport } from '../../models/Weather';
+import { interaction } from '../../theme/interaction';
 import { skyColors } from '../../theme/sky';
 import { MIN_TOUCH_TARGET, iconSize, radius, spacing } from '../../theme/spacing';
 import { fontSize, fontWeight } from '../../theme/typography';
@@ -57,6 +59,45 @@ export function describeWeatherStatus(
     case 'error':
       return { kind: 'error', text: weatherErrorMessage(state.error) };
   }
+}
+
+/**
+ * What the body of the home screen shows (NIT-274; SPEC D-51):
+ * - `checkingCache`: a neutral loading view at the app's start while the
+ *   cache is read, because it may still hold the last place
+ * - `welcome`: the first-launch panel that invites a search, only once it is
+ *   known that there is no usable cache entry
+ * - `weather`: the hero and the forecasts (also during and after a failed refresh)
+ * - `status`: `WeatherStatus`, i.e. loading or the error with "Try again"
+ */
+export type HomeContent = 'checkingCache' | 'welcome' | 'weather' | 'status';
+
+/**
+ * The home body for the weather ViewModel's values. A chosen or restored
+ * place always decides, whatever the cache check is doing.
+ */
+export function homeContentFor(
+  location: Location | null,
+  state: LoadState<FetchedWeatherReport>,
+  isCacheChecked: boolean,
+): HomeContent {
+  if (location === null) {
+    return isCacheChecked ? 'welcome' : 'checkingCache';
+  }
+  return state.status === 'success' || state.status === 'refreshFailed' ? 'weather' : 'status';
+}
+
+/**
+ * The neutral loading view while the app looks for the last place at its
+ * start (NIT-274). No text: it may be a first launch, so "Loading weather"
+ * would be wrong, and the check usually takes a fraction of a second.
+ */
+export function CacheCheckStatus() {
+  return (
+    <View style={styles.status} accessible accessibilityLabel="Loading">
+      <ActivityIndicator size="large" color={skyColors.onSky} />
+    </View>
+  );
 }
 
 export type WeatherStatusProps = {
@@ -198,7 +239,12 @@ export function RefreshNotice({ state, onRetry }: RefreshNoticeProps) {
         accessibilityState={{ disabled: isRetrying }}
         disabled={isRetrying}
         onPress={onRetry}
-        style={({ pressed }) => [styles.retry, styles.noticeRetry, (pressed || isRetrying) && styles.retryPressed]}
+        style={({ pressed }) => [
+          styles.retry,
+          styles.noticeRetry,
+          pressed && styles.retryPressed,
+          isRetrying && styles.retryDisabled,
+        ]}
       >
         <Text style={styles.retryText}>Try again</Text>
       </Pressable>
@@ -257,7 +303,10 @@ const styles = StyleSheet.create({
     borderColor: skyColors.cardBorder,
   },
   retryPressed: {
-    opacity: 0.7,
+    opacity: interaction.pressedOpacity,
+  },
+  retryDisabled: {
+    opacity: interaction.disabledOpacity,
   },
   retryText: {
     color: skyColors.onSky,
