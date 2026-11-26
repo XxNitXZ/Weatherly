@@ -1,0 +1,717 @@
+# Weatherly – Requirements Specification
+
+> Living document. Last structural update: 2026-11-10 (NIT-202).
+> Status values in this file are changed **only by the students** after independent verification.
+
+---
+
+## 0. AI Meta-Instructions
+
+These instructions apply to every AI assistant working on this repository: **Claude Code in VS Code** (used by both developers, D-15), and ChatGPT for planning and review. They take precedence over general assistant defaults. The agent rule set is [CLAUDE.md](CLAUDE.md), which Claude Code loads automatically from the repository root; [AGENTS.md](AGENTS.md) only points to it. The rule set must not diverge from this file ([CONTEXT.md §15](CONTEXT.md#15-ai-collaboration-workflow)). Until 2026-11-18, Developer 2 used OpenAI Codex with a separate copy of the rules (D-13, superseded).
+
+1. **Read first.** Before every implementation session, read [SPEC.md](SPEC.md), [STYLE.md](STYLE.md) and [CONTEXT.md](CONTEXT.md).
+2. **Stay in scope.** Implement only the user story or task named in the session request. Do not implement unrelated user stories, even partially.
+3. **Respect course constraints.** Follow the Lab B:2 requirements in this file and the decisions in [CONTEXT.md](CONTEXT.md). If a request conflicts with them, stop and say so.
+4. **No unnecessary libraries.** Do not add a dependency unless the session request or an accepted decision in §13 allows it. Prefer Expo SDK modules and React Native built-ins. Install Expo-compatible versions with `npx expo install`.
+5. **Explain architecture.** When creating or changing structure (new layer, new file type, new dependency), explain the reasoning so the students can defend it at the oral examination.
+6. **Never mark requirements complete.** Do not change any status in §11 to `VERIFIED`. An assistant may propose `IMPLEMENTED` only for code it actually wrote in the current session, and must say so explicitly.
+7. **Never invent results.** Do not invent test results, test counts, screenshots, coverage numbers or API behaviour.
+8. **Be honest about platforms.** Do not claim the app was run on the Android Emulator or iOS Simulator unless that run actually happened in the session and its output was observed.
+9. **Do not write the reflection.** Do not write or edit the students' personal reflection ([REFLECTION.md](REFLECTION.md)).
+10. **English only.** All code, comments, identifiers, commit messages and documentation are in English.
+11. **Code from the students' prompts.** The AI writes code according to the students' prompts. The students review, test and modify it, and must be able to explain every line before they commit it. For core logic (parsing, caching, validation and ViewModel logic), the AI explains the key decisions and trade-offs along with the code (see [STYLE.md §18](STYLE.md#18-ai-collaboration-guidelines)).
+12. **End-of-session reminder.** At the end of every session, remind the students to complete the end-of-session checklist in [CONTEXT.md §16](CONTEXT.md#16-end-of-session-checklist) and the update procedure in §15 of this file.
+
+---
+
+## 1. Project Goal
+
+Weatherly is a native cross-platform weather app for Android and iOS. A user can:
+- search for a location by place name or by coordinates
+- see the current weather, an hourly forecast for today and a seven-day forecast
+- save favourite locations
+- configure refresh and display preferences
+- keep using recently loaded data while offline
+
+The project also aims to show professional software engineering practice: clear MVVM architecture, typed data models, isolated JSON parsing, tested core logic and a documented, reviewed AI-assisted workflow.
+
+## 2. Course Information
+
+| Item | Value |
+|---|---|
+| Course | KTH HI1033 / CM2023 |
+| Assignment | Lab B:2 – Building a Native Weather App |
+| Grading target | Higher level – 2 points |
+| Team | Two students, shared repository |
+| Examination | Code submission and oral examination (see [CONTEXT.md §14](CONTEXT.md#14-submission-requirements)) |
+
+## 3. Higher-Level Grading Target
+
+To reach the higher level, the app must meet all mandatory requirements (§6) **and** the quality objectives (§8):
+
+- Clear separation of responsibilities between layers.
+- Consistent and deliberate naming.
+- Maintainable, readable code.
+- A designed, consistent user interface.
+- Robust edge-case handling.
+- The students' ability to explain every architectural decision.
+
+## 4. Technology Stack
+
+| Area | Choice | Status |
+|---|---|---|
+| Framework | React Native 0.88 via Expo SDK 58 | Decided (D-01) |
+| Language | TypeScript 6.0, `strict: true` | Decided (D-01) |
+| Weather API | Open-Meteo (REST, JSON) | Decided (D-05) |
+| Geocoding API | Open-Meteo Geocoding API (`geocoding-api.open-meteo.com/v1/search`, no key, `language=sv`) | Decided (D-24, supersedes D-06) |
+| Navigation | React Navigation: `@react-navigation/native`, `@react-navigation/native-stack`, peer `react-native-screens`; one native stack | Decided (D-07, D-35); installed (US-04.01) |
+| Local persistence | `@react-native-async-storage/async-storage` | Decided (D-08); installed (US-05.02) |
+| Unit testing | Jest with the `jest-expo` preset; tests in the root `tests/` folder | Decided (D-09, D-23); installed |
+| State management | React hooks as ViewModels, no global state library | Proposed (D-10) |
+| Cross-platform testing | Android Emulator (Windows) and iOS Simulator (macOS) | Decided (D-12) |
+| Safe areas | `react-native-safe-area-context` | Decided (D-26); installed (US-03.01) |
+| Weather icons | `@expo/vector-icons` (MaterialCommunityIcons), with its required peers `expo-font` and `expo-asset` | Decided (D-34); installed (home-screen redesign) |
+| Gradients and shadows | React Native's own `backgroundImage` and `boxShadow` styles, no library | Decided (D-33) |
+
+The runtime dependencies installed today are:
+- `expo`, `expo-status-bar`, `react` and `react-native`
+- `react-native-safe-area-context` (US-03.01)
+- `@expo/vector-icons`, `expo-font` and `expo-asset` (redesign, D-34)
+- `@react-navigation/native` ^7.5.2, `@react-navigation/native-stack` ^7.21.1 and `react-native-screens` ~4.30.1 (US-04.01, D-35)
+- `@react-native-async-storage/async-storage` 2.2.0, the SDK 58 version chosen by `npx expo install` (US-05.02, D-08). Imported only by `src/storage/keyValueStorage.ts`.
+
+Jest, `jest-expo` and `@types/jest` are installed as dev dependencies (US-02.01). Since US-05.02, every library decided above is installed. A new library still needs a decision first and is added with `npx expo install` in the user story that first needs it.
+
+## 5. Architecture
+
+Weatherly uses **MVVM** with a thin data layer. Dependencies point inwards only: View → ViewModel → Repository → (API service + Parser, Storage) → Model.
+
+```
+View (screens, components)       renders state, forwards user events
+  │
+ViewModel (custom hooks)         UI state, loading/error state, user intents
+  │
+Repository                       single source of truth, caching, offline fallback
+  │                  │
+API service          Storage     HTTP requests, persistence (no UI knowledge)
+  │
+Parser                           raw JSON → typed Model, validation
+  │
+Model                            plain TypeScript types, no logic dependencies
+```
+
+Detailed layer rules, layer contracts, the search-to-forecast data flow, navigation ownership and the folder structure are in [STYLE.md §3–4](STYLE.md#3-mvvm-architecture). The `src/` folder structure exists. Which modules exist and which are still planned is tracked in the status column of STYLE §3.1.
+
+---
+
+## 6. Functional Requirements (mandatory)
+
+| ID | Requirement | Category |
+|---|---|---|
+| W-01 | The user can search for locations by place name. | Search |
+| W-02 | Place-name search uses a geocoding REST API and lists the matching locations. | Search / API |
+| W-03 | The user can search by latitude/longitude. The input is validated before any request is sent. | Search |
+| W-04 | The app shows the current weather conditions for the selected location. | Weather |
+| W-05 | The app shows a seven-day weather forecast. | Weather |
+| W-06 | The app shows hourly details for today. | Weather |
+| W-07 | The user can open details for a single forecast day. | Weather |
+| W-08 | The user can add locations to and remove them from favourites. Favourites persist between app launches. | Favourites |
+| W-09 | A favourites screen gives quick access to saved locations. | Favourites |
+| W-10 | A settings screen exists. | Settings |
+| W-11 | The user can configure the weather refresh interval. | Settings |
+| W-12 | The user can configure UI preferences (at least the temperature unit; the final set is decided in the settings story). | Settings |
+| W-13 | Weather data is fetched from a REST weather API (Open-Meteo, D-05). | Data |
+| W-14 | JSON parsing is done in separate parser modules, never in views or ViewModels. | Data |
+| W-15 | All data inside the app uses typed internal models, not raw API JSON. | Data |
+| W-16 | Weather data is cached locally on the device. | Persistence |
+| W-17 | When offline, the app falls back to the cached data and clearly shows that it may be outdated. | Persistence |
+| W-18 | Network errors (no connection, timeout) are handled with clear messages and a retry option. | Robustness |
+| W-19 | API response errors (HTTP errors, malformed or incomplete JSON) are handled without crashing. | Robustness |
+| W-20 | Every asynchronous operation shows a visible loading state. | UX |
+| W-21 | Forecast lists are scrollable. | UX |
+| W-22 | All screens work in portrait and landscape orientation. | UX |
+| W-23 | Network requests are asynchronous and never block the UI thread. | Data |
+| W-24 | Unit tests cover at least two of the lab's logic areas: JSON parsing, error-state logic, data transformation. | Testing |
+| W-25 | At least 20 distinct UX interaction scenarios are defined, executed and documented. | Testing |
+
+## 7. Detailed Requirements
+
+Planned components follow the folder structure in [STYLE.md §4](STYLE.md#4-folder-structure). File names are **planned**, not existing.
+
+**W-01 – Place-name search**
+- Searching is triggered by a submit action: the "Search" button or the keyboard's search key (US-03.01). There is no search-as-you-type, which keeps requests to one per submitted query.
+- Repeating the query that is loading or already shown sends no second request (D-28).
+- Leading and trailing whitespace is trimmed, and empty input sends no request.
+- Results show the name plus context (region/country) so that places with the same name can be told apart.
+- An empty result list shows a "no locations found" message.
+- Planned: `HomeScreen`, `useSearchViewModel`, `locationRepository` (D-17), `geocodingService`.
+
+**W-02 – Geocoding API integration**
+- Uses the Open-Meteo Geocoding API (D-24). The SMHI place search named in the lab instructions no longer exists (HTTP 404, checked 2026-11-20).
+- Requests use `language=sv`, so Swedish spellings such as "Göteborg" are found. Results come with `admin1` (region) and `country`, which are shown to tell same-named places apart.
+- No results: the response has no `results` key, which means an empty list, not an error.
+- `locationRepository` calls `geocodingService`, and the response is parsed by `geocodingParser` into `Location` models (D-17).
+- Selecting a result loads the weather for that location.
+
+**W-03 – Coordinate search and validation**
+- Latitude must be in [-90, 90] and longitude in [-180, 180].
+- Accepts decimal numbers with `.` or `,` as the decimal separator (D-25): an optional sign, digits, and an optional decimal part with digits on both sides (`59.33`, `-33,87`). Scientific notation, hex, `Infinity`, `59.` and `.5` are rejected.
+- Each field reports its own error: `empty`, `notANumber` or `outOfRange`.
+- Invalid input shows an inline validation message, and no request is sent.
+- The validation logic is a pure function (`coordinateValidation`) and is a unit-test candidate (W-24).
+
+**W-04 – Current weather**
+- Shows at least the temperature, a weather-condition description/icon and the observation time.
+- Additional fields (wind, humidity, etc.) are selected from what Open-Meteo provides (D-05).
+- Values are shown in the user's selected units (W-12).
+- Implemented in US-03.02 (D-29, D-30):
+  - **Shown always:** temperature, condition text from the WMO code (`describeWeatherCode`, "Unknown conditions" for unknown codes) and the observation time in the location's local time.
+  - **Shown when the API provides them:** feels-like temperature, relative humidity and wind speed.
+  - **Units:** °C, % and m/s, as requested from the API (W-12 is not yet implemented).
+  - Since D-33 / D-34 the current weather is the home screen's hero: a large icon (day or night variant), the temperature, the condition, and today's high and low.
+
+**W-05 – Seven-day forecast**
+- Shows exactly seven days starting today, each with the date/weekday, min/max temperature and a condition indicator.
+- The list is scrollable (W-21).
+- Implemented in US-03.03:
+  - `selectForecastDays` starts at the day that contains "now" and shows at most seven days; it never invents missing days.
+  - Today's row says "Today" and is highlighted. The other rows show the short weekday and date ("Sat", "21 Nov"), the condition text, and the high and low temperatures as the API sent them.
+  - Dates are those of the location (D-31).
+
+**W-06 – Hourly details for today**
+- Shows hourly entries for the rest of the current day, in the selected location's time zone.
+- If the API gives a different resolution, the actual behaviour is documented in §13.
+- Implemented in US-03.04 as a horizontal list:
+  - `selectRemainingHoursToday` keeps the hour in progress and the later hours of today. "Today" means the API's own day boundaries (D-31).
+  - Each hour shows local time, temperature and condition text.
+  - When no hour is left, the section says so and points to the 7-day forecast.
+  - The API's resolution is one entry per hour, 24 per day, also across a daylight-saving change (D-31).
+
+**W-07 – Daily forecast details**
+- Selecting a day in the seven-day forecast opens a detail view for that day.
+- The fields shown are selected from the Open-Meteo daily data (D-05).
+- Sunrise and sunset are shown in the location's local time; polar days and missing values follow D-42.
+- Besides temperature and condition, the screen shows the extra daily data of D-43: feels-like, precipitation (total, chance, rain, snow, hours), wind (max, gusts, direction), UV index and daylight.
+
+**W-08 – Favourite locations**
+- Add/remove is available from the weather view.
+- Duplicates are prevented by comparing coordinates (with a defined tolerance) or the provider ID.
+- Favourites are stored through `favoritesRepository` and survive app restarts.
+- Logic and persistence implemented in US-05.01 and US-05.02 (D-37 – D-39); the star button on the weather view added in NIT-239 (D-40):
+  - **Star (NIT-239):** in `HomeHeader`, only when a place is selected: outlined when the place is not saved, filled when it is. A tap toggles it through `useFavoritesViewModel.toggleFavorite`. Disabled while a change is saved or the favourites are read; a failed save shows a notice under the header.
+  - **Identity (D-37):** two places are the same favourite when both latitude and longitude differ by at most `FAVORITE_COORDINATE_TOLERANCE` = 0.0001° (inclusive). Names are not compared. A duplicate add keeps the entry saved first. Newest favourites come first.
+  - **Storage (D-38):** key `weatherly:favorites`, versioned JSON `{ "version": 1, "favorites": [Location, …] }`, validated strictly when read. Damaged data is reported as an error and never overwritten automatically.
+  - **ViewModel (D-39):** `useFavoritesViewModel` shows a change only after the storage confirmed it, runs one write at a time and keeps the last saved list when a write fails.
+
+**W-09 – Favourites quick-access screen**
+- Lists saved favourites, and selecting one opens its weather.
+- An empty list shows guidance on how to add favourites.
+- Implemented in US-05.03 (NIT-244, NIT-245; D-40):
+  - `FavoritesScreen` is pushed onto the one native stack from a header button on the home screen.
+  - It lists the favourites newest first in a `FlatList`: name, then region and country, or the coordinates. Each row has a remove button; a removal shows only after it was saved.
+  - It shows loading, empty and error states. For damaged data it offers "Delete saved favourites", only after the user confirms.
+  - Choosing a place pops back to `Home` with `selectedLocation`; Home loads it through the existing weather flow. Home reads the favourites again whenever it comes back into view.
+
+**W-10 – Settings screen**
+- A dedicated screen that hosts W-11 and W-12.
+- Settings persist through `settingsRepository` and are shared with every screen by `SettingsProvider` (D-44); a choice applies at once and survives a restart.
+- Opened from a gear button in the Home header; pushed onto the stack with the native header "Settings" (NIT-247).
+- Shows three groups: refresh interval (15, 30, 60 min), temperature unit (°C, °F) and wind-speed unit (m/s, km/h). The selected option has a checkmark and the default is marked "default" (defaults: 30 min, °C, m/s).
+
+**W-11 – Configurable refresh interval**
+- The user can choose from a fixed set of intervals: 15, 30 or 60 minutes, default 30 (US-06.01; stored with the other settings, D-44).
+- Data is stale when it is **at least** the interval old (exactly 15 minutes with a 15-minute interval is stale), or when its fetch time lies in the future (the clock was set back). `isStale` in `src/utils/refreshPolicy.ts`, pure and unit-tested (W-24).
+- Stale weather is fetched again when Home comes back into view or the app returns from the background (D-45); the shown weather stays until the new one arrives. At app start the stored cache entry is shown first and fetched again at once if it is stale, by the same rule and interval (D-48).
+
+**W-12 – UI preferences**
+- Two preferences (Epic 6 scope, checked against the lab's "other UI preferences"): the temperature unit (°C/°F, default °C) and the wind-speed unit (m/s or km/h, default m/s).
+- Applied on every screen that shows a temperature or a wind speed, also in the screen-reader texts: the Home hero, the hourly list, the seven-day rows, the day detail hero and its Wind card (D-46). Other values (rain, snow, UV, daylight, percentages) keep their units.
+- A change applies at once, without a new request.
+
+**W-13 – REST weather API**
+- Weather data comes from Open-Meteo (D-05).
+- All HTTP calls live in `src/services/api/` (`weatherService`).
+- Endpoint URLs and query parameters are built in one place.
+
+**W-14 – Separate JSON parser**
+- `weatherParser` and `geocodingParser` turn `unknown` JSON into typed models.
+- Parsers do no network or storage work and are pure functions.
+- Parsers are unit-test candidates (W-24).
+
+**W-15 – Typed internal models**
+- Models live in `src/models/`, for example `Location`, `CurrentWeather`, `HourlyForecast`, `DailyForecast`, `WeatherReport`, `AppSettings`.
+- Views and ViewModels never see raw API types.
+
+**W-16 – Local caching**
+- `weatherRepository` keeps **one** cache entry: the last weather the user saw (the parsed `WeatherReport`), its place and the time it was fetched as `fetchedAtEpochMs` (D-18, D-47). The entry is stored under `weatherly:lastWeather` in the format of `weatherCacheParser`.
+- A damaged or unreadable entry counts as no cache; a failed write never turns a successful fetch into an error (D-47).
+- `useWeatherViewModel` saves the entry after every successful load or refresh that is still its newest request. At the app's start, `HomeScreen` calls `restoreLastReport`, which shows the cached place and its weather before any request; a place chosen meanwhile wins (D-47).
+- The cache is read through `keyValueStorage`, a thin wrapper around `@react-native-async-storage/async-storage` (D-08).
+
+**W-17 – Offline fallback**
+- At the app's start the cached weather is shown at once; if it is at least the refresh interval old (`isStale`), it is fetched again while it stays on screen (D-48).
+- If a fetch fails and cached data exists, the cached data is shown with an "offline / last updated <time>" indicator: "No connection. Showing the weather from 14:00." for data from today at the place, "…from Mon 23 Nov, 14:00." for older data (D-48; `describeRefreshNotice`).
+- A fresh cache hit (no fetch needed) is normal and shows no offline indicator (D-20).
+- If no cached data exists, an error state with retry is shown (W-18).
+
+**W-18 – Network error handling**
+- Covers no connection and timeouts.
+- Shows a user-readable message, never a stack trace.
+- Offers a retry action.
+
+**W-19 – API response error handling**
+- Covers non-2xx statuses, malformed JSON and missing required fields.
+- The service or parser raises a typed `AppError`. The repository or ViewModel handles it, so it never reaches the user as an uncaught exception.
+
+**W-20 – Loading states**
+- Every screen that fetches data shows a loading indicator.
+- Pull-to-refresh or refresh actions show progress.
+- Reading stored data at the start is a loading state too: Home shows a neutral spinner until the cache has been checked (D-51), and Settings a loading line until the stored settings have been read (NIT-188).
+
+**W-21 – Scrollable lists**
+- Forecast lists use `FlatList` or `ScrollView`, so all content is reachable on small screens and in landscape.
+
+**W-22 – Portrait and landscape**
+- `app.json` sets `"orientation": "default"`, so the app follows the device in both orientations (US-08.02, 2026-11-26).
+- Layouts adapt using `useWindowDimensions` through the pure `screenLayoutFor` (D-50): every screen keeps one scrolling column; the home header stacks its buttons on narrow windows or with large text, and the heroes are compact in short windows.
+
+**W-23 – Async network requests**
+- Uses `fetch` with `async/await`.
+- Requests that are no longer needed (e.g. when navigating away or making a new search) are ignored or aborted.
+
+**W-24 – Unit tests**
+- Automated unit tests, written in Jest with `jest-expo` (D-09), cover at least two of the three areas named in the Lab B:2 instructions:
+  - **JSON parsing:** `weatherParser` (US-02.01) and `geocodingParser`. Planned first.
+  - **Error-state logic:** e.g. how a ViewModel maps a result or `AppError` to `LoadState` (D-20).
+  - **Data transformation:** e.g. grouping hourly data for today and daily data for the other days, or unit conversion.
+- The two areas are JSON parsing plus error-state logic or data transformation (decided 2026-11-20).
+- Coordinate validation and the refresh policy may also be tested, but they do not count toward the two areas.
+- Results are recorded in [TEST_REPORT.md](TEST_REPORT.md).
+
+**W-25 – UX scenarios**
+- At least 20 distinct scenarios are defined in [TEST_REPORT.md §3](TEST_REPORT.md#3-ux-interaction-scenarios).
+- Each is executed on the Android Emulator (Windows) and the iOS Simulator (macOS).
+
+## 8. Quality Requirements (higher level)
+
+| ID | Requirement | Verification |
+|---|---|---|
+| W-26 | Clear separation of responsibilities following the MVVM layer rules in STYLE.md. | Code review against [STYLE.md §3](STYLE.md#3-mvvm-architecture) |
+| W-27 | Consistent, deliberate naming as defined in STYLE.md. | Code review against [STYLE.md §5](STYLE.md#5-naming-conventions) |
+| W-28 | Maintainable code: strict TypeScript, no `any`, no dead code, small focused modules. | `npx tsc --noEmit`, code review |
+| W-29 | A designed and consistent UI: a shared theme (colours, spacing, typography) used on every screen. | Visual review on both platforms |
+| W-30 | Robust edge-case handling (empty input, no results, invalid coordinates, offline, malformed data, rotation during load). | UX scenarios in TEST_REPORT.md |
+| W-31 | Every architectural decision is recorded in §13 and can be explained by both students. | Decision log, oral exam preparation |
+
+## 9. Testing Requirements
+
+| ID | Requirement |
+|---|---|
+| W-32 | Every UX scenario and every feature is verified on **both** the Android Emulator (Windows) and the iOS Simulator (macOS) before its requirement is set to `VERIFIED`. |
+
+- Unit tests: see W-24, [STYLE.md §13](STYLE.md#13-unit-testing-conventions) and [TEST_REPORT.md §2](TEST_REPORT.md#2-automated-unit-tests).
+- Mutation evidence: for each unit-tested logic area, deliberately introduce a fault, confirm a test fails, revert, and record this in TEST_REPORT.md.
+- Static checks: `npx tsc --noEmit` and `npx expo-doctor` must pass before every pull request.
+
+## 10. Development Workflow & AI Usage Rules
+
+| ID | Requirement |
+|---|---|
+| W-33 | AI usage is recorded per session in [LLM_PROCESS.md](LLM_PROCESS.md): which assistant was used (Claude Code; earlier sessions may also name OpenAI Codex), which developer operated it, and what was accepted, modified and verified. |
+| W-34 | All work follows the Git workflow in [GIT_WORKFLOW.md](GIT_WORKFLOW.md): feature branches from `dev`, pull requests into `dev`, a stable `main`, and Conventional Commits. The single documented exception is the direct-on-`dev` step in GIT_WORKFLOW.md §16 (D-16). |
+
+AI usage rules:
+- AI may propose code, but students review, test and must be able to explain every line that is merged.
+- AI output that a student cannot explain is not merged.
+- The meta-instructions in §0 apply to every session.
+- The students write [REFLECTION.md](REFLECTION.md) themselves.
+
+### 10.1 AI Usage Summary
+
+The Lab B:2 instructions ask for a short statement of which parts were AI-assisted and which tools were used.
+
+- **Claude Code in VS Code** (both developers, D-15) generated the code from the students' prompts and drafted the project documentation.
+- The students manually checked all AI output, ran it on the Android Emulator and iOS Simulator, modified it where needed, and did all Git work themselves (commits, pushes and pull requests).
+- **ChatGPT** was used for planning and review ([LLM_PROCESS.md §1](LLM_PROCESS.md#1-ai-assistants-in-this-project)).
+- Per-session details, including the prompts used, are in [LLM_PROCESS.md](LLM_PROCESS.md).
+
+---
+
+## 11. Requirement Tracking
+
+**Status values:**
+- `NOT STARTED`: no implementation exists.
+- `IN PROGRESS`: work has started (code on a branch, or setup/documentation), but not every acceptance criterion is verified. See §11.1.
+- `IMPLEMENTED`: code is merged to `dev` but not yet verified on both platforms.
+- `VERIFIED`: a student has verified it on the Android Emulator **and** the iOS Simulator, and the tests are recorded.
+
+**Linear identifiers:** only identifiers from the Linear project are used (full list in §11.2).
+- The **first** user story listed is the primary owner of the requirement. Further stories contribute to it.
+- Quality requirements (W-26 – W-28) also apply to every other story.
+
+| ID | Epic | User Story | Planned components | Tests | Status |
+|---|---|---|---|---|---|
+| W-01 | NIT-153 | NIT-165 (US-02.03); NIT-169 (US-03.01) | `LocationSearchSheet`, `useSearchViewModel`, `locationRepository`, `geocodingService` | UX-01, UX-02, UX-03 | IN PROGRESS |
+| W-02 | NIT-153 | NIT-165 (US-02.03) | `locationRepository`, `geocodingService`, `geocodingParser`, `Location` | Unit: geocodingParser; UX-01 | IN PROGRESS |
+| W-03 | NIT-153 | NIT-166 (US-02.04) | `coordinateValidation`, `useCoordinateSearchViewModel`, `CoordinateSearchForm`, `LocationSearchSheet` | Unit: coordinateValidation; UX-04, UX-05 | IN PROGRESS |
+| W-04 | NIT-154 | NIT-170 (US-03.02) | `HomeScreen`, `useWeatherViewModel`, `WeatherHero`, `weatherCode`, `weatherIcon`, `weatherFormatting` | Unit: weatherCode, weatherIcon, weatherFormatting, homePresentation, weatherStatus; UX-06 | IN PROGRESS |
+| W-05 | NIT-154 | NIT-171 (US-03.03) | `HomeScreen`, `DailyForecastList`, `DailyForecastRow`, `selectForecastDays`, `presentDailyForecast` | Unit: forecastSelection, forecastFormatting; UX-07 | IN PROGRESS |
+| W-06 | NIT-154 | NIT-172 (US-03.04) | `HomeScreen`, `HourlyForecastList`, `HourlyForecastItem`, `selectRemainingHoursToday`, `presentHourlyForecast` | Unit: forecastSelection, forecastFormatting; UX-08 | IN PROGRESS |
+| W-07 | NIT-155 | NIT-174 (US-04.02); NIT-175 (US-04.03); NIT-173 (US-04.01) | `DayDetailScreen`, `src/navigation/` | UX-09 | VERIFIED |
+| W-08 | NIT-156 | NIT-176 (US-05.01); NIT-177 (US-05.02) | `favorites` (utils), `favoritesParser`, `keyValueStorage`, `favoritesRepository`, `useFavoritesViewModel`; star in `HomeHeader`, `FavoritesSaveNotice` | Unit: favorites, favoritesParser, keyValueStorage, favoritesRepository, useFavoritesViewModel, homeHeader; UX-10, UX-11, UX-12, UX-24 | IN PROGRESS |
+| W-09 | NIT-156 | NIT-178 (US-05.03); NIT-173 (US-04.01) | `FavoritesScreen`, `FavoriteListItem`, `FavoritesStatus`, `Favorites` route, `Home` `selectedLocation` param | Unit: favoriteListItem, favoritesStatus, favoriteRoutes, useFavoritesViewModel; UX-12, UX-13, UX-25 | IN PROGRESS |
+| W-10 | NIT-157 | NIT-179 (US-06.01); NIT-173 (US-04.01) | `SettingsScreen`, `useSettingsViewModel`, `settingsRepository` | UX-14 | IN PROGRESS |
+| W-11 | NIT-157 | NIT-180 (US-06.02) | `refreshPolicy`, `settingsRepository`, `useWeatherViewModel` (`refresh`, `refreshIfStale`), `HomeScreen` triggers | Unit: refreshPolicy; UX-15 | IN PROGRESS |
+| W-12 | NIT-157 | NIT-181 (US-06.03) | `AppSettings`, `units`, `settingsRepository`; `weatherFormatting`, `forecastFormatting` (`units` argument); `HomeScreen`, `DayDetailScreen` | Unit: units, displayUnits (consistency), weatherFormatting, forecastFormatting, homePresentation; UX-16 | IN PROGRESS |
+| W-13 | NIT-153 | NIT-167 (US-02.02) | `weatherService`, `httpClient`, `weatherRepository` | Unit: weatherService, httpClient, weatherRepository; UX-06 | IN PROGRESS |
+| W-14 | NIT-153 | NIT-168 (US-02.01); NIT-165 (US-02.03) | `weatherParser`, `geocodingParser` | Unit: weatherParser, geocodingParser | IN PROGRESS |
+| W-15 | NIT-153 | NIT-168 (US-02.01) | `src/models/*` | `tsc --noEmit`; review | IN PROGRESS |
+| W-16 | NIT-158 | NIT-182 (US-07.01) | `CachedWeatherReport`, `weatherCacheParser`, `storedLocation`, `weatherRepository` (`loadLastReport`, `saveLastReport`), `keyValueStorage`; `useWeatherViewModel` (`rememberReport`, `restoreLastReport`, `shouldRestore`, `stateFromCache`); `HomeScreen` restore at start | Unit: weatherCacheParser, weatherRepository, useWeatherViewModel; UX-17, UX-28 | IN PROGRESS |
+| W-17 | NIT-158 | NIT-183 (US-07.02) | `useWeatherViewModel` (`restoreLastReport` → `refresh` when `shouldRefresh`), `HomeScreen` (restore after the settings are loaded), `RefreshNotice` (`describeRefreshNotice`), `forecastFormatting` (`isSameLocalDay`, `formatLocalDateTime`) | Unit: useWeatherViewModel, weatherStatus, forecastFormatting; UX-17, UX-18, UX-19, UX-28 | IN PROGRESS |
+| W-18 | NIT-158 | NIT-184 (US-07.03); NIT-188 (US-08.03) | `httpClient`; `searchErrorMessage` (`SearchStatus`), `weatherErrorMessage` and "Try again" (`WeatherStatus`), `describeRefreshNotice` and `RefreshNotice` | Unit: httpClient, searchStatus, weatherStatus; UX-18, UX-19 | IN PROGRESS |
+| W-19 | NIT-158 | NIT-184 (US-07.03) | parsers, `httpClient`, `AppError`; `weatherErrorMessage`, `searchErrorMessage`, `describeRefreshNotice` (`http`, `parse`) | Unit: parser and httpClient error cases, weatherStatus, searchStatus | IN PROGRESS |
+| W-20 | NIT-158 | NIT-185 (US-07.04); NIT-188 (US-08.03) | all ViewModels (`LoadState`), `SearchStatus`, `WeatherStatus` (incl. `homeContentFor`, `CacheCheckStatus`), `useWeatherViewModel.isCacheChecked`, the loading line on `SettingsScreen`, pull-to-refresh spinner | Unit: searchStatus, weatherStatus, homeContent; UX-20, UX-23, UX-32, UX-34 | IN PROGRESS |
+| W-21 | NIT-154 | NIT-171 (US-03.03); NIT-172 (US-03.04) | `HomeScreen` vertical `ScrollView` (days as plain rows), horizontal `FlatList` for hours (`HourlyForecastList`); `DayDetailScreen` `ScrollView` | UX-07, UX-08, UX-21 | IN PROGRESS |
+| W-22 | NIT-159 | NIT-187 (US-08.02) | `app.json` (`"orientation": "default"`); `screenLayoutFor` in `src/utils/screenLayout.ts`, `layoutBreakpoints` in `src/theme/spacing.ts` (D-50); `HomeHeader` (`isCompact`), `WeatherHero` and `DayDetailHero` (compact); `HomeScreen`, `DayDetailScreen` | Unit: screenLayout; UX-21, UX-22, UX-26, UX-30, UX-31 | IN PROGRESS |
+| W-23 | NIT-158 | NIT-185 (US-07.04); NIT-167 (US-02.02) | `httpClient`; `createLatestRequestGuard` (`latestRequest.ts`) in `useSearchViewModel` and `useWeatherViewModel` | Unit: httpClient, latestRequest; UX-20, UX-23, UX-29 | IN PROGRESS |
+| W-24 | NIT-160 | NIT-189 (US-09.01); NIT-216 (US-02.01) | `tests/**/*.test.ts` | TEST_REPORT §2 | IN PROGRESS |
+| W-25 | NIT-160 | NIT-190 (US-09.02) | TEST_REPORT §3: 35 scenarios (UX-01 – UX-35) with run instructions | TEST_REPORT §3.2, §3.3 | IN PROGRESS |
+| W-26 | NIT-152 | NIT-163 (US-01.03) | whole codebase, folder structure (README "Architecture") | Code review | IN PROGRESS |
+| W-27 | NIT-152 | NIT-163 (US-01.03); NIT-164 (US-01.04) | whole codebase | Code review | IN PROGRESS |
+| W-28 | NIT-152 | NIT-161 (US-01.01); NIT-163 (US-01.03) | whole codebase | `tsc`, review | IN PROGRESS |
+| W-29 | NIT-159 | NIT-186 (US-08.01) | `src/theme/` (incl. `sky.ts`, `interaction.ts`), `WeatherCard`, `WeatherIcon`, shared status components | Unit: skyVariantFor (homePresentation), weatherIcon; visual review | IN PROGRESS |
+| W-30 | NIT-158, NIT-159 | NIT-184 (US-07.03); NIT-188 (US-08.03) | whole codebase; e.g. `validateCoordinates`, the `parseStored*` parsers, `readRestoredState`, `screenLayoutFor` (unusable sizes) | Unit: coordinateValidation, favoritesParser, weatherCacheParser, homeContent, screenLayout; UX-03, UX-05, UX-18, UX-19, UX-24, UX-29, UX-33 | IN PROGRESS |
+| W-31 | NIT-160, NIT-152 | NIT-192 (US-09.04); NIT-164 (US-01.04) | SPEC §13 | Oral exam prep | IN PROGRESS |
+| W-32 | NIT-160 | NIT-190 (US-09.02); NIT-162 (US-01.02) | — | TEST_REPORT §3.2 (both platforms per scenario), §3.3 | IN PROGRESS |
+| W-33 | NIT-160, NIT-152 | NIT-191 (US-09.03); NIT-164 (US-01.04) | LLM_PROCESS.md, CLAUDE.md, AGENTS.md | Review | IN PROGRESS |
+| W-34 | NIT-152 | NIT-162 (US-01.02) | GIT_WORKFLOW.md, repository | Review | IN PROGRESS |
+
+### 11.1 Verified Progress on Partially Complete Requirements
+
+Only items that were actually checked are listed as verified.
+
+| ID | Verified (date, evidence) | Not yet verified / remaining |
+|---|---|---|
+| W-08 | On `feat/NIT-156-favorites` (uncommitted, Windows, 2026-11-23): identity rule, versioned storage format, `favoritesRepository` and the `useFavoritesViewModel` state rules written with 132 unit tests (duplicates, tolerance boundaries, damaged and unsupported data, storage read/write failures, restart round trip, writes only after confirmation); `npm run check` 480/480; 9 mutation checks detected (TEST_REPORT §1.11, §2.3). `npx expo-doctor` 20/20 | Merged to `dev` (PR #3). Star button added on `feat/NIT-178-favorites-screen` (uncommitted, 2026-11-23): star state, labels and disabling unit-tested; Android and iOS bundles export (TEST_REPORT §1.12). Not yet seen on any device: UX-10, UX-11, UX-12, UX-24 on both platforms; the hooks themselves (they need a React renderer) |
+| W-09 | On `feat/NIT-178-favorites-screen` (uncommitted, Windows, 2026-11-23): `FavoritesScreen`, the `Favorites` route and the return of a chosen place to `Home`; 57 new unit tests (row texts, empty/error states, error wording, reset rules, route params, two-screen synchronisation, read/write order); `npm run check` 537/537; 6 mutation checks detected; Android and iOS bundles export; `npx expo-doctor` 20/20 (TEST_REPORT §1.12, §2.3) | UX-12, UX-13, UX-25 and the reset confirmation on both platforms; merging with the unmerged NIT-230 commit (`1bdc00b`, `HomeScreen` signature); merge to `dev` |
+| W-10 | On `feat/EPIC-06` (uncommitted, 2026-11-24): `SettingsScreen` opened from the gear on Home, showing the current settings, choosable and stored (`settingsParser`, `settingsRepository`, `SettingsProvider`, D-44; 34 tests, 4 mutation checks, NIT-247, NIT-248). On the iOS Simulator, reported to work: defaults, choosing, reopening, a full restart (UX-14), the largest text size, the iPhone 17e and VoiceOver headings (TEST_REPORT §1.13). `npm run check` 639/639, iOS export, Expo Doctor 20/20 | Landscape (W-22, US-08.02) |
+| W-11 | On `feat/EPIC-06` (uncommitted, 2026-11-24): interval options and storage from US-06.01 (NIT-251 covered by NIT-248 and UX-14). `isStale` (10 tests) and the refresh state changes (14 tests), 3 mutation checks; `refresh`/`refreshIfStale` in `useWeatherViewModel`, triggered on focus and on return from the background (D-45; NIT-250, NIT-252); no reload when returning to Home with fresh data (reported on the iOS Simulator). Pull-to-refresh and `RefreshNotice` with "Try again" (`describeRefreshNotice`, 12 tests, 1 mutation check, NIT-383). `npm run check` 675/675, iOS export, Expo Doctor 20/20 Pull-to-refresh, the offline notice and "Try again" reported to work on the iOS Simulator (UX-27) | A refresh after the interval has passed, on the simulator (UX-15 second half; the 15 minutes were not waited out, 2026-11-24) |
+| W-12 | On `feat/EPIC-06` (uncommitted, 2026-11-24): both units chosen and stored in US-06.01 (NIT-253, NIT-254 covered by NIT-248). Conversions in `units.ts`; the unit is a required argument of the temperature and wind formatters and of 8 presenters; screens pass `units` (D-46; NIT-255). 22 new tests, including one that checks no screen text shows °C or m/s with °F and km/h chosen; 3 mutation checks; all earlier formatter and presenter tests pass unchanged in °C and m/s. `npm run check` 697/697, iOS export, Expo Doctor 20/20 On the iOS Simulator, °F and km/h on Home and the day detail screen, VoiceOver, switching back and a restart reported to work (UX-16) | Landscape (W-22, US-08.02) |
+| W-24 | Jest + `jest-expo` installed; `tests/parsers/weatherParser.test.ts` has 17 tests for the lab area "JSON parsing", all passing, with 3 mutation checks recorded (TEST_REPORT §2.3) (2026-11-20, NIT-216) | A second lab area (error-state logic or data transformation). Candidates since 2026-11-22, all with tests and mutation checks (TEST_REPORT §2.1, §2.3):
+- error-state logic: `describeSearchStatus`, `describeWeatherStatus`
+- data transformation: `selectForecastDays` and `selectRemainingHoursToday`, which group hourly data for today and daily data for the other days, the example SPEC W-24 names
+
+The team decides which count |
+| W-13 | `weatherService` (URL + `fetchForecast`), `httpClient` and `weatherRepository.getReport` written on the US-02.02 branch (NIT-211, NIT-212). Unit tests pass with a fake `fetch`. Real-API checks through `getReport` passed for 4 locations from Node and for Stockholm in the iOS Simulator (2026-11-20, NIT-213, TEST_REPORT §1.2) | Android Emulator check; merge to `dev`. Display of polar days is open (OQ-07) |
+| W-18 | The data layer reports no connection as `AppError('network')` and no answer within 10 s as `AppError('timeout')` (unit tests, 2026-11-20, NIT-212). For place search, `searchErrorMessage` gives a user-readable message per kind and never shows the developer message; after an error the same query can be searched again (unit tests, 2026-11-22, NIT-218). The same holds for the weather load with `weatherErrorMessage`; selecting the place again retries (unit tests, 2026-11-22, NIT-170) | Not yet seen on a device. Since D-33 a failed weather load shows a "Try again" button (`WeatherStatus`, calls `load` for the same place); since NIT-264 (2026-11-25) the weather error texts name that button ("…try again") instead of selecting the place again. Place search is retried by searching again, as its texts say. Seen on the iOS Simulator for `network` (UX-18, UX-19) |
+| W-29 | Weather-first redesign (D-33): one sky theme (`src/theme/sky.ts`) with computed WCAG contrast (white ≥ 6.3:1, muted ≥ 4.8:1), shared `WeatherCard`, consistent tokens on every element of the home screen; Android and iOS bundles build (2026-11-22). US-08.01 (uncommitted on `feat/NIT-159-160-rework`, 2026-11-26): one pressed and one disabled opacity for all 14 touch styles (`src/theme/interaction.ts`, D-49); disabled settings options are dimmed; `npm run check` 800/800, Android and iOS export, Expo Doctor 20/20 | Visual review on both platforms. The light screens (search, favourites, settings) and the sky screens (Home, day detail) stay a deliberate split |
+| W-20 | Place search shows a loading indicator while a search runs (`describeSearchStatus` → `loading`; unit tests, 2026-11-22, NIT-218). The current-weather load does the same (`describeWeatherStatus` → `loading`; unit tests, 2026-11-22, NIT-170) | Not yet seen on a device (UX-20). The forecasts come from the same report, so they need no loading state of their own. Since NIT-188 (uncommitted, 2026-11-26): a neutral spinner while the cache is checked at start, so the welcome panel no longer flashes (`homeContentFor`, `readRestoredState`; 13 unit tests, 3 mutation checks; D-51), and a loading line on Settings; not yet seen on a device (UX-32, UX-34) |
+| W-05 | `selectForecastDays` and `presentDailyForecast` (unit tests with the real forecast and a real daylight-saving response, mutation checks); `DailyForecastList` on `HomeScreen` from the same report as the current weather. Live check 2026-11-22: 7 days for Stockholm, New York and Sydney, today correctly marked (TEST_REPORT §1.7). Bundles build | Not yet run on a device or simulator (UX-07) |
+| W-06 | `selectRemainingHoursToday` and `presentHourlyForecast` (unit tests: current hour, local midnight, other time zones, real daylight-saving weekend, empty data, non-finite times; mutation checks); horizontal `HourlyForecastList` on `HomeScreen`. Live check 2026-11-22 at 11:37 UTC: Stockholm 12:00 – 23:00, New York 06:00 – 23:00, Sydney 22:00 – 23:00 (TEST_REPORT §1.7) | Not yet run on a device or simulator (UX-08); times after a daylight-saving change within the forecast window (OQ-08) |
+| W-21 | The screen is one vertical `FlatList`; the seven days are plain rows inside it and the hours a horizontal `FlatList`, so no vertical list is nested (US-03.03, US-03.04). Since the redesign (D-33) Home is one vertical `ScrollView` with the same rule; the day detail screen is a `ScrollView` too | Scrolling not yet tried on a device (UX-07, UX-08); in landscape since US-08.02 (UX-21) |
+| W-22 | On `feat/NIT-159-160-rework` (uncommitted, Windows, 2026-11-26): `"orientation": "default"` (read back with `@expo/config` as `default`); `screenLayoutFor` with 30 unit tests (real window sizes, both sides of each breakpoint, text size, zero, negative, NaN and infinite width and height) and 5 mutation checks; stacked home header, compact heroes. `npm run check` 800/800, Android and iOS export, Expo Doctor 20/20 (TEST_REPORT §1.20) | Not seen on any device: UX-21, UX-22, UX-26 (landscape), UX-30, UX-31 on both platforms, including the search sheet with the keyboard in landscape on Android (UX-31) |
+| W-25 | 35 scenarios defined (UX-01 – UX-35), each with prerequisites, action and expected result; run instructions for both platforms in TEST_REPORT §3.0 (2026-11-26). iOS Simulator: 12 scenarios run by report (TEST_REPORT §3.3) | The other 23 on iOS; all 35 on the Android Emulator |
+| W-32 | Every scenario has one log row per platform (TEST_REPORT §3.2) | Android Emulator: no scenario run yet. iOS Simulator: see W-25 |
+| W-07 | React Navigation native stack (D-35) with typed routes; tapping a day row on `HomeScreen` opens `DayDetailScreen` with the place, the day and the UTC offset (D-36). `npm run check`, iOS export and Expo Doctor pass (2026-11-23, NIT-229, NIT-230). Home screen unchanged on the iOS Simulator after adding the navigator (TEST_REPORT §1.9). On the iOS Simulator, opening a day, going back by button and swipe, a double tap, a new place, the row's accessibility and no new request on return were reported to work (TEST_REPORT §1.10, 2026-11-23). Route params survive a JSON round trip (`tests/navigation/routes.test.ts`, 1 mutation check, NIT-231). The detail screen shows the day's date, condition and high/low (`DayDetailHero`, NIT-232, NIT-233); `presentDayDetail` tested with real forecast days (6 tests, 1 mutation check). Sun card with sunrise and sunset, "Polar night", "Midnight sun" and "Not available" (D-42, `presentSunTimes`, 6 tests with real Stockholm, Longyearbyen and McMurdo forecasts, 2 mutation checks, NIT-234). Detail fields of D-43 requested, parsed and formatted (`presentDayConditions`, feels-like in `presentDayDetail`; new real fixture; 33 new tests, 3 mutation checks, NIT-235). Shown on screen: feels-like line in the hero, Precipitation and Wind cards, Daylight and UV index in the Sun card (NIT-236; reported to work on the iOS Simulator, including VoiceOver). Missing values tested end to end from the real JSON to the row texts (18 tests, 1 mutation check, NIT-237); UX-26 added; smallest iPhone (17e) and largest text size reported to work on the iOS Simulator | UX-26 landscape after W-22 (US-08.02); Android |
+| W-04 | `useWeatherViewModel` loads the selected location's report through `weatherRepository.getReport`; `WeatherHero` (D-33; replaced `CurrentWeatherCard`) shows the icon, temperature, condition, today's high and low, feels-like, humidity, wind and observation time. Code descriptions, formatting, error states and request ordering unit-tested with mutation checks. Live check 2026-11-22: today's Open-Meteo responses for 59.3293/18.0686, Lund and Sydney parsed and formatted without errors (TEST_REPORT §1.6). Android and iOS bundles build | Not yet run on a device or simulator (UX-06), so the hook and the card are unverified on screen |
+| W-19 | `httpClient` reports non-2xx as `AppError('http')` and invalid JSON as `AppError('parse')`; the parser reports missing or invalid fields as `AppError('parse')` (unit tests, 2026-11-20) | Every kind has a user-facing text on every screen that can show it (audit in TEST_REPORT §1.18, NIT-264); exhaustive `switch` statements make a missing kind a compile error. An `http` or `parse` error has not been seen on a device: the real API cannot be made to send one |
+| W-23 | `httpClient` uses `async/await` with `fetch`, which does not block the UI thread, and cancels slow requests with `AbortController` (2026-11-20, NIT-212) | Outdated results are ignored in `useSearchViewModel` (NIT-207) and `useWeatherViewModel` (`createLatestRequestGuard`, unit-tested, 2026-11-22, NIT-170); since NIT-267 (2026-11-25) both ViewModels use the same `createLatestRequestGuard`; still to check on a device: UX-20, UX-23, UX-29 (US-07.04) |
+| W-03 | `validateCoordinates`, `useCoordinateSearchViewModel` and `CoordinateSearchForm` written on the US-02.04 branch. 37 validation tests and 6 message tests pass; 4 mutation checks detected (NIT-209, NIT-210). On the iOS Simulator, 6 scripted steps passed: valid pair, comma decimals, out-of-range and empty/malformed fields with inline messages, errors cleared on valid input, return-key flow (TEST_REPORT §1.4, 2026-11-20, NIT-208) | On-screen iOS keyboard minus key not yet verified; Android Emulator. Since 2026-11-22 the form is on `HomeScreen` (US-03.01, "Coordinates" tab), where a valid pair becomes the selected location; not yet run on a device |
+| W-01 | `locationRepository.searchLocations` returns typed locations from the real API (Göteborg, Gothenburg, Kiruna, New York found; xqzvbn → empty list), checked from Node on 2026-11-20 (NIT-206). `useSearchViewModel` trims the query and sends no request for empty input; the trimming rule is unit-tested (NIT-207, 2026-11-20). `HomeScreen` with search field, result list, empty and error states and selection written; repeat guard and status logic unit-tested; Android and iOS bundles build (US-03.01, 2026-11-22, TEST_REPORT §1.5) | The search UI and the hook's state changes have not been run on a device: UX-01 – UX-03 on both platforms. Since the redesign (D-33) the search lives in `LocationSearchSheet`, opened from Home |
+| W-02 | Open-Meteo Geocoding chosen (D-24); service, parser and repository written with unit tests (NIT-206, 2026-11-20); same-named places carry region and country | Results are listed in `LocationSearchSheet` (since D-33; earlier `HomeScreen`) with region and country, not yet seen on a device (UX-01) |
+| W-14 | `weatherParser` (US-02.01, merged) and `geocodingParser` (US-02.03 branch, NIT-206) are separate pure modules sharing `jsonReaders`; neither views nor ViewModels parse JSON. Unit tests pass with mutation evidence (TEST_REPORT §2) (2026-11-20) | Merged to `dev`; the stored formats have their own parsers too (`favoritesParser`, `settingsParser`, `weatherCacheParser`). Nothing open in code |
+| W-15 | `src/models/Weather.ts` written on the US-02.01 branch (NIT-214); `npx tsc --noEmit` passes (2026-11-20) | On `dev`, with `AppSettings` (US-06.01) and `CachedWeatherReport` (US-07.01) added. Nothing open in code |
+| W-28 | `tsconfig.json` has `strict: true`; `npx tsc --noEmit` passes on the scaffold (2026-11-10, NIT-193). On all application code: `npx tsc --noEmit` passes and no `any` is used in `src/` (search for `: any`, `as any`, `<any>`), 2026-11-26 | Code review by the other student |
+| W-31 | Decision log (§13) exists with D-01 – D-13 (2026-11-10); D-01 – D-51 as of 2026-11-26. All 30 oral questions answered in §12 by the students (2026-11-26), with tests per question in §12.1 | Both students reviewing and being able to explain each decision |
+| W-33 | `LLM_PROCESS.md` template with assistant and operator fields exists (NIT-204); `agents/claude.md` and `agents/codex.md` shared one rule set (2026-11-10); since 2026-11-18 the single rule set is the root `CLAUDE.md`, with `AGENTS.md` as a pointer (D-15) | First session entry LLM-001 (2026-11-18). Since D-21 the AI assistant writes an entry at the end of every session; entries must still be added for every remaining session. As of 2026-11-10, `agents/codex.md` had not yet been used with Codex on macOS. |
+| W-34 | Git repository initialised (NIT-196); public GitHub repository with `main` and `dev` on `origin`, confirmed via `git ls-remote` and the GitHub API (2026-11-10, NIT-197); local `dev` tracks `origin/dev`; `GIT_WORKFLOW.md` written (NIT-198) | First pull request reviewed and merged into `dev` following the workflow; branch protection not configured |
+
+### 11.2 Linear Identifiers (Weather App project)
+
+**Epic 1 – Project Setup & Architecture (NIT-152):**
+
+| Linear ID | Key | Title |
+|---|---|---|
+| NIT-161 | US-01.01 | Initialize Expo & TypeScript Project |
+| NIT-193 | Task (US-01.01) | Scaffold Expo React Native TypeScript app |
+| NIT-162 | US-01.02 | Configure Git, GitHub & Development Environment |
+| NIT-196 | Task (US-01.02) | Initialize Git repository and .gitignore |
+| NIT-197 | Task (US-01.02) | Create main/dev branching workflow and GitHub remote |
+| NIT-198 | Task (US-01.02) | Document Setup and Commit/PR Conventions |
+| NIT-163 | US-01.03 | Define MVVM Architecture & Project Structure |
+| NIT-164 | US-01.04 | Create SPEC.md, STYLE.md, CONTEXT.md & Documentation Structure |
+| NIT-202 | Task (US-01.04) | Create SPEC.md with requirements and AI rules |
+| NIT-203 | Task (US-01.04) | Create STYLE.md with architecture and conventions |
+| NIT-204 | Task (US-01.04) | Create CONTEXT.md, report/log templates and end-of-session checklist |
+
+**Epics 2–9.** Epic titles are not recorded here; see Linear.
+
+| Epic | Key | Linear ID | User story title | Requirements |
+|---|---|---|---|---|
+| NIT-153 | US-02.01 | NIT-168 | Create Weather Models & JSON Parser | W-14, W-15 |
+| NIT-153 | US-02.02 | NIT-167 | Integrate Weather REST API | W-13, W-23 |
+| NIT-153 | US-02.03 | NIT-165 | Implement City Search with Geocoding | W-01, W-02, W-14 |
+| NIT-153 | US-02.04 | NIT-166 | Implement Coordinate Search & Validation | W-03 |
+| NIT-154 | US-03.01 | NIT-169 | Implement Home Screen & Search Interface | W-01 |
+| NIT-154 | US-03.02 | NIT-170 | Display Current Weather Conditions | W-04 |
+| NIT-154 | US-03.03 | NIT-171 | Display Seven-Day Forecast | W-05, W-21 |
+| NIT-154 | US-03.04 | NIT-172 | Display Today's Hourly Forecast | W-06, W-21 |
+| NIT-155 | US-04.01 | NIT-173 | Implement Screen Navigation | W-07, W-09, W-10 |
+| NIT-155 | US-04.02 | NIT-174 | Implement Daily Details Screen | W-07 |
+| NIT-155 | US-04.03 | NIT-175 | Display Temperature, Wind & Precipitation | W-07 |
+| NIT-156 | US-05.01 | NIT-176 | Add and Remove Favorite Locations | W-08 |
+| NIT-156 | US-05.02 | NIT-177 | Persist Favorite Locations Locally | W-08 |
+| NIT-156 | US-05.03 | NIT-178 | Implement Favorites Screen & Quick Access | W-09 |
+| NIT-157 | US-06.01 | NIT-179 | Implement Settings Screen | W-10 |
+| NIT-157 | US-06.02 | NIT-180 | Configure Forecast Refresh Interval | W-11 |
+| NIT-157 | US-06.03 | NIT-181 | Configure and Persist UI Preferences | W-12 |
+| NIT-158 | US-07.01 | NIT-182 | Cache Last Successful Weather Forecast | W-16 |
+| NIT-158 | US-07.02 | NIT-183 | Implement Offline Forecast Display | W-17 |
+| NIT-158 | US-07.03 | NIT-184 | Handle Network, API & Parsing Errors | W-18, W-19, W-30 |
+| NIT-158 | US-07.04 | NIT-185 | Manage Loading States & Concurrent Requests | W-20, W-23 |
+| NIT-159 | US-08.01 | NIT-186 | Define Consistent Visual Design System | W-29 |
+| NIT-159 | US-08.02 | NIT-187 | Implement Responsive Portrait & Landscape Layouts | W-22 |
+| NIT-159 | US-08.03 | NIT-188 | Improve Empty, Loading & Error Screens | W-18, W-20, W-30 |
+| NIT-160 | US-09.01 | NIT-189 | Implement Automated Unit Tests | W-24 |
+| NIT-160 | US-09.02 | NIT-190 | Document 20 UX Test Scenarios | W-25, W-32 |
+| NIT-160 | US-09.03 | NIT-191 | Maintain AI Process Log & Requirements Traceability | W-33 |
+| NIT-160 | US-09.04 | NIT-192 | Prepare Reflection Report & Oral Examination | W-31 |
+
+Epic 1 stories map to: NIT-161 → W-28; NIT-162 → W-32, W-34; NIT-163 → W-26, W-27, W-28; NIT-164 → W-27, W-31, W-33.
+
+Totals: 9 epics (NIT-152 – NIT-160) and 32 user stories (NIT-161 – NIT-192).
+
+## 12. Oral Examination Mapping
+
+The 30 official questions from the Lab B:2 instructions. The opening question is always **Q26**. *Code location* and *Answer* are filled in with short, concrete answers as the code that answers each question is built. A dash means that code does not exist yet.
+
+### Data & networking
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q1 | Walk through the function that makes the API request. Where is it, and what does it return? | W-13, W-23 | `src/services/api/httpClient.ts` → `getJson`; called by `weatherService.fetchForecast` | `getJson(url, { timeoutMs })` calls `fetch` with an `AbortController` timeout and returns the body as `unknown` JSON. It never returns a model: `weatherRepository.getReport` passes the JSON to `parseWeatherResponse`. Every failure comes back as a typed `AppError`. |
+| Q2 | How is the JSON response parsed into your data model? Show the parsing code. | W-14, W-15 | `src/parsers/weatherParser.ts` → `parseWeatherResponse`; `src/parsers/geocodingParser.ts` → `parseGeocodingResponse`; shared readers in `src/parsers/jsonReaders.ts` | Pure functions take `unknown` JSON. Shared `read…` helpers check each field's type and throw `AppError('parse')` with the field path. Weather: the parallel `hourly`/`daily` arrays are zipped into one object per entry, Unix seconds become epoch ms, and API names map to model names (`temperature_2m` → `temperatureCelsius`). Geocoding: each result becomes a `Location` (`admin1` → `region`). |
+| Q3 | What fields from the API response does your app use, and what does it ignore? Why those? | W-04 – W-07, W-15 | `src/parsers/weatherParser.ts`, `src/models/Weather.ts`; `src/parsers/geocodingParser.ts` | **Used:** `timezone` and `utc_offset_seconds` (to find "today" in local time); current temperature, feels-like temperature, humidity, weather code, wind and day/night; hourly temperature, weather code, rain probability and wind; daily min/max temperature, weather code, precipitation sum and probability, max wind, sunrise and sunset, and for the detail screen (D-43) feels-like min/max, rain and snowfall sums, precipitation hours, max gusts, dominant wind direction, max UV index and daylight duration. These are what the home and detail screens show (W-04 – W-07); sunrise and sunset appear in the detail screen's sun card (`presentSunTimes` in `src/utils/forecastFormatting.ts`), where Open-Meteo's polar-day marking is shown as "Polar night" / "Midnight sun" (D-42). **Ignored:** `latitude`/`longitude` (we already have the location), `elevation`, `generationtime_ms` and the `*_units` objects (units are fixed by the request and encoded in field names). **Geocoding:** uses `name`, `latitude`, `longitude`, `admin1` (region) and `country`, the minimum to show a result and tell same-named places apart; ignores id, population, timezone, elevation and postcodes. |
+| Q4 | What happens if the API returns a successful HTTP 200 but the JSON is missing a field your model expects? | W-14, W-19 | `src/parsers/weatherParser.ts` → `readNumber`, `readArray` | **Required field** (time, temperature, weather code): the parser throws `AppError('parse')` with the field's path, e.g. `current.temperature_2m: expected a finite number, got undefined`. A wrong type or an array of the wrong length is handled the same way. **Optional field:** `null` or missing becomes `undefined`, never an invented value. On the day detail screen such a value keeps its row and reads "Not available" (D-42; `formatOptional` in `src/utils/forecastFormatting.ts`); zero stays a value ("0.0 mm"). Tested end to end by removing each field from a real response (`tests/utils/forecastFormatting.test.ts`, "day detail from the API response"). **On screen:** the ViewModel catches the `parse` error like any other (`runLoad` → `{ status: 'error', error }`), and `weatherErrorMessage` in `src/views/components/WeatherStatus.tsx` shows "The weather service sent an unexpected answer. Please try again later." with "Try again". If weather was already shown (a refresh), it stays, with "Couldn't update the weather. Showing the weather from HH:MM." (D-45). A bad answer is never saved to the cache, because only a successfully parsed report is saved (D-47). |
+| Q5 | Trace a complete data flow from the user pressing "search" to the forecast appearing on screen. | W-01, W-02, W-04, W-26 | `src/views/screens/LocationSearchSheet.tsx` → `useSearchViewModel.search` → `locationRepository.searchLocations`; then `HomeScreen.handleSelectLocation` → `useWeatherViewModel.load` → `weatherRepository.getReport` → `WeatherHero`, `HourlyForecastList`, `DailyForecastList` | 1) In the search sheet, "Search" calls `search(query)`; the ViewModel sets `loading` and calls `searchLocations` (geocoding service → `getJson` → `parseGeocodingResponse`). 2) `success` with `Location[]` renders the result rows. 3) Tapping a row (or submitting valid coordinates, `useCoordinateSearchViewModel.submit`) goes through the sheet's `onSelectLocation` to `HomeScreen.handleSelectLocation`: the sheet closes and `load(location)` sets the location and `loading` together, then `getReport(location.coordinates)` (weather service → `getJson` → `parseWeatherResponse`). 4) `success` with the report renders the hero (`presentWeatherHero`), and `forecastForState` chooses the hours and days for the two forecast cards from the same report. 5) The same report, its place and fetch time are saved as the cache entry (`rememberReport` → `saveLastReport`, D-47), so the next start shows them at once. |
+| Q6 | How does your app handle caching — what is stored locally, and when is it refreshed? | W-11, W-16 | Refresh: `src/utils/refreshPolicy.ts` → `isStale`; `src/viewmodels/useWeatherViewModel.ts` → `shouldRefresh`, `refreshIfStale`, `refresh`; triggers in `src/views/screens/HomeScreen.tsx` (`useFocusEffect`, `AppState`, pull-to-refresh). Cache: `src/parsers/weatherCacheParser.ts`; `src/repositories/weatherRepository.ts` → `loadLastReport`, `saveLastReport`; `useWeatherViewModel` → `rememberReport`, `restoreLastReport` | **When it is refreshed:** when Home comes back into view or the app returns from the background, the weather is fetched again if it is at least the chosen interval old (15/30/60 min, Settings). Pull-to-refresh and "Try again" always fetch. There is no timer, because those are the moments someone looks (D-45). The rule is the pure `isStale(fetchedAtEpochMs, nowEpochMs, intervalMinutes)`, tested at the boundary. **What is stored:** favourites, settings and one weather cache entry (`src/parsers/weatherCacheParser.ts`, `src/repositories/weatherRepository.ts` → `loadLastReport`, `saveLastReport`): the last parsed report, its place and its fetch time, under `weatherly:lastWeather` (D-47). The parsed model is stored rather than the API's JSON, so the cache has its own parser; a damaged entry counts as no cache. It is saved after every newest successful load or refresh (`rememberReport`) and shown at the app's start (`restoreLastReport`); if it is stale then, it is fetched again at once, with the same `isStale` rule and the user's interval (D-48). |
+
+### State management
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q7 | Where does the fetched weather data live while the app is running? Show the declaration. | W-26 | `src/viewmodels/useWeatherViewModel.ts` → `const [screenState, setScreenState] = useState<WeatherScreenState>(…)` | In React state inside the weather ViewModel hook: one value `{ location, weather: LoadState<FetchedWeatherReport> }`, kept for as long as `HomeScreen` is mounted (D-35). This state is the only copy the screens read. A copy of the last report is also stored on the device (`weatherly:lastWeather`, D-47), but only to restore it at the next start (`restoreLastReport`, see Q6 and Q10); while the app runs, nothing reads it. |
+| Q8 | What happens to the displayed data when the user searches for a new city? | W-01, W-20 | `src/viewmodels/useSearchViewModel.ts` → `search` | For search results: a new search immediately sets the state to `loading`, so the old list disappears and a loading indicator shows. The new results (or an error) replace it. The weather of the selected place stays until the user selects a new place; `load` then sets the new location and `loading` in one update, so the old weather is never shown under the new name (`useWeatherViewModel`). |
+| Q9 | How does the UI know when new data has arrived? Trace the update from data layer to screen. | W-26 | `src/viewmodels/useWeatherViewModel.ts` → `runLoad`; `src/views/screens/HomeScreen.tsx` | `getReport` resolves its promise with the report. `runLoad` checks that the request is still the newest and calls `setScreenState({ location, weather: { status: 'success', … } })`. React re-renders `HomeScreen`, which reads `weatherViewModel.state` and, because `status` is now `success`, renders `WeatherHero` and the forecast cards instead of the loading indicator. Restoring the cache at start ends the same way: `restoreLastReport` calls `setScreenState(stateFromCache(cached))`, so the screen cannot tell a restored report from a fetched one. There is no polling or event bus. |
+| Q10 | What state is preserved if the user leaves the app and returns? | W-08, W-10, W-16 | `src/repositories/favoritesRepository.ts`, `src/viewmodels/useFavoritesViewModel.ts`; `src/repositories/settingsRepository.ts`, `src/viewmodels/useSettingsViewModel.tsx`; `src/repositories/weatherRepository.ts` → `loadLastReport`, `saveLastReport`; `useWeatherViewModel.restoreLastReport` | Three things, all in AsyncStorage through `src/storage/keyValueStorage.ts`, each with a version number and its own parser. **Favourites:** every change is written to AsyncStorage under `weatherly:favorites` as `{ version: 1, favorites: [...] }`, and the ViewModel reads them back when it is first used. After a restart, the home screen's star and the favourites screen therefore show the saved places (not yet checked on a device, UX-12). **Settings** (D-44): every choice is written under `weatherly:settings` as `{ version: 1, refreshIntervalMinutes, temperatureUnit, windSpeedUnit }` (`src/repositories/settingsRepository.ts` → `saveSettings`); `SettingsProvider` in `src/viewmodels/useSettingsViewModel.tsx` reads them once at app start, so all screens start with the user's choices. Damaged stored settings fall back to the defaults, field by field (`parseStoredSettings`). **The last place and its weather** (D-47): after every successful load or refresh, `useWeatherViewModel` saves the report, its place and its fetch time under `weatherly:lastWeather` (`rememberReport` → `weatherRepository.saveLastReport`). At the next start, `HomeScreen` calls `restoreLastReport`, which reads the entry (`loadLastReport`) and shows that place before any request; `stateFromCache` turns it into the same `success` state a normal load gives. What is not kept: search text, the open search sheet, scroll position and which screen was open. |
+| Q11 | Where in the code is the loading state managed? How do you prevent the UI from showing stale data while a new request is in flight? | W-20, W-23 | `src/viewmodels/useSearchViewModel.ts` → `search`; `src/viewmodels/useWeatherViewModel.ts` → `load`, `refresh`; `LoadState` in `src/viewmodels/loadState.ts` | In the ViewModel: `search` sets `{ status: 'loading' }` before the request starts, and `LoadState` is a union, so the screen cannot show old results and a spinner at the same time. Outdated responses are ignored (see Q12). **Refreshing** (D-45): `useWeatherViewModel.refresh` does not go back to `loading`; it keeps the shown report with `isRefreshing: true` (`startRefresh`), so the user keeps seeing the weather until the new report replaces it (`finishRefresh`). If the refresh fails, `failRefresh` keeps the old report as `refreshFailed` with the error. A refresh that finishes after another place was chosen is ignored by the same request guard. |
+| Q12 | If the user rapidly searches for two cities, what happens? Can a race condition occur, and how do you guard against it? | W-23, W-30 | `src/viewmodels/latestRequest.ts` → `createLatestRequestGuard`; used in `src/viewmodels/useSearchViewModel.ts` (with `activeQuery`, `isRepeatedSearch`) and `useWeatherViewModel.ts` | Yes, without a guard: if "Lund" answers after "Kiruna", Lund's results would overwrite Kiruna's. Each search calls `requestGuard.start()` and remembers its number; a result is applied only if `isLatest(number)` is still true. Unmounting the screen calls `cancelAll()`, so late results after leaving are ignored. Search and weather share this one tested helper (NIT-267), so the rule is written and tested once. Pressing "Search" twice for the **same** city sends only one request: `isRepeatedSearch` compares the new query with the one that is loading or shown, ignoring case (D-28). **Weather and the cache** (`src/viewmodels/useWeatherViewModel.ts` → `createLatestRequestGuard`, `rememberReport`): the same rule applies to the weather of two places chosen quickly, and the cache entry is saved only inside the newest-request check, so a slower answer for the place the user left is neither shown nor saved (D-47). |
+
+### Error handling
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q13 | What does the app display if the network request times out? | W-18 | `src/services/api/httpClient.ts` → `getJson`; `FORECAST_TIMEOUT_MS` in `weatherService.ts`; `src/views/components/WeatherStatus.tsx` → `weatherErrorMessage`, `describeRefreshNotice` | After 10 s the `AbortController` cancels the request, and `getJson` throws `AppError('timeout')`. The ViewModel stores it in the `error` state; the View picks the text from `kind`: "The weather service took too long to answer. Try again." with a "Try again" button. If weather was already on screen (a refresh), it stays, and the notice says "No connection. Showing the weather from HH:MM." (D-45, D-48). A place search that times out says "The search took too long. Please search again." |
+| Q14 | Where do you distinguish between a network error and an API error response (e.g., HTTP 404 or 500)? | W-18, W-19 | `src/services/api/httpClient.ts` → `getJson` | In one place. If `fetch` itself rejects, there was no answer: `network`, or `timeout` if our abort fired. If a response arrives with `!response.ok` (e.g. 404, 500), the server answered: `http`, with the status in the developer message. A 200 whose body is not valid JSON is `parse`. The View then words them differently (`weatherErrorMessage`, `searchErrorMessage`): `network` asks the user to check the connection and try again, while `http` and `parse` say "Please try again later", because retrying at once rarely helps when the server is the problem. |
+| Q15 | What happens if the user has no internet connection and opens the app for the first time? | W-17, W-18 | `src/repositories/weatherRepository.ts` → `loadLastReport`; `src/viewmodels/useWeatherViewModel.ts` → `restoreLastReport`; `src/views/components/SearchStatus.tsx`, `WeatherStatus.tsx` (`weatherErrorMessage`) | Nothing crashes: there is no cache entry, so `loadLastReport` gives `null`, `restoreLastReport` does nothing and Home shows the welcome panel. A search then fails with `network` and the search sheet says there is no connection; a place opened from the favourites shows the weather error ("No internet connection…") with "Try again", which loads it once the connection is back (D-48). Offline is detected from the failed request, not with NetInfo: a connection does not guarantee that the API answers. |
+| Q16 | What happens if they open it a second time, after having successfully loaded data before? | W-16, W-17 | `src/viewmodels/useWeatherViewModel.ts` → `restoreLastReport`, `stateFromCache`; `src/repositories/weatherRepository.ts` → `loadLastReport`; called from `src/views/screens/HomeScreen.tsx` | The last place and its weather appear at once from the cache, without a request, so the app also has something to show offline (D-47). If the data is at least the refresh interval old, it is fetched again while it stays on screen; offline, that fails and the cached weather stays with "No connection. Showing the weather from HH:MM." (or "…from Mon 23 Nov, HH:MM." for older data) and "Try again" (D-48, `describeRefreshNotice`). Fresh data sends no request and shows no notice. A damaged cache counts as no cache, and the app starts empty as on a first launch. |
+| Q17 | Where is the error state declared, and how does it flow to the UI? | W-18, W-19, W-26 | `src/models/AppError.ts` (`AppError`, `toAppError`); `src/viewmodels/loadState.ts`; `src/viewmodels/useSearchViewModel.ts`, `useWeatherViewModel.ts`; `src/views/components/SearchStatus.tsx` (`describeSearchStatus`, `searchErrorMessage`); `src/views/components/WeatherStatus.tsx` (`describeWeatherStatus`, `weatherErrorMessage`, `describeRefreshNotice`) | `AppError` (with a `kind`: `network`, `timeout`, `http`, `parse`, `validation`, `storage`, `unknown`) is declared in `AppError.ts`; the error state is the `error` and `refreshFailed` members of the `LoadState` union in `loadState.ts`. Services and parsers throw `AppError`; the repository passes it on. The ViewModel catches it, converts anything else with `toAppError` (kind `unknown`), and sets `{ status: 'error', error }`. **Search:** `HomeScreen` owns the search ViewModel and passes it to `LocationSearchSheet`, which renders `SearchStatus`: `describeSearchStatus` turns it into a loading indicator or a message, and `searchErrorMessage` picks the text from `error.kind`, e.g. `network` → "No internet connection…". The developer `message` is never shown. An empty query (`validation`) is shown as a neutral hint, not as an error. **Weather:** `HomeScreen` renders `WeatherStatus` (an `error` replaces the weather, with "Try again") and `RefreshNotice` (a `refreshFailed` keeps the weather and adds a notice above it). |
+| Q18 | What was the hardest error case to handle? Show the code. | W-30 | `src/viewmodels/loadState.ts` (`refreshFailed`); `src/viewmodels/useWeatherViewModel.ts` → `failRefresh`, `restoreLastReport`; `src/views/components/WeatherStatus.tsx` → `describeRefreshNotice` | **A failed refresh while weather is shown, especially offline at the start.** An error normally replaces the data, but here the old weather must stay *and* the error must be shown, without mixing it up with a newer place. Solved with a separate `refreshFailed` state that carries both the data and the error (D-20, D-45), the request guard so a late answer for another place is ignored, and a notice whose text says how old the data is (D-48). |
+
+### Architecture
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q19 | Show the MVVM layers in your code: what belongs to the View, what to the ViewModel, what to the Model/Repository? | W-26 | Place search: `src/views/screens/LocationSearchSheet.tsx` (opened from `HomeScreen`) → `src/viewmodels/useSearchViewModel.ts` → `src/repositories/locationRepository.ts` → `src/services/api/geocodingService.ts` + `src/parsers/geocodingParser.ts` → `src/models/Location.ts` | **View** (`LocationSearchSheet`, `CitySearchForm`, `LocationResultItem`, `SearchStatus`): renders `state` and calls `search(query)` when the user presses "Search"; it never sees a URL or JSON. **ViewModel** (`useSearchViewModel`): trims the query, skips empty and repeated searches, sets `loading`/`success`/`error`, ignores outdated answers. **Repository** (`searchLocations`): joins service and parser. **Service** (`fetchLocations` → `getJson`): the HTTP request, returning `unknown`. **Parser** (`parseGeocodingResponse`): JSON → `Location[]`. **Model** (`Location`): plain typed data. |
+| Q20 | Why is the network call not made directly from the View? | W-13, W-26 | `src/services/api/`, `src/repositories/weatherRepository.ts` | The View only renders state. The network call sits in a service behind a repository, so it can be tested without UI (fake `fetch`), and the screen never deals with URLs, timeouts or JSON. The same separation made the cache (Epic 7) a data-layer change: `weatherRepository` got `loadLastReport` and `saveLastReport`, the ViewModel decides when to call them (D-47), and the only screen change was one call to `restoreLastReport` in `HomeScreen`. No component changed for it (STYLE §3). |
+| Q21 | Where in the code is testable logic separated from UI code? What made that separation easy or hard? | W-24, W-26 | `src/utils/` (e.g. `coordinateValidation.ts`, `refreshPolicy.ts`, `forecastSelection.ts`); `src/parsers/`; the exported pure helpers in `src/viewmodels/useWeatherViewModel.ts`; `tests/` | Rules live in pure functions with no React or I/O: `validateCoordinates`, `isStale`, the forecast selectors and formatters, the parsers, `prepareSearchQuery`, `toAppError`. Even the ViewModel's decisions are pure functions next to the hook (`shouldRefresh`, `startRefresh`, `failRefresh`, `shouldRestore`, `stateFromCache`); the hook only calls them and sets state. Views only render, and their text comes from pure `describe…`/`present…` functions. That made testing plain input → expected result: 757 tests in 40 suites, e.g. 37 for coordinates alone. Hooks were harder: testing them needs a React test renderer, which we chose not to add, so their state changes are checked on the simulator (UX scenarios). |
+| Q22 | How does navigation between screens work? Why does the ViewModel not navigate itself? | W-07, W-26 | `src/navigation/routes.ts` (`RootStackParamList`), `src/navigation/RootNavigator.tsx`; `HomeScreen.handleSelectDay` → `navigation.navigate('DayDetail', { location, day, utcOffsetSeconds })` | One native stack (D-35): `Home` is the root and `DayDetail` is pushed on top; back pops it. `HomeScreen` stays mounted underneath, so its place and forecast are still there afterwards, with no new request. The params are typed once in `RootStackParamList` and carry only plain values: the place, the tapped `DailyForecast` and the UTC offset, so the detail screen sends no request (D-36). The ViewModel does not navigate because navigation is a View concern: it then needs no `navigation` object, has no React Navigation import and can be tested as plain functions. The row only reports the tap (`onSelectDay`); the screen decides to navigate. |
+| Q23 | Open SPEC.md. Walk through how one requirement ID maps to the code that implements it. | W-31 | SPEC.md §6, §7, §11 | Suggested route, with **W-16 (local caching)**: 1) §6 lists it as a functional requirement. 2) §7 "W-16 – Local caching" gives the details (what is stored, when, what happens to a damaged entry). 3) The §11 row for W-16 names the Linear story (NIT-158 / NIT-182), the code (`weatherCacheParser`, `weatherRepository.loadLastReport`/`saveLastReport`, `useWeatherViewModel.rememberReport`/`restoreLastReport`), the tests and the status. 4) Open `useWeatherViewModel.ts` → `rememberReport` and show that it is called only inside the newest-request check; then the test `tests/parsers/weatherCacheParser.test.ts`. 5) D-47 in §13 gives the why. |
+| Q24 | What would you change about your architecture if you had to add hourly forecast support tomorrow? | W-06, W-26 | `src/utils/forecastSelection.ts` → `selectRemainingHoursToday`; `src/views/components/HourlyForecastList.tsx` | Almost nothing, which is how US-03.04 went. The data layer already requested and parsed hourly data into `HourlyForecast[]`. The new parts are one pure selector (which hours are "rest of today"), one formatter, two presentational components, and one field (`todayHours`) in the ViewModel's `forecast`. No new request, service, parser or repository change. |
+
+### AI & LLM usage
+
+| # | Question | Req. | Code location | Answer |
+|---|---|---|---|---|
+| Q25 | Show a function the AI helped you write. Explain it line by line in your own words. | W-33 | `src/utils/refreshPolicy.ts` → `isStale` | Decides whether the shown weather should be fetched again. Takes the fetch time, the current time and the interval from Settings (15/30/60 min), all in ms. `ageMs = now − fetchedAt` is how old the data is. **`ageMs < 0`:** the fetch time lies in the future (the clock was set back); the real age is unknown, so it counts as stale and is fetched again. **`ageMs >= interval`:** stale; `>=` so that exactly 15 minutes already counts, and a 15-minute setting never shows data older than 15 minutes. Pure (no React, no clock inside; the time is passed in), so it is easy to test at the boundary: 14:59 fresh, 15:00 stale. |
+| Q26 | Open SPEC.md and show us the AI meta-instructions at the top. Walk us through one requirement and find the code that implements it. **(Always asked first.)** | W-31, W-33 | SPEC.md §0, §11 | §0 has 12 rules for every AI assistant on the repository, the main ones: read SPEC, STYLE and CONTEXT first (1); implement only the named story (2); no new library without an accepted decision (4); explain architecture so we can defend it (5); never mark a requirement `VERIFIED` (6); never invent results or claim a simulator run that did not happen (7, 8); never write the reflection (9); the AI codes from our prompts and we must be able to explain every line before committing (11). Claude Code loads the same rules from `CLAUDE.md`, which must not diverge from §0. Then walk one requirement as in Q23. |
+| Q27 | Where did the AI suggest something you pushed back on or changed? What was your reasoning? | W-33 | LLM_PROCESS.md LLM-012 (US-04.03 planning); SPEC D-43; `DAILY_FIELDS` in `src/services/api/weatherService.ts` | **The day detail screen.** The AI recommended adding no extra weather fields. I checked the lab PDF myself: it asks for "any additional data your chosen API provides (wind, precipitation, etc.)". So I pushed back, the AI reversed its recommendation, and we added 9 extra daily fields (feels-like, rain, snow, gusts, wind direction, UV and more). I also chose what to leave out: no extra temperature card and no hourly forecast there. **Reasoning:** the AI had misread a requirement; I caught it by reading the source instead of trusting its summary. |
+| Q28 | How did you verify that AI-generated code actually works correctly? Show a test case. | W-24, W-33 | `tests/parsers/weatherParser.test.ts`; TEST_REPORT §2.3 | The parser is tested against a **real** saved Open-Meteo response, not an invented one. Each failure test changes one field, e.g. "throws a parse error when the current temperature is missing". Mutation checks broke the parser on purpose (removed the length check, skipped the seconds→ms conversion) and confirmed the tests fail. |
+| Q29 | What was the most effective prompt you wrote during this lab? What made it work? | W-33 | LLM_PROCESS.md LLM-016 (Epic 7 scope check); §14 change log, 2026-11-25 | **The prompt:** check the Epic against the lab requirements strictly and report which Linear stories and tasks are too complicated or understated. I read the lab PDF in parallel. **Result (Epic 7):** it found a missing requirement (restoring the last place at launch, new task NIT-384) and four tasks that were already built (NIT-262, NIT-263, NIT-265, NIT-266, cancelled). **Why it worked:** it named the source (the PDF), a clear test (too much or too little) and the output (a report, not code), so we decided before anything was built. It also set a habit: the lab is the one source of truth, not the AI's summary of it (see Q27). |
+| Q30 | If you were starting this lab again with the same AI tools, what would you do differently? | W-33 | §14 change log, 2026-11-25 (Epic 7 scope check); LLM_PROCESS.md LLM-016 | **Check every Epic against the lab before the AI creates its stories**, for both too much and too little. We did that check late: in Epic 7 we had to cancel four tasks that earlier Epics had already built (NIT-262, NIT-263, NIT-265, NIT-266) and add one the lab needed but we had missed (restoring the last place, NIT-384). Checking first would have saved that rework and kept Linear accurate from the start. It is the same habit as Q27 and Q29, just applied earlier. |
+
+### 12.1 Tests per Question
+
+The lab's oral-exam map asks for a code location **and a test name** per question. The answers above stay as the students wrote them; this table adds the tests that show the same code working. Names are `describe` › `it` from the files in `tests/`. A dash means the question is about the process, not code.
+
+| # | Req. | Test file › test |
+|---|---|---|
+| Q1 | W-13, W-23 | `services/httpClient.test.ts` › getJson › "returns the parsed JSON for a 200 response" |
+| Q2 | W-14, W-15 | `parsers/weatherParser.test.ts` › valid response › "turns the daily arrays into one entry per day" |
+| Q3 | W-04 – W-07 | `parsers/weatherParser.test.ts` › "parses current conditions and converts seconds to milliseconds"; `utils/forecastFormatting.test.ts` › presentDayConditions › "presents a real rainy day" |
+| Q4 | W-14, W-19 | `parsers/weatherParser.test.ts` › missing required fields › "throws a parse error when the current temperature is missing" |
+| Q5 | W-01, W-02, W-04 | `repositories/locationRepository.test.ts` › searchLocations › "requests the search URL for the query"; `repositories/weatherRepository.test.ts` › getReport › "returns the parsed report with the time it was fetched" |
+| Q6 | W-11, W-16 | `utils/refreshPolicy.test.ts` › isStale › "refreshes data that is exactly the interval old (the boundary counts as stale)"; `repositories/weatherRepository.test.ts` › the cache entry › "gives back the saved entry, as after a restart of the app" |
+| Q7 | W-26 | `viewmodels/useWeatherViewModel.test.ts` › stateFromCache › "gives the state of a finished load of the cached place" (the hook itself is not rendered, Q21) |
+| Q8 | W-01, W-20 | `views/searchStatus.test.ts` › describeSearchStatus › "shows the loading indicator while searching" |
+| Q9 | W-26 | `viewmodels/latestRequest.test.ts` › "applies only the newer answer when the older one arrives last" |
+| Q10 | W-08, W-10, W-16 | `repositories/favoritesRepository.test.ts` › restart persistence › "returns the saved favorites, newest first, in a later load (as after a restart)"; `repositories/settingsRepository.test.ts` › "reads back what was saved, as after a restart"; `views/homeContent.test.ts` › "shows the cached place and weather straight after the loading view" |
+| Q11 | W-20, W-23 | `views/weatherStatus.test.ts` › describeWeatherStatus › "shows the loading indicator while the weather loads"; `viewmodels/useWeatherViewModel.test.ts` › startRefresh › "keeps the shown weather and marks it as refreshing" |
+| Q12 | W-23, W-30 | `viewmodels/latestRequest.test.ts` › "makes an older request outdated when a new one starts"; UX-29 |
+| Q13 | W-18 | `services/httpClient.test.ts` › "throws a timeout error when no response arrives in time"; `views/weatherStatus.test.ts` › weatherErrorMessage |
+| Q14 | W-18, W-19 | `services/httpClient.test.ts` › "throws a network error when fetch fails (no connection)" and "throws an http error for status %i" (404, 500, 503) |
+| Q15 | W-17, W-18 | `views/homeContent.test.ts` › "shows the welcome panel on a first launch (nothing stored)"; `views/searchStatus.test.ts` › searchErrorMessage; UX-33 |
+| Q16 | W-16, W-17 | `views/homeContent.test.ts` › "shows the cached place and weather straight after the loading view"; `viewmodels/useWeatherViewModel.test.ts` › "refreshes a cache entry that is older than the interval" |
+| Q17 | W-18, W-19 | `models/AppError.test.ts` › toAppError; `views/weatherStatus.test.ts` › describeWeatherStatus (one case per `AppError` kind) |
+| Q18 | W-30 | `viewmodels/useWeatherViewModel.test.ts` › failRefresh › "keeps the old report on screen and attaches the error"; `views/weatherStatus.test.ts` › describeRefreshNotice |
+| Q19 | W-26 | One test file per layer, mirroring `src/` (D-23): e.g. `parsers/geocodingParser.test.ts`, `repositories/locationRepository.test.ts`, `viewmodels/useSearchViewModel.test.ts`, `views/searchStatus.test.ts` |
+| Q20 | W-13, W-26 | `repositories/weatherRepository.test.ts` › getReport › "requests the forecast URL for the given coordinates" (with a fake `fetch`, no UI) |
+| Q21 | W-24, W-26 | `utils/screenLayout.test.ts` (the layout decision without rendering); `utils/refreshPolicy.test.ts` |
+| Q22 | W-07, W-26 | `navigation/routes.test.ts` › DayDetail route params › "survive a JSON round trip unchanged for day %i of the real forecast" |
+| Q23 | W-31 | W-16 walk-through: `repositories/weatherRepository.test.ts` › the cache entry › "gives null for a damaged entry instead of throwing" |
+| Q24 | W-06, W-26 | `utils/forecastSelection.test.ts` › selectRemainingHoursToday › "returns the current hour and the rest of today for the real forecast" |
+| Q25 | W-33 | `utils/refreshPolicy.test.ts` › isStale › "refreshes data whose time lies in the future (the clock was set back)" |
+| Q26 | W-31, W-33 | As Q23 |
+| Q27 | W-33 | `utils/forecastFormatting.test.ts` › presentDayConditions › "presents a real rainy day" (the extra daily fields, D-43) |
+| Q28 | W-24, W-33 | `parsers/weatherParser.test.ts` › "throws a parse error when the current temperature is missing"; mutation evidence in TEST_REPORT §2.3 |
+| Q29 | W-33 | — |
+| Q30 | W-33 | — |
+
+## 13. Decision Log
+
+| ID | Date | Decision | Status | Rationale / Notes | Linear |
+|---|---|---|---|---|---|
+| D-01 | 2026-11-10 | Expo SDK 58, React Native 0.88, TypeScript strict | Decided | One cross-platform codebase for Android and iOS. Expo removes the need for native project maintenance. | NIT-193 |
+| D-02 | 2026-11-10 | Start from the `blank-typescript` template without Expo Router; removed the template's `AGENTS.md` | Decided | Keeps the structure open for our own MVVM layout. Project-specific agent instructions later lived in `agents/` (D-13) and now live in the root `CLAUDE.md` (D-14, D-15). | NIT-193 |
+| D-03 | 2026-11-10 | Public GitHub repo with `main` (stable), `dev` (integration) and feature branches from `dev` | Decided | Portfolio visibility and safe integration. See GIT_WORKFLOW.md. | NIT-196, NIT-197 |
+| D-04 | 2026-11-10 | `.gitattributes` enforces LF line endings in the repository and working tree | Decided | Avoids CRLF/LF churn between Windows and macOS. | NIT-197 |
+| D-05 | 2026-11-10 | Weather API: **Open-Meteo** | Decided | Free REST/JSON API with no key; provides current, hourly and daily data. | NIT-164 (recorded) |
+| D-06 | 2026-11-10 | Geocoding: **SMHI place-search API**, as permitted by the lab | Superseded by D-24 | Verify the response format with real requests before implementing the service. See §13.1. | NIT-164 (recorded) |
+| D-07 | 2026-11-10 | Navigation: **React Navigation**, minimal packages | Decided | Widely used and well documented. Only the core package, one navigator type and their required peer dependencies are added. Navigation stays out of ViewModels (STYLE.md §3). | NIT-164 (recorded) |
+| D-08 | 2026-11-10 | Persistence: **`@react-native-async-storage/async-storage`** | Decided | Simple key-value storage, enough for cache, favourites and settings. Accessed only through `keyValueStorage`. | NIT-164 (recorded) |
+| D-09 | 2026-11-10 | Unit testing: **Jest + `jest-expo`** | Decided | The Expo-supported preset for testing pure TypeScript logic. | NIT-164 (recorded) |
+| D-10 | 2026-11-10 | ViewModels are custom React hooks, with no global state library | Proposed | Smallest solution that keeps MVVM separation. Revisit only if shared state becomes complex. | NIT-164 |
+| D-11 | 2026-11-10 | `README.md` is the only Markdown file at the project root. Agent instructions live in `agents/` (`claude.md`, `codex.md`), and all other project documentation lives in `docs/`. | Superseded by D-14 | Keeps the root clean and groups AI-specific instructions in one place. Trade-off: the files are not auto-loaded, so they must be read explicitly each session. | NIT-164 |
+| D-12 | 2026-11-10 | Cross-platform testing on the Android Emulator (Windows) and iOS Simulator (macOS) | Decided | Each developer covers the platform their machine supports. Both are required for `VERIFIED`. | NIT-164 (recorded) |
+| D-13 | 2026-11-10 | Two AI coding assistants: Claude Code (Developer 1, Windows) and OpenAI Codex (Developer 2, macOS). Both use `docs/` as the single source of truth through identical rule sets in `agents/claude.md` and `agents/codex.md`, which each developer tells their assistant to read at session start. | Superseded by D-15 | Each developer uses their own assistant without separate or conflicting instructions. | NIT-164 (NIT-204) |
+| D-14 | 2026-11-18 | All project Markdown files live at the repository root: `README.md`, `CLAUDE.md`, `AGENTS.md`, `SPEC.md`, `STYLE.md`, `CONTEXT.md`, `GIT_WORKFLOW.md`, `TEST_REPORT.md`, `LLM_PROCESS.md`, `REFLECTION.md`. The `docs/` and `agents/` folders are removed. | Decided | A root `CLAUDE.md` is loaded automatically by Claude Code, which removes the manual-loading trade-off of D-11. Flat links between documents. | NIT-163 |
+| D-15 | 2026-11-18 | Both developers use Claude Code in VS Code. `CLAUDE.md` is the single agent rule set; `AGENTS.md` is a short pointer to it. | Decided | One assistant and one rule set remove the risk of two copies diverging. OpenAI Codex usage before this date stays recorded in D-13 and in LLM_PROCESS.md. | NIT-163 |
+| D-16 | 2026-11-18 | One-off exception: the work explicitly authorised in the 2026-11-18 session is done directly on `dev`, without a feature branch or PR. That covers the D-14/D-15 Markdown move and related documentation corrections, the NIT-163 folder structure, the minimal shared types and architecture contracts, and the data-flow and navigation-ownership documentation. | Decided | Team decision for this Lab B.2 step only. The feature-branch and PR workflow (GIT_WORKFLOW.md) applies to all later work. See GIT_WORKFLOW.md §16. | NIT-163 |
+| D-17 | 2026-11-18 | Add `locationRepository`. It calls `geocodingService`, passes the response to `geocodingParser` and returns typed `Location` values. It stays thin: no location caching or other behaviour. | Decided | Keeps the rule that services return `unknown` and repositories call parsers (STYLE §9), so `useSearchViewModel` never touches raw JSON. STYLE §4 previously had no repository for search. | NIT-163 (NIT-199) |
+| D-18 | 2026-11-18 | Timestamps are stored and passed as epoch milliseconds in fields named `…EpochMs` (e.g. `fetchedAtEpochMs`). | Decided | A `Date` does not survive JSON storage. Numbers compare simply in `refreshPolicy` and are easy to test. Convert to `Date` only for display. | NIT-163 (NIT-199) |
+| D-19 | 2026-11-18 | The full `src/` folder structure is created up front. Folders without a file contain an empty `.gitkeep`, removed when the first real file is added. No empty modules or placeholder functions. | Decided | Makes the MVVM layers visible from the start (NIT-200). An exception to the earlier "create folders only when needed" rule, limited to this initial setup (STYLE §4). | NIT-163 (NIT-200) |
+| D-20 | 2026-11-18 | `LoadState<T>` (in `src/viewmodels/loadState.ts`) has the states `idle`, `loading`, `success`, `refreshFailed` and `error`, with `isRefreshing` on the states that carry data. There is no "from cache" flag: a fresh cache hit is a normal `success`. Only `refreshFailed` shows an outdated or offline notice. | Decided | Separates "data came from the cache" from "data could not be updated", which W-17 actually requires. Shows existing data during a refresh without extra booleans (STYLE §7). | NIT-163 (NIT-199, NIT-200) |
+| D-21 | 2026-11-18 | Claude Code writes the `LLM_PROCESS.md` entry at the end of every session, based only on what happened in that session (CLAUDE.md rule 14). Entries do not say who wrote them. Fields the assistant cannot know are left empty. | Decided | The assistant has the full session in context, so the log is complete and consistent across both developers. Previously the students wrote the entries themselves. | NIT-191 (US-09.03) |
+| D-22 | 2026-11-20 | One `HomeScreen` combines search with the selected location's current conditions, today's hourly forecast and the seven-day summary. Selecting a day navigates to `DayDetailScreen`. There is no separate search or weather screen. | Decided | Matches the Lab B:2 description of the search/home screen and Linear US-03.01. Removes one screen and one navigation step, so the forecast appears where the user searched. `HomeScreen` uses two ViewModels, `useSearchViewModel` and `useWeatherViewModel` (STYLE §3.2). | NIT-169 (US-03.01) |
+| D-23 | 2026-11-20 | All unit tests live in a root `tests/` folder that mirrors `src/` (e.g. `tests/parsers/weatherParser.test.ts`), with saved API responses in `tests/fixtures/`. This replaces the earlier "tests next to the module" rule. `tsconfig.json` lists `"types": ["jest"]`, because TypeScript 6 no longer loads `@types` packages automatically. | Decided | Separates test code from app code, so `src/` holds only what ships in the app. Trade-off: test imports are longer (`../../src/...`), and a moved module must be moved in both trees. | NIT-216 |
+| D-24 | 2026-11-20 | Geocoding: **Open-Meteo Geocoding API** (`https://geocoding-api.open-meteo.com/v1/search?name=…&count=10&language=sv&format=json`), replacing the SMHI place search (D-06). | Decided | The lab's SMHI URL returns HTTP 404 for every query. The lab's other option, geocode.maps.co, now returns HTTP 401 without an API key, and a key would be embedded in the app bundle. The KTH proxy only answers its example place and is not allowed in the final app. Open-Meteo Geocoding is free, needs no key, covers the whole world, and comes from the same provider as the weather data. `language=sv` is used because with `en` a search for "Göteborg" does not find the city. Evidence: TEST_REPORT §1.3. Deviation from the lab's list of geocoding APIs; the teacher should be informed. | NIT-205 |
+| D-25 | 2026-11-20 | Coordinate input accepts both `.` and `,` as the decimal separator, with a strict format (optional sign, digits, optional decimal part with digits on both sides). Validated by the pure `validateCoordinates`; invalid input never reaches the network. | Decided | Swedish keyboards type a comma, so rejecting "59,33" would fail many real users. A strict pattern before `Number()` is needed because `Number()` turns "" into 0 and accepts "1e2", "0x10" and "Infinity". | NIT-166 (NIT-209) |
+| D-26 | 2026-11-22 | Safe areas with **`react-native-safe-area-context`** (installed with `npx expo install`, `~5.11.1`): `SafeAreaProvider` in `App.tsx`, its `SafeAreaView` in screens. | Decided | React Native 0.88's own `SafeAreaView` is deprecated (warns on use) and works on iOS only, so it cannot keep content clear of the Android status bar. The package is a required peer dependency of React Navigation (D-07), and US-03.01 is the first story that needs it (CONTEXT §4). Included in Expo Go. Team decision in the US-03.01 session. | NIT-169 (NIT-217) |
+| D-27 | 2026-11-22 | User-facing text is in **English**, like the existing coordinate form. Place names, regions and countries come from the geocoding API in Swedish (`language=sv`, D-24), e.g. "Skåne län, Sverige". | Decided | One language for all app text, consistent with SPEC §0 rule 10 and the existing `coordinateErrorMessage` tests. Team decision in the US-03.01 session. | NIT-169 |
+| D-28 | 2026-11-22 | Place search is started only by submitting (button or keyboard search key). Repeating the query that is loading or shown sends no request; the comparison ignores case. After an error the same query can be searched again. | Decided | Avoids duplicate network calls without a debounce timer. Ignoring case is safe because the API does too: "Lund", "lund" and "LUND" returned the same 10 results (2026-11-22). Searching again after an error is how the user retries until a retry button exists (US-07.03). | NIT-169 (NIT-218) |
+| D-29 | 2026-11-22 | Current weather display: condition as **text** from the Open-Meteo WMO code table (`describeWeatherCode`), with "Unknown conditions" for unlisted codes; no icons or emoji yet. Units as requested from the API (°C, %, m/s). Rounding: temperature and percentages to whole numbers, wind to one decimal, with a non-breaking space before the unit. Observation time in the location's local time from `utcOffsetSeconds`. | Decided | Text needs no new dependency and is accessible as it is (STYLE §15). The table is copied from the Open-Meteo docs (checked 2026-11-22), not written from memory. An icon set can be added in the design story (US-08.01). The offset is the location's current offset, so it is exact for "now". **"No icons" superseded by D-34**; the text descriptions remain the accessible equivalent of every icon. | NIT-170 |
+| D-30 | 2026-11-22 | The selected location is owned by `useWeatherViewModel` together with its weather, in one state value. Both search modes end in `load(location)`. The location's coordinates are used unchanged for the request. Selecting the place that is loading or shown sends no request; after an error, selecting it again retries. | Decided | Replaces the temporary screen state of US-03.01 (STYLE §3.2, step 5). One value for location and weather means the screen can never show one place's weather under another's name. Request ordering uses `createLatestRequestGuard`, which can be unit-tested without a React renderer. | NIT-170 |
+| D-31 | 2026-11-22 | **Local time and "today" follow the API's day boundaries and its fixed offset.** "Today" runs from today's `DailyForecast.dateEpochMs` to the next day's. Hour and date labels use the report's `utcOffsetSeconds`; day labels are read at local noon. No `Intl` time zones. | Decided | Real responses (TEST_REPORT §1.7) show Open-Meteo uses **one fixed offset per response**, the location's current one, even across a daylight-saving change. Stockholm 24–26 Oct 2026 (clocks back on 25 Oct), New York 31 Oct – 2 Nov and Sydney 3–5 Oct (clocks forward on 4 Oct) all start every day at the same UTC hour, with exactly 24 hours per day. Following the API keeps labels and day grouping consistent, so no hour is dropped, duplicated or shown under the wrong day. Hermes's Intl documentation does not mention the `timeZone` option, so relying on it was not an option. Limitation: OQ-08. | NIT-171, NIT-172 |
+| D-32 | 2026-11-22 | The forecast sections are derived from the same report as the current weather. `forecastForState` in `useWeatherViewModel` calls `selectForecast(report, fetchedAtEpochMs)` and exposes `forecast`. "Now" is the fetch time. | Decided | One request feeds all three sections (W-04 – W-06). Using the fetch time keeps the choice of days and hours consistent with the data and deterministic on every render. Until refreshing exists (Epic 7), the selection is as of the last load. | NIT-171, NIT-172 |
+| D-33 | 2026-11-22 | **Weather-first home screen.** The home screen shows a header with the selected place and a compact search button, then the current weather as a large hero, then "Rest of today" and the seven-day forecast in glass cards on a day or night sky gradient. Search moves into `LocationSearchSheet`, a modal with both search modes. Before a place is chosen, a welcome panel invites a search. Compact temperatures ("2°") are used in the hero and lists; screen-reader labels and details keep full units. Gradients and shadows use React Native's own `backgroundImage` and `boxShadow`, so no library is needed. | Decided | The earlier layout gave search, results and weather the same weight. Refines D-22: still one home screen, with search as a modal on top (no navigation library, Epic 4). The ViewModels, data flow and logic are unchanged. The colours were chosen by computed WCAG contrast: white ≥ 6.3:1, muted text ≥ 4.8:1 on every gradient stop and card. Gradient and modal behaviour not yet seen on a device. | Redesign (team request, 2026-11-22) |
+| D-34 | 2026-11-22 | **Weather icons from `@expo/vector-icons`** (MaterialCommunityIcons weather glyphs). The pure `weatherIconName(code, isDay)` chooses the glyph. The hero uses `current.isDay`; hours use `isDaytimeAt` with the day's real sunrise and sunset; days use the day icon. Installed with `npx expo install`: `@expo/vector-icons`, plus its required peer `expo-font` (Expo Doctor reported it missing) and `expo-asset`, which `expo-font` imports but which was only nested inside `expo`. These installs added the `expo-font` and `expo-asset` config plugins to `app.json`. | Decided | Chosen by the team over emoji and text only: one consistent, tintable style with day/night variants, bundled in Expo Go. Icons are hidden from screen readers; each element's label carries the condition text (STYLE §15). Polar night and midnight sun come out right from the API's sunrise/sunset values (TEST_REPORT §1.2). Supersedes the "no icons" part of D-29. | Redesign (team request, 2026-11-22) |
+| D-35 | 2026-11-23 | **Navigation: one native stack, no tabs** (resolves OQ-05). `@react-navigation/native` and `@react-navigation/native-stack`, plus their required peer `react-native-screens`, installed with `npx expo install` in NIT-229. `Home` is the root; `DayDetail` is pushed on top. `Favorites` and `Settings` get their routes in Epic 5 and Epic 6, together with their screens, not as placeholders (STYLE §4). | Decided | One navigator type, as D-07 asks. The native stack uses each platform's own navigation (iOS swipe-back, Android back button) and needs no `react-native-gesture-handler`. A stack keeps `HomeScreen` mounted under the pushed screen, so the selected place, its forecast and the scroll position survive going back, with no new request. Favourites and settings can be pushed from header buttons, so no tabs package is needed. | NIT-173 (NIT-229) |
+| D-36 | 2026-11-23 | **The day detail screen gets its data in the route params.** `HomeScreen` passes the place's fields, the selected day's `DailyForecast` and the report's `utcOffsetSeconds`. `DayDetailScreen` shows them and sends no request. Refines STYLE §3.3, which earlier said the receiving screen loads its data itself. | Decided | W-07 uses only daily fields, all in one `DailyForecast` (about ten numbers, so small and serialisable). The home screen already holds them. Loading again would mean a second request until the cache exists (Epic 7), a failure offline even though the day is on screen, extra loading and error states, and possibly a different forecast from the row that was tapped. Trade-off accepted: an open detail screen does not update when the home screen refreshes; going back shows the fresh data. | NIT-173 (NIT-230), NIT-174 |
+| D-37 | 2026-11-23 | **Favourite identity by coordinates with a tolerance.** Two locations are the same favourite when both latitude and longitude differ by at most `FAVORITE_COORDINATE_TOLERANCE` = 0.0001° (about 11 m north–south), inclusive. Names are not compared. A duplicate add keeps the entry saved first; the list is newest first. Pure functions in `src/utils/favorites.ts` (`isSameFavoritePlace`, `containsFavorite`, `addFavorite`, `removeFavorite`, `toggleFavorite`, `normalizeFavorites`); `isSameLocation` stays unchanged. | Decided | W-08 asks for coordinates with a defined tolerance or the provider ID. `Location` has no ID (the geocoding parser drops it) and coordinate entries never have one, so coordinates are the only rule that works for both search modes. Comparing names would let "Lund" and "55.70584, 13.19321" become two favourites for one place, while Lund in Sweden and Lund in England stay apart because their coordinates differ. A rounding allowance of 1e-9° makes the boundary the same for every decimal pair (without it, binary rounding put some differences of exactly 0.0001 inside and some outside). `isSameLocation` (name + exact coordinates) keeps deciding whether the weather must be reloaded (D-30). Accepted limitations: the rule is not transitive; longitudes −180/180 and points at a pole count as different. Keeping the first entry means a geocoded name is never replaced by coordinates. | NIT-176 (NIT-240) |
+| D-38 | 2026-11-23 | **Favourites storage format and recovery.** Key `weatherly:favorites`. Value: `{ "version": 1, "favorites": [{ name, region?, country?, coordinates: { latitude, longitude } }] }`, newest first, exactly the fields of `Location`. `favoritesParser` (`parseStoredFavorites`, `toStoredFavorites`, `FAVORITES_SCHEMA_VERSION`) reads it strictly and throws `AppError('parse')` for invalid JSON, a wrong structure, an unsupported version, a missing or empty name, a `region`/`country` that is present but not a string (also `null`), and non-finite or out-of-range coordinates. `favoritesRepository` removes duplicates when loading and saving. `keyValueStorage` is the only importer of AsyncStorage and reports storage failures as `AppError('storage')`. Damaged data is never overwritten automatically. | Decided | Storage can hold values from older code or a damaged write, so read values are `unknown` and validated like API JSON (STYLE §11), reusing `jsonReaders`. The version number lets a later format be recognised instead of misread. Strict reading instead of repairing: a partly readable list would silently lose favourites. Keeping the damaged value lets it be inspected or recovered, and only an explicit save replaces it (how the UI offers that is decided in US-05.03). `keyValueStorage` is created in US-05.02 because favourites are the first stored data; STYLE previously planned it for NIT-182. | NIT-177 (NIT-241, NIT-242) |
+| D-39 | 2026-11-23 | **Favourites ViewModel: storage decides, one write at a time.** `useFavoritesViewModel` exposes `state: LoadState<ReadonlyArray<Location>>`, `isSaving`, `saveError`, `isFavorite`, `addFavorite`, `removeFavorite`, `toggleFavorite` and `reload`. It reads the favourites when first used (`loading` → `success`, an empty list on first launch, or `error`). A change is shown only after `saveFavorites` resolved; a failed write keeps the last saved list and sets `saveError`. Changes while a write runs, and changes after a failed read, are ignored. A write makes a running read outdated (`createLatestRequestGuard`). Each screen that uses the hook has its own copy and calls `reload` when another screen may have changed the favourites. | Decided | Never showing an unsaved change keeps the screen and the device storage identical, so a restart shows what the user saw. Ignoring changes during a write is the simplest guard against two writes finishing in the wrong order (rapid taps); the button can show `isSaving`. Ignoring changes after a failed read protects damaged data (D-38). `saveError` is separate from `LoadState`, because a failed save does not make the shown list outdated (`refreshFailed` would suggest that). No Context or global state (D-10); whether the home and favourites screens share one instance is decided when they are connected (US-05.03). The rules are exported as pure functions and unit-tested without a React renderer (SPEC Q21). | NIT-176 (NIT-238), NIT-177 (NIT-242) |
+| D-40 | 2026-11-23 | **Favourites UI: one ViewModel per screen, storage in order, the chosen place back through a route param.**<br>(1) `HomeScreen` and `FavoritesScreen` each call `useFavoritesViewModel`. Home calls `reload` in `useFocusEffect`, so it reads the favourites again whenever it comes back into view. `reload` is stable (`useCallback`) for that.<br>(2) `favoritesRepository` runs every `loadFavorites` and `saveFavorites` after the previous one has finished, in call order, also after a failure.<br>(3) While a list is read again, changes are ignored (`canChange` false), so a possibly outdated list is never written back.<br>(4) `Favorites` is a route on the existing stack, pushed from a header button. `Home` gets the optional param `selectedLocation: Location`. A chosen favourite calls `navigation.popTo('Home', { selectedLocation })`; Home passes it to `handleSelectLocation` (the search flow, `useWeatherViewModel.load`) and clears the param.<br>(5) Damaged storage can be deleted only by `resetFavorites`, offered on the favourites screen for a `parse` error and run only after a confirmation dialog. | Decided | (1) Follows D-10: no Context or global state for one list that changes rarely; storage is the single source of truth (D-39). Reading on focus costs one local read, also once more at start.<br>(2) Two ViewModels can otherwise race: Home's read on focus could finish before the write the favourites screen started just before, and the star would show a removed place. The order is kept in the repository, because both ViewModels share it.<br>(3) Without it, a tap during the read could save the old copy and bring back a place the other screen removed.<br>(4) Reuses the home screen and its weather flow, with no second weather screen and no global weather state (D-30). Route params stay plain values (STYLE §3.3; a `Location` already travels to `DayDetail`, D-36); callbacks in params are not allowed. `popTo` goes back to the existing `Home` instead of pushing a second one. Choosing the place already shown sends no request (`isRepeatedWeatherLoad`). Clearing the param lets the same place be chosen again later.<br>(5) Keeps D-38's rule that damaged data is never replaced automatically, while giving the user a way out instead of a permanently broken list. A storage read failure (`storage`) may be temporary, so only "Try again" is offered then. | NIT-176 (NIT-239), NIT-178 (NIT-244 – NIT-246) |
+| D-41 | 2026-11-23 | **One feature branch per Epic** (e.g. `feat/Epic-04`), replacing one branch per Linear issue (GIT_WORKFLOW.md §1, §4, §5, §9). The branch is pushed after each finished user story and merged into `dev` by PR once the Epic is done. A part may be merged earlier when the other developer needs it. | Decided | Chosen by the students. Each developer owns whole Epics, so one branch per Epic means fewer branches and PRs while the stories of an Epic build on each other. Merging only finished Epics keeps `dev` free of half-done features. Risk: a long-lived branch drifts from `dev`, so `dev` is merged into it regularly; commit messages still name the Linear issue for traceability. | NIT-173 (process) |
+| D-42 | 2026-11-23 | **Missing and polar values on the day detail screen.** A missing optional value keeps its row and reads "Not available". When sunrise = sunset, both rows read "Polar night". When sunrise is the day's start and sunset at least 23 h later (the next day's start), both read "Midnight sun". Resolves OQ-07. | Decided | Chosen by the students over hiding the row: the card keeps the same layout for every day, and the user sees that the value is missing, not forgotten. Open-Meteo sends no `null` for polar days, so showing its values would read "00:00". Rule confirmed against real forecasts for Longyearbyen (polar night) and McMurdo (midnight sun), saved as fixtures on 2026-11-23. The "sunrise is the day's start" condition keeps a real 23½-hour day near the polar circle from counting as midnight sun; 23 h allows for the day clocks go forward. | NIT-174 (NIT-234) |
+| D-43 | 2026-11-23 | **The day detail screen shows the extra daily data the API provides.** Added to the request (`DAILY_FIELDS`), all optional: feels-like high/low (`apparent_temperature_max/min`), rain (`rain_sum`), snowfall (`snowfall_sum`, in **cm**), precipitation hours, max wind gusts, dominant wind direction (shown as one of 8 compass points), max UV index and daylight duration. Shown in Precipitation, Wind and Sun cards (US-04.03); feels-like goes in the hero and is left out there when either value is missing. Temperature is not repeated in a card (the hero shows it). Rounding: rain and snow to one decimal, like wind; hours and UV index to whole numbers; daylight to the minute. No hourly forecast on the detail screen. | Decided | The lab's detail-screen requirement asks for "temperature, weather condition, and any additional data your chosen API provides (wind, precipitation, etc.)" (Lab B:2 PDF, p. 3). The fields come from the request already sent, so they cost one word each in the request and stay available offline with the rest of the report. Hourly data for the selected day was considered and not chosen: it would change the route params (D-36) and enlarge the story. Units confirmed in the saved response's `daily_units` (fixture `openMeteoForecastStockholmDetails.json`, 2026-11-23). | NIT-175 (NIT-235) |
+| D-44 | 2026-11-24 | **Settings: one shared provider, forgiving storage, changes apply at once.**<br>(1) `SettingsProvider` (React context) in `App.tsx` reads the stored settings once at app start and shares `useSettingsViewModel()` = `{ settings, isLoaded, saveError, updateSettings }` with every screen.<br>(2) Stored under `weatherly:settings` as `{ version: 1, refreshIntervalMinutes, temperatureUnit, windSpeedUnit }` (`settingsParser`, `settingsRepository`); writes run in order.<br>(3) Reading never fails the app: nothing stored, text that is not JSON, another version or an unreadable storage give the defaults; an invalid or missing field falls back to its own default and the others are kept. The next save replaces the damaged value.<br>(4) A change takes effect immediately and is saved in the background; if the save fails, the value stays for this session and the screen says it will reset on restart.<br>(5) The settings screen keeps its options disabled until the stored settings are read. | Decided | (1) Unlike favourites (D-40), settings are needed on Home, the day detail screen (which has no ViewModel) and the settings screen, and a change must apply everywhere at once; one shared value is simpler than reading on every focus. Context is built into React, so no library (§13). (3) Deliberately the opposite of favourites (D-38: damaged data is never overwritten): settings take seconds to choose again, while refusing to start or showing an error for them would cost more. (4) A settings tap should feel instant; a storage write failing is rare. (5) Without it, a tap made in the milliseconds before the read finishes would be overwritten by the read; disabling is simpler than merging the two. | NIT-179 (NIT-248) |
+| D-45 | 2026-11-24 | **When the weather is refreshed.** (1) `isStale`: at least the chosen interval old, or a fetch time in the future. (2) Triggers: Home comes back into view (`useFocusEffect`) and the app returns from the background (`AppState` → `active`); both call `refreshIfStale(interval)`. No timer while the app is open. (3) A refresh keeps the shown weather (`isRefreshing`); a failure gives `refreshFailed` with the old report and the error. (4) The screen decides when; the ViewModel decides whether (`shouldRefresh`) and how; it reads its latest state through a ref and keeps `refresh` stable, so two triggers in the same moment start one request. (5) Pull-to-refresh on Home always fetches, whatever the interval; its spinner shows during every refresh. A failed refresh shows `RefreshNotice` under the header ("No connection." for `network`/`timeout`, else "Couldn't update the weather.", plus "Showing the weather from HH:MM.") with a "Try again" button, which is also the accessible alternative to pulling (NIT-383). The full offline experience is Epic 7 (US-07.02), which builds on `refreshFailed` and this notice. | Decided | The lab asks for a configurable refresh rate; Linear says "without excessive polling". These two moments are when someone actually looks at the weather, so a timer would only fetch for an empty screen and cost battery and requests. Keeping the old weather avoids a blank screen and a loading flash on every return. The boundary counts as stale so a 15-minute setting never shows data older than 15 minutes; a future timestamp cannot be aged, so fetching again is the safe answer. | NIT-180 (NIT-250, NIT-252) |
+| D-46 | 2026-11-24 | **Units are applied when formatting.** (1) The API request stays in °C and m/s; `formatTemperature`, `formatTemperatureShort` and `formatWindSpeed` convert (`src/utils/units.ts`) and then round once. (2) The unit is a **required** argument of these formatters and of every presenter that uses them (`units: DisplayUnits`), with no default. (3) Screens read the settings (`displayUnitsOf(useSettingsViewModel().settings)`) and pass `units` to their components as a prop; the components stay presentational. (4) Rounding: °F like °C to whole numbers; km/h to whole numbers; m/s keeps one decimal. | Decided | (1) Switching units sends no request, and the Epic 7 cache will not depend on the unit; converting a rounded °C value would add a second rounding error (0.4 °C is 33 °F, not 32). (2) The compiler then lists every place that still formats without a unit, so "applied consistently" (NIT-255) is enforced by TypeScript, not by memory; a consistency test also checks that no screen text shows °C or m/s when °F and km/h are chosen. The cost was adding a unit to about 40 existing test calls. (3) Matches MVVM in this codebase: screens get data, components draw it. (4) Whole km/h is how wind is usually given; a decimal adds no useful precision at that size. | NIT-181 (NIT-255) |
+| D-47 | 2026-11-25 | **The weather cache: one entry, the parsed model.** (1) The parsed model is stored (`CachedWeatherReport`: report, place, fetch time), not the Open-Meteo JSON, in the format of `weatherCacheParser` (version 1). (2) One entry under `weatherly:lastWeather`; the cached place is also the place restored at launch, so there is no second key. (3) The ViewModel saves the entry, not `getReport`, and only for its newest request (`requestGuard.isLatest`). (4) `loadLastReport` never throws: nothing stored, a damaged entry or a storage error all give `null`; a failed save is ignored by the caller. (5) Restoring at launch uses the same request guard, so a place chosen meanwhile wins. Stored places use the shared `storedLocation` format of the favourites. | Decided | (1) The lab says "the parsed data is stored"; units stay °C and m/s, so the cache works with D-46. The cost is a second parser, because `weatherParser` reads Open-Meteo's parallel arrays and the cache reads our model; a round-trip test over the real fixtures catches a model field the cache parser forgets. (2) The lab asks for "the last successfully fetched data"; one entry per place would need size limits and cleanup. Trade-off: offline, another favourite shows "no saved weather". (3) A slow answer for an earlier place must not replace the cache: otherwise the next launch could restore a place the user had already left. (4) The cache is a fallback; a broken cache must never block the app. (5) See (3). | NIT-182 (NIT-256, NIT-257, NIT-384) |
+| D-48 | 2026-11-25 | **Offline display of the cache.** (1) Restoring and refreshing are one ViewModel intent: `restoreLastReport(intervalMinutes)` shows the cache entry, then calls `refresh()` when `shouldRefresh` says it is stale. (2) `HomeScreen` restores only once the stored settings are loaded (`isLoaded`). (3) Old data keeps the view as of its fetch time (D-32), including the "Today" label of the data's day; the failed-refresh notice shows a date once the data is not from today (NIT-260). (4) No cache and no network needs no new code: the existing search and weather errors with "Try again" apply (NIT-261 checks them). Offline is detected from the failed request (`network`, `timeout`), not with NetInfo. | Decided | (1) Reuses D-45 and the `refreshFailed` notice from NIT-383, so offline at launch looks exactly like a failed refresh later; the screen only says *when* (STYLE.md §3.3). (2) Otherwise a 15-minute interval would be judged with the 30-minute default at the first check. (3) The whole screen then consistently shows "the weather as of" one moment and the notice says which; choosing hours and days by the real time would mix an old observation with today's labels. (4) A connection does not guarantee that the API answers, so the failed request is the reliable signal; NetInfo would add a package for no gain. | NIT-183 (NIT-259 – NIT-261) |
+| D-49 | 2026-11-26 | **One press and one disabled look.** Every touchable element uses `interaction.pressedOpacity` (0.7) while held and `interaction.disabledOpacity` (0.5) when it cannot be used (`src/theme/interaction.ts`). Before, 0.7 and 0.8 were used for pressed, 0.4 and 0.5 for disabled. A disabled control also sets `disabled` and `accessibilityState.disabled`, so it is never shown by opacity alone; the settings options now use the dimmed look while the stored settings are read. | Decided | US-08.01 (NIT-268, NIT-270): STYLE §12 asks for no magic numbers and one visual language; 0.7 and 0.5 were the most common values, so most screens look unchanged |
+| D-50 | 2026-11-26 | **Responsive layout: one column, two switches.** (1) `app.json` `"orientation": "default"`. (2) Every screen keeps its single scrolling column in both orientations; no two-column layout. (3) `screenLayoutFor({ width, height, fontScale })` (pure, `src/utils/screenLayout.ts`) gives `isCompactWidth` (width < 375 × the text size, at least 1) and `isShortHeight` (height < 500), from `layoutBreakpoints`. Unusable sizes (0, negative, NaN, infinite) give the normal portrait layout. (4) `isCompactWidth`: the home header puts its buttons on a right-aligned row under the title, which then gets the full width and two lines; the title has no `flex: 1` in that column. (5) `isShortHeight`: `WeatherHero` puts a 48-point icon beside a 64-point temperature, `DayDetailHero` uses the smaller icon, both with less padding. (6) Screens call it with `useWindowDimensions()`, so a rotation only re-renders; state stays in the ViewModels and no request starts. | Decided | US-08.02 (NIT-271, NIT-273). The lab requires both orientations, and scrolling already keeps all content reachable. A two-column Home was tried on another branch and not taken over (students' decision, 2026-11-26). 375 keeps the one-row header on every current iPhone at the normal text size; at 360 points, four 44-point buttons leave the place name about 110 points |
+| D-51 | 2026-11-26 | **No welcome panel before the cache check.** `useWeatherViewModel` exposes `isCacheChecked`: false until the newest `restoreLastReport` request has read the cache (found or not), or until a place is chosen. `homeContentFor(location, state, isCacheChecked)` gives Home's body: `checkingCache` (a neutral spinner, no text), `welcome`, `weather` or `status`. `isCacheChecked` and the restored weather are set in the same callback, so React renders them together. `readRestoredState` never rejects, so the start cannot hang on the spinner. An outdated restore (a newer restore, or a place chosen meanwhile) changes nothing, as before. | Decided | US-08.03 (NIT-274): before, the state was `idle` with no place while the cache was read, so every returning user saw the first-launch panel flash. The request guard of D-47 is unchanged |
+
+D-05 – D-09 record the choices only. The libraries are installed with `npx expo install` in the user stories that implement them.
+
+### 13.1 Open Questions
+
+| ID | Question | Affects | How to resolve |
+|---|---|---|---|
+| OQ-01 | ~~Exact SMHI place-search endpoint URL and query parameters~~ | W-01, W-02 | **Resolved 2026-11-20:** the SMHI endpoint returns 404; replaced by Open-Meteo Geocoding (D-24) |
+| OQ-02 | ~~Response JSON format~~ | W-02, W-14 | **Resolved 2026-11-20:** `results[]` with `name`, `latitude`, `longitude`, optional `admin1` (region) and `country`; no `results` key when nothing matches. Fixtures in `tests/fixtures/openMeteoGeocoding*.json` |
+| OQ-03 | ~~Geographic coverage~~ | W-01, W-02, UX-02 | **Resolved 2026-11-20:** worldwide (GeoNames data). 1-character queries return nothing. |
+| OQ-04 | Terms of use, rate limits, attribution, key | W-02 | **Partly resolved 2026-11-20:** no key needed (verified by real requests). Terms not yet re-read: to our knowledge, Open-Meteo is free for non-commercial use with fair-use limits and asks for attribution to Open-Meteo (data partly from GeoNames). Confirm on open-meteo.com before submission and credit it in the app (e.g. settings screen). |
+| OQ-05 | ~~Which React Navigation navigator(s) to use (stack only, or stack plus tabs)~~ | W-07, W-09, W-10 | **Resolved 2026-11-23:** one native stack, no tabs (D-35) |
+| OQ-06 | Course submission deadline and oral examination format | — | **Partly resolved 2026-11-26** from the lab PDF (CONTEXT.md §14): one document (reflection + Appendices A – D), submitted at least one day before the presentation; demo first, then questions from §12, starting with Q26. The date itself: from the course page |
+| OQ-07 | ~~How should days without a normal sunrise/sunset be shown?~~ Open-Meteo marks polar night as sunrise = sunset = local midnight, and midnight sun as sunrise = midnight, sunset = next midnight (no `null`). | W-07 | **Resolved 2026-11-23:** "Polar night" / "Midnight sun" in both rows (D-42), in US-04.02 (NIT-234). Evidence: TEST_REPORT §1.2; fixtures `openMeteoForecastLongyearbyen.json`, `openMeteoForecastMcMurdo.json` |
+| OQ-08 | Times after a daylight-saving change inside the forecast window are one hour off from the wall clock. The API applies its current offset to the whole response (D-31), so we show what it delivers. Real example: sunrise on 3 Oct 2026 in Sydney is sent as 06:30 with UTC+11, while the wall-clock time was 05:30. Today's hours are affected only on the night of a change. | W-05 – W-07 | Accept and document for the lab, or derive per-day offsets in a later story (e.g. by also requesting `timeformat=iso8601`, not yet checked). Evidence: TEST_REPORT §1.7 |
+| OQ-09 | Who writes LLM_PROCESS.md? D-21 and CLAUDE.md rule 14 say the AI writes a session entry; the lab's appendix says "The AI must NEVER write this file for the student" and lists required content (tools and context files per session, a who-wrote-what table, 3–5 representative prompts with why each was chosen, AI mistakes and how they were handled, a one-line-per-session work log). | W-33 | The students decide and update D-21 and CLAUDE.md. Until then, the AI does not edit LLM_PROCESS.md: no entry was written for the 2026-11-26 Epic 8/9 session |
+
+## 14. Change Log
+
+| Date | Change | Linear |
+|---|---|---|
+| 2026-11-10 | Initial specification created | NIT-202 |
+| 2026-11-10 | Confirmed D-05 – D-09 and D-12; updated D-11 (root `CLAUDE.md`); added open questions (§13.1), verified-progress notes (§11.1) and the Linear identifier list (§11.2) | NIT-164 |
+| 2026-11-10 | Added OpenAI Codex alongside Claude Code (D-13, root `AGENTS.md`); mapped all 34 requirements to the 32 user stories | NIT-204 |
+| 2026-11-10 | Moved agent instructions to `agents/claude.md` and `agents/codex.md` (root `CLAUDE.md`/`AGENTS.md` removed); documented explicit loading; updated D-11 and D-13 | NIT-164 |
+| 2026-11-18 | Moved all Markdown files to the repository root (`docs/*.md` → root, `agents/claude.md` → `CLAUDE.md`, `agents/codex.md` → `AGENTS.md`); both developers now use Claude Code in VS Code; added D-14 – D-16, superseding D-11 and D-13 | NIT-163 |
+| 2026-11-18 | Created the `src/` folder structure and the shared types `AppError`, `Coordinates`/`Location` and `LoadState<T>`; documented layer contracts, data flow and navigation ownership (STYLE §3.1 – §3.3); added D-17 – D-20 and widened D-16's scope | NIT-163 (NIT-199 – NIT-201) |
+| 2026-11-18 | Added D-21 (assistant writes the LLM_PROCESS.md session entries) | NIT-191 |
+| 2026-11-20 | Renumbered the Epic 2 user stories by dependency. Aligned W-24 with the lab's three test areas. Replaced §12 with the 30 official oral examination questions. Added §10.1 AI Usage Summary. Added D-22 (one home screen) | NIT-153, NIT-169, NIT-189 |
+| 2026-11-20 | US-02.01: added `Weather.ts` and `weatherParser.ts`; installed Jest; added D-23 (root `tests/` folder); W-14, W-15 and W-24 set to IN PROGRESS; answered Q2 – Q4 and Q28 | NIT-168 (NIT-214 – NIT-216) |
+| 2026-11-20 | Geocoding switched from SMHI to Open-Meteo Geocoding (D-24, D-06 superseded); OQ-01 – OQ-04 resolved | NIT-165 (NIT-205) |
+| 2026-11-20 | US-02.04: added D-25 (comma decimals); W-03 detail and status updated | NIT-166 (NIT-209) |
+| 2026-11-20 | US-02.04: `CoordinateSearchForm` and minimal theme tokens added; simulator check recorded | NIT-166 (NIT-208) |
+| 2026-11-22 | US-03.01: `HomeScreen` with place-name and coordinate search, results, status messages and selection; `App.tsx` renders it. Added D-26 – D-28; installed `react-native-safe-area-context`; W-20 set to IN PROGRESS; W-01 detail (submit only); answered Q19 and extended Q12 and Q17 | NIT-169 (NIT-217 – NIT-219) |
+| 2026-11-22 | US-03.02: `useWeatherViewModel`, `CurrentWeatherCard`, `WeatherStatus`, `weatherCode`, `weatherFormatting` and `latestRequest`; the selected location moved into the weather ViewModel. Added D-29, D-30; W-04 set to IN PROGRESS; answered Q5, Q7, Q9 and extended Q8 | NIT-170 |
+| 2026-11-22 | US-03.03 and US-03.04: seven-day forecast and the rest of today hour by hour on `HomeScreen`, chosen from the same report (`forecastSelection`, `forecastFormatting`, four components). Added D-31, D-32 and OQ-08; W-05, W-06 and W-21 set to IN PROGRESS; answered Q24 | NIT-171, NIT-172 |
+| 2026-11-22 | Weather-first home-screen redesign: header with search button, `WeatherHero`, glass forecast cards on a day/night sky, `LocationSearchSheet` for both search modes, welcome panel, "Try again". Installed `@expo/vector-icons`, `expo-font`, `expo-asset` (D-34). Added D-33, D-34; W-29 set to IN PROGRESS; Q5, Q9, Q19 updated | Redesign |
+| 2026-11-23 | US-04.01 planning: added D-35 (one native stack, no tabs; OQ-05 resolved) and D-36 (the detail screen gets the selected `DailyForecast` in its route params); STYLE §3.2 step 9, §3.3 and §6 updated | NIT-173 |
+| 2026-11-23 | US-04.01 (NIT-229): installed React Navigation (D-35); added `src/navigation/routes.ts`, `RootNavigator.tsx` and a minimal `DayDetailScreen`; `App.tsx` renders the navigator | NIT-173 (NIT-229) |
+| 2026-11-23 | US-04.01 (NIT-230): day rows open `DayDetail` with the place, the day and the UTC offset; W-07 set to IN PROGRESS; answered Q22 | NIT-173 (NIT-230) |
+| 2026-11-23 | US-04.01 (NIT-231): route-param test and navigation scenarios recorded; W-07 §11.1 updated | NIT-173 (NIT-231) |
+| 2026-11-23 | Added D-41 (one feature branch per Epic); GIT_WORKFLOW.md §1, §4, §5 and §9 updated | Process |
+| 2026-11-23 | US-04.02 (NIT-232): day detail screen on the day sky with a matching native header; `presentDayDetail` (typed view props) and `DetailRow` added | NIT-174 (NIT-232) |
+| 2026-11-23 | US-04.02 (NIT-233): `DayDetailHero` shows the date, icon, condition and high/low; 6 tests for `presentDayDetail` with real forecast days, 1 mutation check | NIT-174 (NIT-233) |
+| 2026-11-23 | US-04.02 (NIT-234): sun card on the day detail screen (`presentSunTimes`); D-42 added, OQ-07 resolved; real Longyearbyen and McMurdo forecasts saved as fixtures | NIT-174 (NIT-234) |
+| 2026-11-23 | US-04.03 (NIT-235): 9 daily detail fields added to the request, model and parser (D-43); formatters for rain, snow, hours, UV, daylight and compass direction; `presentDayConditions`; feels-like in `presentDayDetail`; new real fixture `openMeteoForecastStockholmDetails.json` | NIT-175 (NIT-235) |
+| 2026-11-23 | US-04.03 (NIT-236): Precipitation and Wind cards, Daylight and UV index rows, feels-like line in the day detail hero | NIT-175 (NIT-236) |
+| 2026-11-23 | US-04.03 (NIT-237): end-to-end tests for missing values (JSON → parser → presenters); UX-26 (day detail on a small screen, landscape, largest text) added to TEST_REPORT | NIT-175 (NIT-237) |
+| 2026-11-23 | Merge of `dev` (Epic 5) into `feat/Epic-04`: Epic 4's decisions renumbered D-37 → D-41 (branch per Epic), D-38 → D-42 (missing and polar values), D-39 → D-43 (extra daily fields), because Epic 5 reached `dev` first with D-37 – D-40; favourites sections in TEST_REPORT renumbered §1.10 → §1.11 and §1.11 → §1.12; three US-04.03 change-log rows moved out of the decision table | Process |
+| 2026-11-24 | GIT_WORKFLOW §9: Epic branches are merged into `dev` with a merge commit instead of a squash merge, so the story commits stay visible | Process |
+| 2026-11-24 | Epic 6 scope agreed against the lab: two UI preferences (temperature and wind-speed unit), a concrete refresh rule with pull-to-refresh, persisted settings, no background polling. US-06.01 (NIT-247): `AppSettings` model and defaults, `presentSettings`, `SettingsScreen`, `SettingOptionRow`, `Settings` route, gear button in `HomeHeader`; W-10 set to IN PROGRESS | NIT-157 (NIT-247) |
+| 2026-11-24 | US-06.01 (NIT-248): `settingsParser`, `settingsRepository`, `SettingsProvider` / `useSettingsViewModel`; the settings screen shows and stores the current settings; added D-44; Q10 updated | NIT-179 (NIT-248) |
+| 2026-11-24 | US-06.01 (NIT-249): simulator checks and UX-14 recorded; story wrap-up checks pass | NIT-179 (NIT-249) |
+| 2026-11-24 | US-06.02 (NIT-250, NIT-252, done as one step): `isStale` in `refreshPolicy.ts`; `refresh` and `refreshIfStale` in `useWeatherViewModel`; Home refreshes stale weather on focus and on return from the background; added D-45; W-11 rule, IN PROGRESS; Q6 and Q11 answered; new Linear task NIT-383 (pull-to-refresh and failure notice) | NIT-180 (NIT-250, NIT-252) |
+| 2026-11-24 | US-06.02 (NIT-383): pull-to-refresh on Home; `RefreshNotice` with "Try again" after a failed refresh (`describeRefreshNotice`); UX-15 reworded for refresh without the cache; UX-27 (pull to refresh) added | NIT-180 (NIT-383) |
+| 2026-11-24 | US-06.03 (NIT-255): temperature and wind units applied on every screen; `units.ts`; required `units` argument in formatters and presenters; added D-46; W-12 detail, IN PROGRESS; NIT-253 and NIT-254 covered by NIT-248 | NIT-181 (NIT-255) |
+| 2026-11-25 | Epic 7 scope checked against the lab: one cache entry, the last place restored at launch (new task NIT-384), cache shown at launch before any fetch; NIT-262, NIT-263, NIT-265 and NIT-266 cancelled as already built in Epics 2 and 6 | NIT-158 |
+| 2026-11-25 | US-07.01 (NIT-256): `CachedWeatherReport`; `weatherCacheParser`; place format moved to `storedLocation` (shared with the favourites); `loadLastReport` and `saveLastReport` in `weatherRepository`; added D-47; W-16 detail, IN PROGRESS; Q6 updated | NIT-182 (NIT-256) |
+| 2026-11-25 | US-07.01 (NIT-257 + NIT-384, done as one step): `useWeatherViewModel` saves the cache entry after each newest successful load or refresh and restores it with `restoreLastReport`; `HomeScreen` restores at the start; Q10, Q12 updated, Q16 partly answered; UX-28 added | NIT-182 (NIT-257, NIT-384) |
+| 2026-11-25 | US-07.02 (NIT-259): `restoreLastReport(intervalMinutes)` refreshes a stale cache entry right after showing it; `HomeScreen` restores once the settings are loaded; added D-48; W-17 detail, IN PROGRESS; Q6 completed. NIT-258 covered by NIT-256 and NIT-384 | NIT-183 (NIT-259), NIT-182 (NIT-258) |
+| 2026-11-25 | US-07.02 (NIT-260): the failed-refresh notice adds the date when the shown weather is not from today at the place (`isSameLocalDay`, `formatLocalDateTime`; spoken label in full); Q15 and Q16 answered | NIT-183 (NIT-260) |
+| 2026-11-25 | US-07.02 (NIT-261, checks only): offline search, a new place offline (UX-18) and recovery (UX-19) checked on the iOS Simulator; UX-17 reworded to match D-20 and D-48 and recorded; story wrap-up checks pass | NIT-183 (NIT-261) |
+| 2026-11-25 | US-07.03 (NIT-264): weather error texts name the "Try again" button instead of "select the place again"; search texts unchanged; error-text audit across all screens in TEST_REPORT §1.18; Q13 answered, Q18 proposed; NIT-262, NIT-263 already covered by Epic 2 | NIT-184 (NIT-264) |
+| 2026-11-25 | US-07.04 (NIT-267): `useSearchViewModel` uses the shared `createLatestRequestGuard` instead of its own counter, same behaviour; Q11 and Q12 updated; UX-23 reworded, UX-29 (rapid search) added; NIT-265, NIT-266 already covered by Epics 2 and 6; Epic 7 wrap-up checks pass | NIT-185 (NIT-267) |
+| 2026-11-26 | Q7 and the W-11 details updated for the Epic 7 cache: the in-memory state stays the source for the screens; the stored entry is read only at start | NIT-158 |
+| 2026-11-26 | §12 checked against the code after Epic 7: Q4, Q5, Q6, Q9, Q10, Q14, Q17, Q20, Q21 updated; Q23 and Q26 given a suggested walk-through (W-16) | NIT-158 |
+| 2026-11-26 | §12: Q25, Q27, Q29 and Q30 answered from the students' own wording, shortened for the oral exam | — |
+| 2026-11-26 | §12: Q18 proposal accepted by the students | — |
+| 2026-11-26 | Epic 8 (uncommitted on `feat/NIT-159-160-rework`): shared press and disabled opacity, dimmed settings options (D-49); orientation `default`, `screenLayoutFor`, stacked home header, compact heroes (D-50); no welcome-panel flash at start and a Settings loading line (D-51). W-22 set to IN PROGRESS; W-20, W-21, W-29 and W-30 updated | NIT-159 (NIT-186 – NIT-188) |
+| 2026-11-26 | Epic 9: traceability checked against the code (§11 and §11.1: stale W-01, W-02, W-14, W-15, W-21, W-28, W-31 rows corrected; W-25 – W-28, W-30 and W-32 set to IN PROGRESS); §12.1 tests per oral question; OQ-06 partly resolved; OQ-09 (who writes LLM_PROCESS.md) added | NIT-160 (NIT-189 – NIT-192) |
+| 2026-11-23 | US-05.01 and US-05.02, logic and persistence only: installed AsyncStorage (D-08); added `favorites` utils, `favoritesParser`, `keyValueStorage`, `favoritesRepository` and `useFavoritesViewModel` with tests; added D-37 – D-39; W-08 set to IN PROGRESS; partial answer to Q10. The star button (NIT-239) waits for Epic 4 | NIT-176 (NIT-238, NIT-240), NIT-177 (NIT-241 – NIT-243) |
+| 2026-11-23 | NIT-239 and US-05.03: favourite star and favourites button in `HomeHeader`; `FavoritesScreen`, `FavoriteListItem`, `FavoritesStatus`; `Favorites` route and `Home` `selectedLocation` param; Home reloads favourites on focus; repository runs reads and writes in order; `canChange` and confirmed `resetFavorites` in the ViewModel. Added D-40; W-09 set to IN PROGRESS; Q10 updated | NIT-176 (NIT-239), NIT-178 (NIT-244 – NIT-246) |
+
+## 15. End-of-Session Update Procedure
+
+At the end of every work session, the AI assistant updates this file as part of the session's changes, and the student reviews them before committing. Only a student sets a status to `VERIFIED` (§0 rule 6).
+
+1. Update the **status** in §11 for each requirement touched. Use `VERIFIED` only after verifying on both platforms.
+2. Fill in any `TBD` Linear identifiers that are now known.
+3. Add new or changed decisions to §13 and resolve open ones.
+4. Add a line to the §14 change log.
+5. Fill in the code location and a short answer in §12 for any oral examination question that the new code answers.
+6. Then complete the checklist in [CONTEXT.md §16](CONTEXT.md#16-end-of-session-checklist).
